@@ -2,6 +2,7 @@
 import { FirebaseApp } from 'firebase/app';
 import { Auth } from 'firebase/auth';
 import { Firestore } from 'firebase/firestore';
+import { FirebaseStorage } from 'firebase/storage';
 import React, { createContext, useContext } from 'react';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 
@@ -9,6 +10,7 @@ export type FirebaseContextType = {
   firebaseApp: FirebaseApp | null;
   auth: Auth | null;
   firestore: Firestore | null;
+  storage: FirebaseStorage | null;
 };
 
 export const FirebaseContext = createContext<FirebaseContextType | null>(null);
@@ -39,3 +41,4 @@ export const useFirebase = () => {
 export const useFirebaseApp = () => useFirebase()?.firebaseApp;
 export const useFirestore = () => useFirebase()?.firestore;
 export const useAuth = () => useFirebase()?.auth;
+export const useStorage = () => useFirebase()?.storage;

@@ -17,6 +17,9 @@ import {
   Zap,
   X,
 } from "lucide-react";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+
 
 import {
   enhanceImage,
@@ -44,6 +47,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { cn } from "@/lib/utils";
+import { useUser, useFirestore, useStorage } from "@/firebase";
+
 
 const beforeImageDefault = PlaceHolderImages.find(
   (p) => p.id === "glow-up-before-default"
@@ -95,6 +100,10 @@ const modeledPresets: Record<LookPreset, { label: string; description: string }>
 
 export function GlowUpStudio() {
   const { toast } = useToast();
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const storage = useStorage();
+
   const [originalImages, setOriginalImages] = React.useState<string[]>([]);
   const [enhancedImage, setEnhancedImage] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
@@ -120,8 +129,6 @@ export function GlowUpStudio() {
     setGenerationMode(null);
     setIsInstantGlowUp(false);
     setMobileTab("before");
-    // Clear the file input's value to fix the bug where re-selecting
-    // the same file doesn't trigger onChange after a reset.
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -137,8 +144,8 @@ export function GlowUpStudio() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     
-    if (!files || files.length === 0 || !creationType) {
-        if (step === 'upload') { // User cancelled the initial upload
+    if (!files || files.length === 0 || !creationType || !user || !storage || !firestore) {
+        if (step === 'upload') {
             setStep('selectCreationType');
             setCreationType(null);
         }
@@ -165,34 +172,48 @@ export function GlowUpStudio() {
     });
     if (hasError) return;
 
-    const newImageUrls: string[] = [];
-    let filesLoaded = 0;
+    toast({ title: 'Uploading image(s)...', description: 'Your files are being securely saved.' });
+    
+    const uploadPromises = Array.from(files).map(async (file) => {
+      const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
+      const storageRef = ref(storage, storagePath);
 
-    const processFile = (file: File) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        newImageUrls.push(reader.result as string);
-        filesLoaded++;
-        if (filesLoaded === files.length) {
-          setOriginalImages(prev => [...prev, ...newImageUrls]);
+      await uploadBytes(storageRef, file);
+      const downloadURL = await getDownloadURL(storageRef);
 
-          if (step === 'upload') { // only advance step on initial upload.
+      const uploadDoc = {
+        uid: user.uid,
+        email: user.email,
+        storagePath,
+        downloadURL,
+        originalName: file.name,
+        contentType: file.type,
+        size: file.size,
+        createdAt: serverTimestamp(),
+      };
+
+      await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
+      
+      return downloadURL;
+    });
+
+    Promise.all(uploadPromises).then(newImageUrls => {
+        setOriginalImages(prev => [...prev, ...newImageUrls]);
+        toast({ title: 'Upload complete!', description: 'You can now style your image(s).' });
+        if (step === 'upload') {
             setEnhancedImage(null);
             setStep("selectStyleType");
-          }
         }
-      };
-      reader.readAsDataURL(file);
-    };
-
-    Array.from(files).forEach(processFile);
+    }).catch(error => {
+        console.error("Error uploading files:", error);
+        toast({ variant: "destructive", title: "Upload failed", description: "There was an error saving your files. Please try again." });
+    });
   };
   
   const handleRemoveImage = (indexToRemove: number) => {
     const newImages = originalImages.filter((_, index) => index !== indexToRemove);
     setOriginalImages(newImages);
     if (newImages.length === 0) {
-        // If all images are removed, go back to the upload or create type step
         if (creationType) {
             setStep("upload");
         } else {
