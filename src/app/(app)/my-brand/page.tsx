@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -281,12 +282,12 @@ export default function MyBrandPage() {
                 </AccordionTrigger>
                 <AccordionContent asChild>
                   <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <FormField control={form.control} name="brandName" render={({ field }) => ( <FormItem><FormLabel>Brand Name</FormLabel><FormControl><Input placeholder="e.g., Stella & Grace" {...field} /></FormControl></FormItem> )} />
-                    <FormField control={form.control} name="tagline" render={({ field }) => ( <FormItem><FormLabel>Tagline</FormLabel><FormControl><Input placeholder="e.g., Effortless style, everyday." {...field} /></FormControl></FormItem> )} />
-                    <FormField control={form.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="e.g., Nashville, TN" {...field} /></FormControl></FormItem> )} />
-                    <FormField control={form.control} name="websiteUrl" render={({ field }) => ( <FormItem><FormLabel>Website URL</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="instagramUrl" render={({ field }) => ( <FormItem><FormLabel>Instagram URL</FormLabel><FormControl><Input type="url" placeholder="https://instagram.com/..." {...field} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="facebookUrl" render={({ field }) => ( <FormItem><FormLabel>Facebook Page/Group URL</FormLabel><FormControl><Input type="url" placeholder="https://facebook.com/..." {...field} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={form.control} name="brandName" render={({ field }) => ( <FormItem><FormLabel>Brand Name</FormLabel><FormControl><Input placeholder="e.g., Stella & Grace" {...field} value={field.value || ''} /></FormControl></FormItem> )} />
+                    <FormField control={form.control} name="tagline" render={({ field }) => ( <FormItem><FormLabel>Tagline</FormLabel><FormControl><Input placeholder="e.g., Effortless style, everyday." {...field} value={field.value || ''} /></FormControl></FormItem> )} />
+                    <FormField control={form.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="e.g., Nashville, TN" {...field} value={field.value || ''} /></FormControl></FormItem> )} />
+                    <FormField control={form.control} name="websiteUrl" render={({ field }) => ( <FormItem><FormLabel>Website URL</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={form.control} name="instagramUrl" render={({ field }) => ( <FormItem><FormLabel>Instagram URL</FormLabel><FormControl><Input type="url" placeholder="https://instagram.com/..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                    <FormField control={form.control} name="facebookUrl" render={({ field }) => ( <FormItem><FormLabel>Facebook Page/Group URL</FormLabel><FormControl><Input type="url" placeholder="https://facebook.com/..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
                   </CardContent>
                 </AccordionContent>
               </Card>
@@ -570,3 +571,5 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   )
 }
+
+    
