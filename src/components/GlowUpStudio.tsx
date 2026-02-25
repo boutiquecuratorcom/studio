@@ -52,12 +52,14 @@ const beforeImageDefault = PlaceHolderImages.find(
 type CreationType = "single" | "multiple";
 type StyleType = "flat-lay" | "on-model";
 type LookPreset =
-  | "soft-boutique-studio"
-  | "bright-clean-catalog"
-  | "cozy-lifestyle-flat"
-  | "minimal-studio-model"
-  | "warm-lifestyle-model"
-  | "casual-outdoor-model";
+  | 'clean-catalog'
+  | 'styled-boutique'
+  | 'facebook-sales-post'
+  | 'luxury-editorial'
+  | 'minimal-studio-model'
+  | 'warm-lifestyle-model'
+  | 'casual-outdoor-model';
+
 
 type Step =
   | "selectCreationType"
@@ -70,10 +72,12 @@ type Step =
 type GenerationMode = 'ai' | 'instant' | 'busy' | null;
 
 const flatLayPresets: Record<LookPreset, { label: string; description: string }> = {
-  "soft-boutique-studio": { label: "Soft Boutique Studio", description: "Neutral warm background, soft shadows" },
-  "bright-clean-catalog": { label: "Bright Clean Catalog", description: "White background, minimal shadow" },
-  "cozy-lifestyle-flat": { label: "Cozy Lifestyle Flat", description: "Textured neutral surface" },
-  'minimal-studio-model': { label: '', description: '' }, // to satisfy typescript
+  "clean-catalog": { label: "Clean Catalog", description: "Bright, symmetrical, minimal accessories" },
+  "styled-boutique": { label: "Styled Boutique", description: "Warm, soft shadows, 1 premium accessory" },
+  "facebook-sales-post": { label: "Facebook Sales Post", description: "Dynamic & playful, up to 2 accessories" },
+  "luxury-editorial": { label: "Luxury Editorial", description: "Artistic, dramatic lighting, premium feel" },
+  // Placeholders for modeled presets
+  'minimal-studio-model': { label: '', description: '' },
   'warm-lifestyle-model': { label: '', description: '' },
   'casual-outdoor-model': { label: '', description: '' },
 };
@@ -82,9 +86,11 @@ const modeledPresets: Record<LookPreset, { label: string; description: string }>
   "minimal-studio-model": { label: "Minimal Studio Model", description: "Clean studio background" },
   "warm-lifestyle-model": { label: "Warm Lifestyle Model", description: "Indoor boutique setting" },
   "casual-outdoor-model": { label: "Casual Outdoor Model", description: "Natural light outdoor look" },
-  'soft-boutique-studio': { label: '', description: '' }, // to satisfy typescript
-  'bright-clean-catalog': { label: '', description: '' },
-  'cozy-lifestyle-flat': { label: '', description: '' },
+  // Placeholders for flat lay presets
+  'clean-catalog': { label: '', description: '' },
+  'styled-boutique': { label: '', description: '' },
+  'facebook-sales-post': { label: '', description: '' },
+  'luxury-editorial': { label: '', description: '' },
 };
 
 export function GlowUpStudio() {
