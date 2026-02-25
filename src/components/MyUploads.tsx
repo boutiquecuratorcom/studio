@@ -33,6 +33,8 @@ export function MyUploads() {
 
   const { data: uploads, loading, error } = useCollection<Upload>(uploadsQuery);
 
+  const validUploads = useMemo(() => uploads?.filter(u => u.downloadURL), [uploads]);
+
   return (
     <Card>
       <CardHeader>
@@ -52,18 +54,18 @@ export function MyUploads() {
         {error && (
             <p className='text-destructive'>Error loading uploads. Please try again later.</p>
         )}
-        {!loading && uploads && uploads.length === 0 && (
+        {!loading && (!validUploads || validUploads.length === 0) && (
           <p className="text-muted-foreground text-center py-8">
             You haven't uploaded any images yet.
           </p>
         )}
-        {uploads && uploads.length > 0 && (
+        {validUploads && validUploads.length > 0 && (
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {uploads.map((upload) => (
+            {validUploads.map((upload) => (
               <div key={upload.id} className="relative group aspect-square">
                 <Image
                   src={upload.downloadURL}
-                  alt={upload.originalName}
+                  alt={upload.originalName || 'Uploaded image'}
                   fill
                   className="object-cover rounded-lg border"
                 />
