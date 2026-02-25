@@ -127,12 +127,15 @@ export function GlowUpStudio() {
     }
   };
 
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    fileInputRef.current?.click();
+  };
+
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    // Always clear the input to allow re-selecting the same file
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
-    }
     
     if (!files || files.length === 0 || !creationType) {
         if (step === 'upload') { // User cancelled the initial upload
@@ -201,7 +204,7 @@ export function GlowUpStudio() {
   const handleSelectCreationType = (type: CreationType) => {
     setCreationType(type);
     setStep("upload");
-    setTimeout(() => fileInputRef.current?.click(), 0);
+    setTimeout(triggerFileInput, 0);
   };
 
   const handleSelectStyleType = (type: StyleType) => {
@@ -382,7 +385,7 @@ export function GlowUpStudio() {
         ) : !isOriginal && enhancedImage ? (
            <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isInstantGlowUp && "saturate-125 brightness-110 contrast-105")} data-ai-hint="dress mannequin" />
         ) : (isOriginal && step !== 'selectCreationType') ? (
-            <div className="flex flex-col h-full items-center justify-center bg-muted/30 p-8 text-center cursor-pointer" onClick={() => fileInputRef.current?.click()}>
+            <div className="flex flex-col h-full items-center justify-center bg-muted/30 p-8 text-center cursor-pointer" onClick={triggerFileInput}>
               <UploadCloud className="w-12 h-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">Click to upload your image(s)</p>
             </div>
@@ -403,7 +406,7 @@ export function GlowUpStudio() {
         )}
         {step !== "enhancing" && step !== 'selectCreationType' && isOriginal && originalImages.length > 0 && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
+            <Button variant="secondary" onClick={triggerFileInput}>
               <UploadCloud className="mr-2 h-4 w-4" />
               Change/Add Images
             </Button>
@@ -444,7 +447,7 @@ export function GlowUpStudio() {
         <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Selected Image(s)</h3>
             { (creationType === 'multiple' && originalImages.length < 3) &&
-                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Button variant="outline" size="sm" onClick={triggerFileInput}>
                     <UploadCloud className="mr-2 h-4 w-4" />
                     Add More
                 </Button>
