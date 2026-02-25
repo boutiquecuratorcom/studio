@@ -1,4 +1,4 @@
-import { LogOut, Sparkles } from 'lucide-react';
+import { LogOut, Sparkles, User, Settings } from 'lucide-react';
 import React from 'react';
 import { useUser, useAuth } from '@/firebase';
 import { Button } from './ui/button';
@@ -59,6 +59,15 @@ export function Header() {
                     </p>
                   </div>
                 </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem>
+                  <User className="mr-2 h-4 w-4" />
+                  <span>Profile</span>
+                </DropdownMenuItem>
+                <DropdownMenuItem>
+                  <Settings className="mr-2 h-4 w-4" />
+                  <span>Settings</span>
+                </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut}>
                   <LogOut className="mr-2 h-4 w-4" />
