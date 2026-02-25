@@ -6,7 +6,6 @@ import * as z from "zod";
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
-  type Auth,
 } from "firebase/auth";
 import { setDoc, doc, serverTimestamp } from "firebase/firestore";
 
@@ -31,7 +30,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useFirestore } from "@/firebase";
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Sparkles } from "lucide-react";
 
 const formSchema = z.object({
   email: z.string().email({
@@ -49,6 +48,7 @@ export function AuthForm() {
   const auth = useAuth();
   const firestore = useFirestore();
   const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("signin");
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -96,7 +96,6 @@ export function AuthForm() {
       );
       const user = userCredential.user;
       
-      // Create a user profile document in Firestore
       await setDoc(doc(firestore, "users", user.uid), {
         uid: user.uid,
         email: user.email,
@@ -130,43 +129,44 @@ export function AuthForm() {
         setIsLoading(false);
     }
   };
+  
+  const onSubmit = (values: FormValues) => {
+    if (activeTab === 'signin') {
+      handleSignIn(values);
+    } else {
+      handleSignUp(values);
+    }
+  }
 
   return (
-    <Card className="w-full max-w-md">
-      <CardHeader>
-        <CardTitle>Welcome!</CardTitle>
+    <Card className="w-full max-w-md border-none sm:border shadow-none sm:shadow-lg">
+      <CardHeader className="text-center">
+        <div className="flex justify-center items-center gap-3 mb-4">
+            <Sparkles className="h-8 w-8 text-primary" />
+            <h1 className="text-2xl font-headline font-semibold tracking-tight text-foreground">
+                Boutique Curator
+            </h1>
+        </div>
+        <CardTitle className="font-headline text-3xl">Welcome Back</CardTitle>
         <CardDescription>
-          Sign in or create an account to get started.
+          Sign in or create an account to access your studio.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="signin">
+        <Tabs defaultValue="signin" onValueChange={(value) => setActiveTab(value)}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
-          <TabsContent value="signin">
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSignIn)} className="space-y-4 pt-4">
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-6">
                 <AuthFormFields form={form} />
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Sign In
+                <Button type="submit" size="lg" className="w-full text-base py-6" disabled={isLoading}>
+                    {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
+                    {activeTab === 'signin' ? 'Sign In' : 'Create Account'}
                 </Button>
               </form>
             </Form>
-          </TabsContent>
-          <TabsContent value="signup">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSignUp)} className="space-y-4 pt-4">
-                <AuthFormFields form={form} />
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                    {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                    Create Account
-                </Button>
-              </form>
-            </Form>
-          </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
@@ -180,7 +180,7 @@ const AuthFormFields = ({ form }: { form: any }) => (
         name="email"
         render={({ field }) => (
           <FormItem>
-            <FormLabel>Email</FormLabel>
+            <FormLabel>Email Address</FormLabel>
             <FormControl>
               <Input placeholder="name@example.com" {...field} />
             </FormControl>
@@ -203,3 +203,4 @@ const AuthFormFields = ({ form }: { form: any }) => (
       />
     </>
   );
+

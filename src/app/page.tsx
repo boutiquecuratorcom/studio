@@ -1,47 +1,35 @@
 "use client";
 
-import React from 'react';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useUser } from '@/firebase';
 import { AuthForm } from '@/components/AuthForm';
-import { GlowUpStudio } from '@/components/GlowUpStudio';
-import { Header } from '@/components/Header';
-import { MyUploads } from '@/components/MyUploads';
-import { ConnectionStatus } from '@/components/ConnectionStatus';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Sparkles } from 'lucide-react';
 
-export default function Home() {
+export default function RootPage() {
   const { user, loading } = useUser();
+  const router = useRouter();
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace('/dashboard');
+    }
+  }, [user, loading, router]);
+
+  if (loading || user) {
     return (
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
-          <Skeleton className="w-full h-[600px] rounded-lg" />
-        </main>
+      <div className="flex flex-col gap-4 items-center justify-center min-h-screen bg-background">
+        <Sparkles className="h-10 w-10 text-primary animate-pulse" />
+        <p className="text-muted-foreground">Loading your studio...</p>
       </div>
     );
   }
 
-  if (!user) {
-    return (
-      <div className="flex flex-col min-h-screen">
-        <Header />
-        <main className="flex-1 flex items-center justify-center p-4">
-          <AuthForm />
-        </main>
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-col min-h-screen">
-      <Header />
-      <main className="flex-1 px-4 sm:px-6 lg:px-8 pb-8 space-y-8">
-        <GlowUpStudio />
-        <ConnectionStatus />
-        <MyUploads />
-      </main>
+    <div className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
+      <AuthForm />
     </div>
   );
 }

@@ -197,21 +197,31 @@ export function GlowUpStudio() {
     const existingImageUrls: string[] = [];
     const filesToUpload: File[] = [];
 
-    Array.from(files).forEach(file => {
-      const existingFile = existingUploads?.find(upload =>
-        upload.originalName === file.name && upload.size === file.size
-      );
+    for (const file of Array.from(files)) {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        await new Promise<void>(resolve => {
+            reader.onload = () => {
+                const dataUrl = reader.result as string;
+                const existingImage = existingUploads?.find(upload =>
+                    upload.originalName === file.name && upload.size === file.size
+                );
 
-      if (existingFile?.downloadURL) {
-        existingImageUrls.push(existingFile.downloadURL);
-        toast({
-          title: "Image Added",
-          description: `Used "${file.name}" from your library.`,
+                if (existingImage) {
+                    if (!originalImages.includes(existingImage.downloadURL)) {
+                        existingImageUrls.push(existingImage.downloadURL);
+                        toast({
+                            title: "Image Added From Library",
+                            description: `Used "${file.name}" from your uploads.`,
+                        });
+                    }
+                } else {
+                    filesToUpload.push(file);
+                }
+                resolve();
+            };
         });
-      } else {
-        filesToUpload.push(file);
-      }
-    });
+    }
 
     const allUrlsToAdd = [...existingImageUrls];
 
@@ -235,6 +245,7 @@ export function GlowUpStudio() {
             contentType: file.type,
             size: file.size,
             createdAt: serverTimestamp(),
+            isEnhanced: false,
           };
 
           await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
@@ -242,7 +253,7 @@ export function GlowUpStudio() {
         }));
         
         allUrlsToAdd.push(...newlyUploadedUrls);
-        toast({ title: 'Upload complete!', description: 'You can now style your image(s).' });
+        toast({ title: 'Upload complete!', description: 'You can now style your new image(s).' });
 
       } catch (error) {
         console.error("Error uploading files:", error);
@@ -377,7 +388,7 @@ export function GlowUpStudio() {
         // Save the image and update toast on success
         setProgress(98);
         await saveEnhancedImage(result.enhancedImageDataUri);
-        toast({ title: "Glow-up complete!", description: "Your new image has been saved to 'My Uploads'." });
+        toast({ title: "Glow-up complete!", description: "Your new image has been saved to your library." });
       }
       
       clearInterval(interval);
@@ -460,14 +471,14 @@ export function GlowUpStudio() {
       size="lg"
       disabled={disabled}
       onClick={onClick}
-      className={cn("h-auto w-full text-left justify-start p-4", isSelected && "border-primary ring-2 ring-primary")}
+      className={cn("h-auto w-full text-left justify-start p-4 border-2", isSelected && "border-primary ring-2 ring-primary/50")}
     >
       <div className="flex gap-4 items-center">
-        <div className={cn("h-12 w-12 rounded-md bg-muted flex items-center justify-center shrink-0", isSelected && "bg-primary text-primary-foreground")}>
+        <div className={cn("h-12 w-12 rounded-lg bg-muted flex items-center justify-center shrink-0", isSelected && "bg-primary text-primary-foreground")}>
           {icon}
         </div>
         <div className="flex flex-col">
-          <span className="font-semibold">{label}</span>
+          <span className="font-semibold text-base">{label}</span>
           <span className="text-sm text-muted-foreground font-normal">{description}</span>
         </div>
         {isSelected && <Check className="h-5 w-5 ml-auto text-primary" />}
@@ -484,9 +495,9 @@ export function GlowUpStudio() {
     isOriginal?: boolean;
     wrapperRef?: React.Ref<HTMLDivElement>;
   }) => (
-    <div className="space-y-2" ref={wrapperRef}>
-      <h3 className="text-center font-medium text-muted-foreground">{title}</h3>
-      <Card className={cn("relative group aspect-square w-full max-w-md mx-auto overflow-hidden shadow-lg", isEnhancing && !isOriginal && "bg-muted/30")}>
+    <div className="space-y-3" ref={wrapperRef}>
+      <h3 className="text-center font-medium text-lg text-muted-foreground">{title}</h3>
+      <Card className={cn("relative group aspect-square w-full max-w-lg mx-auto overflow-hidden shadow-lg", isEnhancing && !isOriginal && "bg-muted/30")}>
         {isOriginal && originalImages.length > 0 ? (
           <Carousel className="w-full h-full">
             <CarouselContent>
@@ -502,13 +513,14 @@ export function GlowUpStudio() {
         ) : !isOriginal && enhancedImage ? (
            <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isInstantGlowUp && "saturate-125 brightness-110 contrast-105")} data-ai-hint="dress mannequin" />
         ) : (isOriginal && step !== 'selectCreationType') ? (
-            <div className="flex flex-col h-full items-center justify-center bg-muted/30 p-8 text-center cursor-pointer" onClick={triggerFileInput}>
+            <div className="flex flex-col h-full items-center justify-center bg-muted/50 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:bg-muted transition-colors" onClick={triggerFileInput}>
               <UploadCloud className="w-12 h-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">Click to upload your image(s)</p>
+              <p className="text-muted-foreground font-medium">Click to upload your image(s)</p>
+              <p className="text-muted-foreground text-sm">Up to 10MB each</p>
             </div>
         ) : (
           !isEnhancing && !isOriginal && (
-             <div className="flex flex-col h-full items-center justify-center bg-muted/30 p-8 text-center">
+             <div className="flex flex-col h-full items-center justify-center bg-muted/50 p-8 text-center">
               <Sparkles className="w-12 h-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">Your enhanced image will appear here</p>
             </div>
@@ -522,7 +534,7 @@ export function GlowUpStudio() {
           </div>
         )}
         {step !== "enhancing" && step !== 'selectCreationType' && isOriginal && originalImages.length > 0 && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button variant="secondary" onClick={triggerFileInput}>
               <UploadCloud className="mr-2 h-4 w-4" />
               Change/Add Images
@@ -530,26 +542,26 @@ export function GlowUpStudio() {
           </div>
         )}
         {step === "done" && !isOriginal && enhancedImage && (
-          <div className="absolute inset-0 bg-black/50 flex flex-col gap-4 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+          <div className="absolute inset-0 bg-black/60 flex flex-col gap-4 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button variant="secondary" onClick={handleDownload}><Download className="mr-2 h-4 w-4" />Download Image</Button>
             <Button variant="outline" size="sm" onClick={resetWorkflow}>Start New Project</Button>
           </div>
         )}
         {(!enhancedImage && !isEnhancing && !isOriginal) && <Skeleton className="w-full h-full" />}
-        { (isOriginal && originalImages.length === 0) && <Image src={beforeImageDefault.imageUrl} alt="placeholder" fill className="object-cover opacity-50" data-ai-hint={beforeImageDefault.imageHint} /> }
+        { (isOriginal && originalImages.length === 0) && <Image src={beforeImageDefault.imageUrl} alt="placeholder" fill className="object-cover opacity-60" data-ai-hint={beforeImageDefault.imageHint} /> }
       </Card>
     </div>
   );
 
   const getCardDescription = () => {
     switch (step) {
-      case 'selectCreationType': return "What are we creating? Select one to begin.";
-      case 'upload': return `Upload up to ${creationType === 'multiple' ? '3 images' : '1 image'} for your project.`;
-      case 'selectStyleType': return "Great. Now, how should it be styled?";
-      case 'selectLookPreset': return "Almost there. Pick a look that matches your brand.";
+      case 'selectCreationType': return "Select one to begin.";
+      case 'upload': return `Upload up to ${creationType === 'multiple' ? '3 images' : '1 image'}.`;
+      case 'selectStyleType': return "How should it be styled?";
+      case 'selectLookPreset': return "Pick a look that matches your brand.";
       case 'enhancing': return "Our AI is working its magic...";
       case 'done': return "Your boutique-ready image is complete!";
-      default: return "AI-powered image enhancement for your boutique.";
+      default: return "AI-powered image enhancement.";
     }
   }
   
@@ -560,9 +572,9 @@ export function GlowUpStudio() {
         return null;
     }
     return (
-      <div className="mt-8 max-w-2xl mx-auto">
-        <div className="flex items-center justify-between mb-2">
-            <h3 className="text-sm font-medium text-muted-foreground">Selected Image(s)</h3>
+      <div className="mt-8 max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-3">
+            <h3 className="text-base font-semibold text-foreground">Selected Image(s)</h3>
             { (creationType === 'multiple' && originalImages.length < 3) &&
                 <Button variant="outline" size="sm" onClick={triggerFileInput}>
                     <UploadCloud className="mr-2 h-4 w-4" />
@@ -570,7 +582,7 @@ export function GlowUpStudio() {
                 </Button>
             }
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 rounded-lg border bg-card p-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 rounded-xl border bg-card p-4">
             {originalImages.map((src, i) => (
                 <div key={i} className="relative aspect-square group">
                     <Image src={src} alt={`upload preview ${i}`} fill className="rounded-md object-cover" />
@@ -590,21 +602,8 @@ export function GlowUpStudio() {
   };
   
   return (
-    <Card className="w-full mx-auto p-4 sm:p-6 lg:p-8">
-      <CardHeader className="text-center px-0 sm:px-6">
-        <CardTitle className="text-3xl font-bold tracking-tight md:text-4xl font-headline">Glow-Up Studio</CardTitle>
-        <CardDescription className="max-w-xl mx-auto">{getCardDescription()}</CardDescription>
-      </CardHeader>
-
-      <input
-        type="file"
-        ref={fileInputRef}
-        onChange={handleFileChange}
-        className="hidden"
-        accept="image/png, image/jpeg, image/webp"
-        multiple={creationType === 'multiple'}
-      />
-
+    <Card className="w-full mx-auto p-4 sm:p-6 lg:p-8 border-none bg-transparent shadow-none">
+      
       <div className="mt-8">
         <div className="lg:hidden">
           <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)} className="w-full">
@@ -613,7 +612,7 @@ export function GlowUpStudio() {
             <TabsContent value="after" className="mt-6"><ImageCard title="After" wrapperRef={afterImageContainerRef} /></TabsContent>
           </Tabs>
         </div>
-        <div className="hidden lg:grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        <div className="hidden lg:grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
           <ImageCard title="Before" isOriginal />
           <ImageCard title="After" wrapperRef={afterImageContainerRef} />
         </div>
@@ -621,7 +620,18 @@ export function GlowUpStudio() {
 
       <UploadedImagesPreview />
       
-      <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto">
+      <div className="mt-10 flex flex-col items-center max-w-3xl mx-auto">
+        <div className="text-center mb-6">
+            <h2 className="text-2xl font-headline font-semibold">{
+                step === 'selectCreationType' ? '1. Select Creation Type' :
+                step === 'upload' ? '1. Select Creation Type' :
+                step === 'selectStyleType' ? '2. Select Style Type' :
+                step === 'selectLookPreset' ? '3. Select Look & Feel' :
+                'Image Generation'
+            }</h2>
+            <p className="text-muted-foreground">{getCardDescription()}</p>
+        </div>
+        
         {step === "selectCreationType" && (
           <div className="flex flex-col sm:flex-row gap-4 w-full">
             <ChoiceButton onClick={() => handleSelectCreationType("single")} icon={<Shirt className="h-6 w-6" />} label="Single Item" description="Enhance one main product." isSelected={creationType === "single"} />
@@ -657,7 +667,7 @@ export function GlowUpStudio() {
           <div className="mt-8 flex flex-col items-center gap-4">
              <GenerationStatusBadge />
             {step === 'selectLookPreset' && lookPreset && (
-              <Button type="submit" size="lg" className="font-semibold text-lg py-7 px-8" disabled={isEnhancing} onClick={handleEnhance}>
+              <Button type="submit" size="lg" className="font-semibold text-lg py-7 px-8 rounded-full" disabled={isEnhancing} onClick={handleEnhance}>
                 {isEnhancing ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Wand2 className="mr-3 h-6 w-6" />}
                  {isEnhancing ? "Generating..." : "Generate Glow-Up"}
               </Button>
@@ -665,12 +675,12 @@ export function GlowUpStudio() {
             {step === 'done' && (
               <>
                 {generationMode === 'instant' && (
-                  <Button onClick={handleEnhance} size="lg" className="font-semibold text-lg py-7 px-8">
+                  <Button onClick={handleEnhance} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
                       <Sparkles className="mr-3 h-6 w-6" />
-                      Try AI Again
+                      Try AI Studio Again
                   </Button>
                 )}
-                <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8">
+                <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8 rounded-full">
                   Create Another Image
                 </Button>
               </>
@@ -679,7 +689,7 @@ export function GlowUpStudio() {
         )}
 
         {step === 'upload' && (
-          <div className="text-center text-muted-foreground animate-pulse">
+          <div className="text-center text-muted-foreground animate-pulse p-8">
             <p>Waiting for you to select your image(s)...</p>
           </div>
         )}

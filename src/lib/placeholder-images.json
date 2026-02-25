@@ -3,13 +3,13 @@
     {
       "id": "glow-up-before-default",
       "description": "A casual photo of a patterned dress on a hanger against a plain wall.",
-      "imageUrl": "https://images.unsplash.com/photo-1739565502006-e80ea391506b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxkcmVzcyUyMGhhbmdlcnxlbnwwfHx8fDE3NzIwMzY0MDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1581044777550-4cfa6ce67943?q=80&w=1080",
       "imageHint": "dress hanger"
     },
     {
       "id": "glow-up-after-default",
       "description": "An enhanced, boutique-style photo of a patterned dress on an invisible mannequin with a clean studio background.",
-      "imageUrl": "https://images.unsplash.com/photo-1768885560329-5a07715b4447?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8ZHJlc3MlMjBtYW5uZXF1aW58ZW58MHx8fHwxNzcyMDM2NDAyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?q=80&w=1080",
       "imageHint": "dress mannequin"
     }
   ]
