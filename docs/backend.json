@@ -5,21 +5,5 @@
       "google.com"
     ]
   },
-  "firestore": {
-    "/test-collection/{testId}": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "message": {
-            "type": "string"
-          },
-          "timestamp": {
-            "type": "string",
-            "format": "date-time"
-          }
-        }
-      },
-      "description": "A test collection to verify database connectivity."
-    }
-  }
+  "firestore": {}
 }
