@@ -63,36 +63,35 @@ const enhanceImageFlow = ai.defineFlow(
     let promptText = `You are an expert boutique visual stylist. Your goal is to transform user-uploaded product photos into a single, clean, luxury, retail-ready marketing image. The final image must be square (1:1 aspect ratio).`;
 
     if (styleType === 'flat-lay') {
-      promptText += `
---- TASK: CREATE A STYLED BOUTIQUE FLAT LAY IMAGE ---
+      promptText = `You are an expert boutique merchandiser and product photographer. Your goal is to transform user-uploaded product photos into a single, premium, retail-ready marketing image that looks like it was styled by a successful boutique owner for a Facebook post.
 
---- STYLE DIRECTION ---
-Generate a boutique-quality styled flat lay outfit as if arranged by a professional boutique stylist for a social media post or live sale. The final image should look like a successful boutique owner styled and photographed the outfit themselves for Facebook or Instagram. It must be a premium, scroll-stopping image that feels authentic, warm, and inviting.
+--- CORE RULES (APPLY TO ALL FLAT LAY IMAGES) ---
 
---- COMPOSITION RULES (VERY IMPORTANT) ---
-- **Natural, Intentional Layout:** Arrange items naturally as a cohesive, intentionally styled outfit. AVOID perfect symmetry, rigid grids, or exact centering. Use slight angles and organic placement to mimic a real stylist's work. Ensure clean spacing and visual balance.
-- **Garment Presentation:**
-    - Tops should be laid flat and fully visible.
-    - Bottoms (pants, leggings) must be displayed fully extended to show their length and fit. A single, gentle fold is acceptable only if required for styling, but avoid random, excessive, or square folding.
-    - Garments must look grounded. Avoid awkward or unnatural folding and never overlap garments in a way that obscures them.
-- **Realistic Scale & Integrity:** Maintain the realistic scale and proportions of all garments relative to each other. Do not dramatically shrink or enlarge any item. Preserve the original colors, prints, and design of the clothing. Do not alter the garments.
-- **Camera Angle:** Strict 90-degree overhead, top-down flat lay view.
-
---- BACKGROUND & LIGHTING ---
+**1. Aesthetic & Vibe:**
+- **Goal:** A warm, cozy, and inviting boutique aesthetic (think successful LuLaRoe seller). The image must feel clean, premium, and scroll-stopping.
+- **Lighting:** Soft, warm, diffused lighting.
+- **Shadows:** Create natural, soft drop shadows for depth and realism. The result should not look flat.
 - **Background:** Use a warm, neutral boutique-style background (e.g., cream, light beige, off-white seamless paper, a very light wood texture, or a soft fabric surface).
-- **Lighting:** Soft, diffused, even studio light.
-- **Shadows:** Create soft, natural drop shadows to add depth and realism. The result should not look flat.
 
---- ACCESSORIES (MUST BE INCLUDED) ---
-- **Automatic Accessorizing:** Always add 1-3 perfectly coordinated boutique accessories to complete the look (e.g., a stylish bag, simple jewelry, sunglasses, a pair of shoes). Do not overcrowd the layout.
-- **Tasteful & Complementary:** Accessories must ENHANCE the outfit, not overpower or distract from the main clothing items. They must match the outfit's style and color palette.
-- **Lifestyle Props:** You can optionally add a single, subtle lifestyle prop like a small plant or a coffee mug to enhance the boutique feel, but keep it minimal.
+**2. Composition & Layout:**
+- **Camera Angle:** Strict 90-degree overhead, top-down flat lay view.
+- **Layout:** The composition must be center-weighted and visually balanced. Arrange items naturally and intentionally, NOT in a symmetrical grid.
+- **Spacing:** Ensure clean, balanced spacing between all items.
 
---- FORBIDDEN ELEMENTS (DO NOT INCLUDE) ---
-- Text, watermarks, or logos.
-- Busy, cluttered backgrounds or distracting props.
-- A generic, "stock photo" or AI-generated feel. Symmetrical, catalog-style grid layouts are forbidden.
-- Distorted or redesigned clothing shapes.
+**3. Garment Presentation (CRITICAL):**
+- **Realism:** Preserve the original garment texture, print, and colors exactly. Maintain realistic fabric folds and drape. Do not distort patterns or shapes.
+- **Tops:** Must appear smooth, fully visible, and naturally positioned.
+- **Bottoms:** Must be displayed realistically and in a wearable way (e.g., fully extended to show length). A single, gentle fold is acceptable only if required for styling, but AVOID random, excessive, or square folding.
+- **Placement:** Garments should not look like they are floating. No awkward overlapping that obscures items. The outfit must feel intentionally styled.
+
+**4. Prop & Accessory Styling:**
+- **Requirement:** Include coordinating boutique-style props and accessories to complete the look.
+- **Examples:** A stylish bag, simple jewelry, sunglasses, a pair of shoes, a coffee mug, or a small plant.
+- **Rule:** Props must ENHANCE the outfit, not overpower it. They must feel intentionally placed and match the outfit's style and color palette. Keep the layout clean, uncluttered, and with 3-5 props maximum. The exact number and style of accessories will be guided by the Look Preset.
+
+**5. Final Output:**
+- **Format:** Square (1:1) aspect ratio.
+- **Forbidden:** No text, watermarks, or logos. Avoid busy backgrounds, clutter, or a generic "stock photo" feel.
 `;
 
       if (creationType === 'multiple') {
@@ -104,11 +103,11 @@ Generate a boutique-quality styled flat lay outfit as if arranged by a professio
         promptText += `
 --- SINGLE ITEM CONTEXT ---
 - The user has provided a single main clothing item. Center it but maintain an organic, styled feel.
-- Add 1-2 complementary accessories to give it context and create a mini-outfit look.
+- Add complementary accessories to give it context and create a mini-outfit look.
 `;
       }
 
-      promptText += `\n--- LOOK PRESET: ${lookPreset.replace(/-/g, ' ')} ---`;
+      promptText += `\n--- LOOK PRESET REFINEMENT: ${lookPreset.replace(/-/g, ' ')} ---`;
       switch (lookPreset) {
         case 'clean-catalog':
           promptText += `
