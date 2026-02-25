@@ -37,6 +37,7 @@ const EnhanceImageOutputSchema = z.object({
   enhancedImageDataUri: z
     .string()
     .describe('The data URI of the enhanced image.'),
+  isFallback: z.boolean().optional().describe('Indicates if the result is a fallback.'),
 });
 export type EnhanceImageOutput = z.infer<typeof EnhanceImageOutputSchema>;
 
@@ -53,6 +54,9 @@ const enhanceImageFlow = ai.defineFlow(
     outputSchema: EnhanceImageOutputSchema,
   },
   async ({imageDataUris, creationType, styleType, lookPreset}) => {
+    const maxRetries = 2;
+    const initialDelay = 1000;
+
     let promptText = `You are an expert boutique visual stylist. Your goal is to transform user-uploaded product photos into a single, clean, luxury, retail-ready marketing image. The final image must be square (1:1 aspect ratio).
 
 --- GENERAL INSTRUCTIONS ---
@@ -142,19 +146,41 @@ const enhanceImageFlow = ai.defineFlow(
     const imageParts = imageDataUris.map(url => ({media: {url}}));
     const prompt = [...imageParts, {text: promptText}];
 
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-image',
-      prompt: prompt,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Attempt ${attempt + 1} to generate image...`);
+        const {media} = await ai.generate({
+          model: 'googleai/gemini-2.5-flash-image',
+          prompt: prompt,
+          config: {
+            responseModalities: ['TEXT', 'IMAGE'],
+          },
+        });
 
-    const url = media.url;
-    if (!url) {
-      throw new Error('Image generation did not return a URL.');
+        const url = media.url;
+        if (!url) {
+          throw new Error('Image generation did not return a URL.');
+        }
+
+        // Success!
+        return { enhancedImageDataUri: url, isFallback: false };
+
+      } catch (error: any) {
+        console.error(`Attempt ${attempt + 1} failed:`, error.message);
+        
+        const isRetryable = error.message?.includes('UNAVAILABLE') || error.message?.includes('503');
+        if (isRetryable && attempt < maxRetries) {
+          const delay = initialDelay * Math.pow(3, attempt); // 1s, 3s
+          console.log(`Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          console.log('Max retries reached or error is not retryable. Falling back.');
+          return { enhancedImageDataUri: imageDataUris[0], isFallback: true };
+        }
+      }
     }
-
-    return {enhancedImageDataUri: url};
+    
+    // This should not be reached, but as a safeguard.
+    return { enhancedImageDataUri: imageDataUris[0], isFallback: true };
   }
 );

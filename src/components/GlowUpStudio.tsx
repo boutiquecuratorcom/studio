@@ -13,6 +13,8 @@ import {
   Check,
   Image as ImageIcon,
   Palette,
+  Cpu,
+  Zap,
 } from "lucide-react";
 
 import {
@@ -20,6 +22,7 @@ import {
   type EnhanceImageInput,
   type EnhanceImageOutput,
 } from "@/ai/flows/enhance-image-flow";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -63,6 +66,8 @@ type Step =
   | "enhancing"
   | "done";
 
+type GenerationMode = 'ai' | 'instant' | 'busy' | null;
+
 const flatLayPresets: Record<LookPreset, { label: string; description: string }> = {
   "soft-boutique-studio": { label: "Soft Boutique Studio", description: "Neutral warm background, soft shadows" },
   "bright-clean-catalog": { label: "Bright Clean Catalog", description: "White background, minimal shadow" },
@@ -81,7 +86,6 @@ const modeledPresets: Record<LookPreset, { label: string; description: string }>
   'cozy-lifestyle-flat': { label: '', description: '' },
 };
 
-
 export function GlowUpStudio() {
   const { toast } = useToast();
   const [originalImages, setOriginalImages] = React.useState<string[]>([]);
@@ -92,6 +96,9 @@ export function GlowUpStudio() {
   const [styleType, setStyleType] = React.useState<StyleType | null>(null);
   const [lookPreset, setLookPreset] = React.useState<LookPreset | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const [generationMode, setGenerationMode] = React.useState<GenerationMode>(null);
+  const [isInstantGlowUp, setIsInstantGlowUp] = React.useState(false);
+  
   const isEnhancing = step === "enhancing";
 
   const resetWorkflow = () => {
@@ -101,6 +108,8 @@ export function GlowUpStudio() {
     setStyleType(null);
     setLookPreset(null);
     setStep("selectCreationType");
+    setGenerationMode(null);
+    setIsInstantGlowUp(false);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -149,13 +158,12 @@ export function GlowUpStudio() {
   const handleSelectCreationType = (type: CreationType) => {
     setCreationType(type);
     setStep("upload");
-    // Trigger file input immediately
     setTimeout(() => fileInputRef.current?.click(), 0);
   };
 
   const handleSelectStyleType = (type: StyleType) => {
     setStyleType(type);
-    setLookPreset(null); // Reset preset when style changes
+    setLookPreset(null);
     setStep("selectLookPreset");
   };
   
@@ -169,6 +177,8 @@ export function GlowUpStudio() {
     setStep("enhancing");
     setEnhancedImage(null);
     setProgress(0);
+    setGenerationMode('busy');
+    setIsInstantGlowUp(false);
 
     const interval = setInterval(() => {
       setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 5) + 2));
@@ -185,23 +195,41 @@ export function GlowUpStudio() {
       const result: EnhanceImageOutput = await enhanceImage(input);
       clearInterval(interval);
 
-      if (result.enhancedImageDataUri) {
-        setProgress(100);
-        setEnhancedImage(result.enhancedImageDataUri);
-        setStep("done");
-        toast({ title: "Glow-up complete!", description: "Your new boutique-ready image has been generated." });
+      if (result.isFallback) {
+        setGenerationMode('instant');
+        setIsInstantGlowUp(true);
+        setEnhancedImage(originalImages[0]);
+        if (creationType === 'multiple') {
+          toast({
+            title: "Instant Mode can't create true outfits yet.",
+            description: "Tap 'Try AI Again' for our AI Studio Mode to combine items.",
+          });
+        } else {
+          toast({
+            title: 'AI Studio is busy',
+            description: 'Using Instant Glow-Up for now. You can try again later.',
+          });
+        }
       } else {
-        throw new Error("The AI did not return an enhanced image.");
+        setGenerationMode('ai');
+        setIsInstantGlowUp(false);
+        setEnhancedImage(result.enhancedImageDataUri);
+        toast({ title: "Glow-up complete!", description: "Your new image was generated in AI Studio Mode." });
       }
+      
+      setProgress(100);
+      setStep("done");
+
     } catch (error) {
       clearInterval(interval);
       setProgress(0);
       setStep("selectLookPreset");
+      setGenerationMode(null);
       console.error("Error enhancing image:", error);
       toast({
         variant: "destructive",
         title: "Uh oh! Something went wrong.",
-        description: "There was an issue generating your image. Please try again.",
+        description: "There was a critical issue generating your image. Please try again.",
       });
     }
   };
@@ -228,6 +256,35 @@ export function GlowUpStudio() {
       });
     }
   };
+  
+  const GenerationStatusBadge = () => {
+    if (!generationMode || (step !== 'enhancing' && step !== 'done')) return null;
+
+    let variant: 'default' | 'destructive' | 'secondary' = 'default';
+    let icon: React.ReactNode = null;
+    let text = '';
+    
+    if (generationMode === 'ai') {
+        variant = 'default';
+        icon = <Cpu className="h-4 w-4" />;
+        text = 'AI Studio Mode';
+    } else if (generationMode === 'instant') {
+        variant = 'secondary';
+        icon = <Zap className="h-4 w-4" />;
+        text = 'Instant Mode';
+    } else if (generationMode === 'busy') {
+        variant = 'destructive';
+        icon = <Loader2 className="h-4 w-4 animate-spin" />;
+        text = 'AI Busy';
+    }
+
+    return (
+        <Badge variant={variant} className="flex items-center gap-2 text-sm px-3 py-1">
+            {icon}
+            <span>{text}</span>
+        </Badge>
+    );
+};
 
   const ChoiceButton = ({ onClick, icon, label, description, isSelected, disabled }: { onClick: () => void; icon: React.ReactNode; label: string; description: string; isSelected: boolean; disabled?: boolean; }) => (
     <Button
@@ -267,7 +324,7 @@ export function GlowUpStudio() {
             <div className="absolute top-2 right-2 bg-black/50 text-white text-xs font-bold px-2 py-1 rounded-full">{originalImages.length} / {creationType === 'multiple' ? 3 : 1}</div>
           </Carousel>
         ) : !isOriginal && enhancedImage ? (
-           <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105")} data-ai-hint="dress mannequin" />
+           <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isInstantGlowUp && "saturate-125 brightness-110 contrast-105")} data-ai-hint="dress mannequin" />
         ) : (isOriginal && step !== 'selectCreationType') ? (
             <div className="flex flex-col h-full items-center justify-center bg-muted/30 p-8 text-center cursor-pointer" onClick={() => fileInputRef.current?.click()}>
               <UploadCloud className="w-12 h-12 text-muted-foreground/50 mb-4" />
@@ -370,7 +427,7 @@ export function GlowUpStudio() {
         {step === "selectLookPreset" && styleType && (
            <div className="flex flex-col gap-4 w-full">
             {Object.entries(currentPresets)
-              .filter(([key, value]) => value.label) // Filter out dummy entries
+              .filter(([key, value]) => value.label)
               .map(([key, {label, description}]) => (
                 <ChoiceButton
                   key={key}
@@ -384,17 +441,27 @@ export function GlowUpStudio() {
           </div>
         )}
 
-        {lookPreset && (step === 'selectLookPreset' || step === 'done') && (
-          <div className="mt-8 flex flex-col items-center">
-            {step === 'selectLookPreset' ? (
+        {(step === 'selectLookPreset' || step === 'done' || step === 'enhancing') && (
+          <div className="mt-8 flex flex-col items-center gap-4">
+             <GenerationStatusBadge />
+            {step === 'selectLookPreset' && lookPreset && (
               <Button type="submit" size="lg" className="font-semibold text-lg py-7 px-8" disabled={isEnhancing} onClick={handleEnhance}>
                 {isEnhancing ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Wand2 className="mr-3 h-6 w-6" />}
                  {isEnhancing ? "Generating..." : "Generate Glow-Up"}
               </Button>
-            ) : (
-               <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8">
-                Create Another Image
-              </Button>
+            )}
+            {step === 'done' && (
+              <>
+                {generationMode === 'instant' && (
+                  <Button onClick={handleEnhance} size="lg" className="font-semibold text-lg py-7 px-8">
+                      <Sparkles className="mr-3 h-6 w-6" />
+                      Try AI Again
+                  </Button>
+                )}
+                <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8">
+                  Create Another Image
+                </Button>
+              </>
             )}
            </div>
         )}
