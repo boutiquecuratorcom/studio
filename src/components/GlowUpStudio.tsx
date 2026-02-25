@@ -91,6 +91,7 @@ export function GlowUpStudio() {
   const [creationType, setCreationType] = React.useState<CreationType | null>(null);
   const [styleType, setStyleType] = React.useState<StyleType | null>(null);
   const [lookPreset, setLookPreset] = React.useState<LookPreset | null>(null);
+  const [isFallback, setIsFallback] = React.useState(false);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const isEnhancing = step === "enhancing";
 
@@ -101,6 +102,7 @@ export function GlowUpStudio() {
     setStyleType(null);
     setLookPreset(null);
     setStep("selectCreationType");
+    setIsFallback(false);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -167,6 +169,7 @@ export function GlowUpStudio() {
     if (!creationType || originalImages.length === 0 || !styleType || !lookPreset) return;
 
     setStep("enhancing");
+    setIsFallback(false); // Reset on each attempt
     setEnhancedImage(null);
     setProgress(0);
 
@@ -189,19 +192,32 @@ export function GlowUpStudio() {
         setProgress(100);
         setEnhancedImage(result.enhancedImageDataUri);
         setStep("done");
-        toast({ title: "Glow-up complete!", description: "Your new boutique-ready image has been generated." });
+
+        if (result.isFallback) {
+          setIsFallback(true);
+          toast({
+            title: "Gemini is busy right now — using Instant Glow-Up mode.",
+            description: "A simulated enhancement has been applied as a fallback.",
+          });
+        } else {
+          toast({ title: "Glow-up complete!", description: "Your new boutique-ready image has been generated." });
+        }
       } else {
         throw new Error("The AI did not return an enhanced image.");
       }
     } catch (error) {
       clearInterval(interval);
       console.error("Error enhancing image:", error);
+      
+      // This is a client-side fallback if the entire `enhanceImage` function fails to execute.
+      setProgress(100);
+      setEnhancedImage(originalImages[0]); // Use first original image as fallback
+      setStep("done");
+      setIsFallback(true); // Activate fallback mode UI
       toast({
-        variant: "destructive",
-        title: "Enhancement failed",
-        description: (error instanceof Error ? error.message : "An unknown error occurred") + ". Please try again.",
+        title: "Using Instant Glow-Up mode.",
+        description: "There was an issue connecting to the AI. A simulated enhancement has been applied.",
       });
-      setStep(lookPreset ? "selectLookPreset" : "selectStyleType"); // Go back to the last valid step
     }
   };
 
@@ -249,7 +265,7 @@ export function GlowUpStudio() {
     </Button>
   );
 
-  const ImageCard = ({ title, isOriginal = false }: { title: string; isOriginal?: boolean; }) => (
+  const ImageCard = ({ title, isOriginal = false, isFallback = false }: { title: string; isOriginal?: boolean; isFallback?: boolean; }) => (
     <div className="space-y-2">
       <h3 className="text-center font-medium text-muted-foreground">{title}</h3>
       <Card className={cn("relative group aspect-square w-full max-w-md mx-auto overflow-hidden shadow-lg", isEnhancing && !isOriginal && "bg-muted/30")}>
@@ -266,7 +282,7 @@ export function GlowUpStudio() {
             <div className="absolute top-2 right-2 bg-black/50 text-white text-xs font-bold px-2 py-1 rounded-full">{originalImages.length} / {creationType === 'multiple' ? 3 : 1}</div>
           </Carousel>
         ) : !isOriginal && enhancedImage ? (
-           <Image src={enhancedImage} alt={title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" data-ai-hint="dress mannequin" />
+           <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isFallback && "brightness-110 contrast-105 saturate-110")} data-ai-hint="dress mannequin" />
         ) : (isOriginal && step !== 'selectCreationType') ? (
             <div className="flex flex-col h-full items-center justify-center bg-muted/30 p-8 text-center cursor-pointer" onClick={() => fileInputRef.current?.click()}>
               <UploadCloud className="w-12 h-12 text-muted-foreground/50 mb-4" />
@@ -314,7 +330,7 @@ export function GlowUpStudio() {
       case 'selectStyleType': return "Great. Now, how should it be styled?";
       case 'selectLookPreset': return "Almost there. Pick a look that matches your brand.";
       case 'enhancing': return "Our AI is working its magic...";
-      case 'done': return "Your boutique-ready image is complete!";
+      case 'done': return isFallback ? "Used Instant Glow-Up. You can retry the AI." : "Your boutique-ready image is complete!";
       default: return "AI-powered image enhancement for your boutique.";
     }
   }
@@ -342,12 +358,12 @@ export function GlowUpStudio() {
           <Tabs defaultValue="before" className="w-full">
             <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="before">Before</TabsTrigger><TabsTrigger value="after">After</TabsTrigger></TabsList>
             <TabsContent value="before" className="mt-6"><ImageCard title="Before" isOriginal /></TabsContent>
-            <TabsContent value="after" className="mt-6"><ImageCard title="After" /></TabsContent>
+            <TabsContent value="after" className="mt-6"><ImageCard title="After" isFallback={isFallback} /></TabsContent>
           </Tabs>
         </div>
         <div className="hidden lg:grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <ImageCard title="Before" isOriginal />
-          <ImageCard title="After" />
+          <ImageCard title="After" isFallback={isFallback} />
         </div>
       </div>
       
@@ -384,11 +400,20 @@ export function GlowUpStudio() {
         )}
 
         {lookPreset && (step === 'selectLookPreset' || step === 'done') && (
-           <div className="mt-8 flex flex-col items-center">
-            {step !== 'done' ? (
-                 <Button type="submit" size="lg" className="font-semibold text-lg py-7 px-8" disabled={isEnhancing} onClick={handleEnhance}>
-                  <Wand2 className="mr-3 h-6 w-6" /> Generate Glow-Up
+          <div className="mt-8 flex flex-col items-center">
+            {step === 'selectLookPreset' ? (
+              <Button type="submit" size="lg" className="font-semibold text-lg py-7 px-8" disabled={isEnhancing} onClick={handleEnhance}>
+                <Wand2 className="mr-3 h-6 w-6" /> Generate Glow-Up
+              </Button>
+            ) : step === 'done' && isFallback ? (
+              <div className="flex flex-col sm:flex-row gap-4 items-center">
+                <Button size="lg" className="font-semibold text-lg py-7 px-8" disabled={isEnhancing} onClick={handleEnhance}>
+                  <Wand2 className="mr-2 h-5 w-5" /> Try AI Again
                 </Button>
+                <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8">
+                  Start New Project
+                </Button>
+              </div>
             ) : (
                <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8">
                 Create Another Image

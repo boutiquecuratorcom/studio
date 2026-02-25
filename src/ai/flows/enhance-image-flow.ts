@@ -37,6 +37,7 @@ const EnhanceImageOutputSchema = z.object({
   enhancedImageDataUri: z
     .string()
     .describe('The data URI of the enhanced image.'),
+  isFallback: z.boolean().describe('Whether the enhancement is a fallback simulation.')
 });
 export type EnhanceImageOutput = z.infer<typeof EnhanceImageOutputSchema>;
 
@@ -139,22 +140,30 @@ const enhanceImageFlow = ai.defineFlow(
         break;
     }
 
-    const imageParts = imageDataUris.map(url => ({media: {url}}));
-    const prompt = [...imageParts, {text: promptText}];
-
-    const {media} = await ai.generate({
-      model: 'googleai/gemini-2.5-flash-image',
-      prompt: prompt,
-      config: {
-        responseModalities: ['TEXT', 'IMAGE'],
-      },
-    });
-
-    const url = media.url;
-    if (!url) {
-      throw new Error('Image generation failed.');
+    try {
+      const imageParts = imageDataUris.map(url => ({media: {url}}));
+      const prompt = [...imageParts, {text: promptText}];
+  
+      const {media} = await ai.generate({
+        model: 'googleai/gemini-2.5-flash-image',
+        prompt: prompt,
+        config: {
+          responseModalities: ['TEXT', 'IMAGE'],
+        },
+      });
+  
+      const url = media.url;
+      if (!url) {
+        throw new Error('Image generation did not return a URL.');
+      }
+  
+      return {enhancedImageDataUri: url, isFallback: false};
+    } catch(error) {
+      console.error("Gemini image generation failed, falling back to simulation.", error);
+      // As per instructions, gracefully fallback.
+      // The "simulated enhancement pipeline" is just returning the original image.
+      // The client will apply CSS filters.
+      return {enhancedImageDataUri: imageDataUris[0], isFallback: true};
     }
-
-    return {enhancedImageDataUri: url};
   }
 );
