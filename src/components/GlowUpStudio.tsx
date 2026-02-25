@@ -120,17 +120,35 @@ export function GlowUpStudio() {
     setGenerationMode(null);
     setIsInstantGlowUp(false);
     setMobileTab("before");
+    // Clear the file input's value to fix the bug where re-selecting
+    // the same file doesn't trigger onChange after a reset.
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    if (!files || files.length === 0 || !creationType) return;
+    // Always clear the input to allow re-selecting the same file
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+    
+    if (!files || files.length === 0 || !creationType) {
+        if (step === 'upload') { // User cancelled the initial upload
+            setStep('selectCreationType');
+            setCreationType(null);
+        }
+        return;
+    }
 
-    if (creationType === 'single' && files.length > 1) {
-      toast({ variant: 'destructive', title: 'Too many images', description: 'Please select only one image for a single item.' });
+    const prospectiveCount = originalImages.length + files.length;
+
+    if (creationType === 'single' && prospectiveCount > 1) {
+      toast({ variant: 'destructive', title: 'Invalid Selection', description: 'For a "Single Item", you can only upload one image.' });
       return;
     }
-    if (creationType === 'multiple' && files.length > 3) {
+    if (creationType === 'multiple' && prospectiveCount > 3) {
       toast({ variant: 'destructive', title: 'Too many images', description: 'You can select up to 3 images for an outfit.' });
       return;
     }
@@ -153,9 +171,12 @@ export function GlowUpStudio() {
         newImageUrls.push(reader.result as string);
         filesLoaded++;
         if (filesLoaded === files.length) {
-          setOriginalImages(newImageUrls);
-          setEnhancedImage(null);
-          setStep("selectStyleType");
+          setOriginalImages(prev => [...prev, ...newImageUrls]);
+
+          if (step === 'upload') { // only advance step on initial upload.
+            setEnhancedImage(null);
+            setStep("selectStyleType");
+          }
         }
       };
       reader.readAsDataURL(file);
@@ -166,10 +187,14 @@ export function GlowUpStudio() {
   
   const handleRemoveImage = (indexToRemove: number) => {
     const newImages = originalImages.filter((_, index) => index !== indexToRemove);
+    setOriginalImages(newImages);
     if (newImages.length === 0) {
-      resetWorkflow();
-    } else {
-      setOriginalImages(newImages);
+        // If all images are removed, go back to the upload or create type step
+        if (creationType) {
+            setStep("upload");
+        } else {
+            resetWorkflow();
+        }
     }
   };
 
@@ -380,7 +405,7 @@ export function GlowUpStudio() {
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
               <UploadCloud className="mr-2 h-4 w-4" />
-              Change Image(s)
+              Change/Add Images
             </Button>
           </div>
         )}
@@ -411,23 +436,28 @@ export function GlowUpStudio() {
   const currentPresets = styleType === 'flat-lay' ? flatLayPresets : modeledPresets;
 
   const UploadedImagesPreview = () => {
+    if (originalImages.length === 0 || step === 'selectCreationType' || step === 'upload') {
+        return null;
+    }
     return (
       <div className="mt-8 max-w-2xl mx-auto">
         <div className="flex items-center justify-between mb-2">
             <h3 className="text-sm font-medium text-muted-foreground">Selected Image(s)</h3>
-            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <UploadCloud className="mr-2 h-4 w-4" />
-                Change / Add
-            </Button>
+            { (creationType === 'multiple' && originalImages.length < 3) &&
+                <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                    <UploadCloud className="mr-2 h-4 w-4" />
+                    Add More
+                </Button>
+            }
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 rounded-lg border bg-card p-4">
             {originalImages.map((src, i) => (
-                <div key={i} className="relative aspect-square">
+                <div key={i} className="relative aspect-square group">
                     <Image src={src} alt={`upload preview ${i}`} fill className="rounded-md object-cover" />
                     <Button
                         variant="destructive"
                         size="icon"
-                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                         onClick={() => handleRemoveImage(i)}
                     >
                         <X className="h-4 w-4" />
@@ -469,9 +499,7 @@ export function GlowUpStudio() {
         </div>
       </div>
 
-      {originalImages.length > 0 && (step === "selectStyleType" || step === "selectLookPreset") && (
-        <UploadedImagesPreview />
-      )}
+      <UploadedImagesPreview />
       
       <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto">
         {step === "selectCreationType" && (
