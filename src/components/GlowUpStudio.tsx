@@ -2,15 +2,24 @@
 
 import Image from "next/image";
 import * as React from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Download,
   Loader2,
   Sparkles,
   UploadCloud,
   Wand2,
+  Shirt,
+  User,
 } from "lucide-react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
-import { enhanceImage, type EnhanceImageOutput } from "@/ai/flows/enhance-image-flow";
+import {
+  enhanceImage,
+  type EnhanceImageInput,
+  type EnhanceImageOutput,
+} from "@/ai/flows/enhance-image-flow";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,9 +27,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { cn } from "@/lib/utils";
@@ -32,21 +54,52 @@ const afterImageDefault = PlaceHolderImages.find(
   (p) => p.id === "glow-up-after-default"
 )!;
 
+const formSchema = z.object({
+  itemType: z.string().min(1, "Please specify the item type (e.g., dress, shirt)."),
+  styleName: z.string().optional(),
+  sizes: z.string().optional(),
+  shadowOption: z.enum(["none", "soft", "hard"]).default("soft"),
+});
+
+type FormValues = z.infer<typeof formSchema>;
+
+type Step = "upload" | "selectType" | "fillForm" | "enhancing" | "done";
+
 export function GlowUpStudio() {
   const { toast } = useToast();
   const [originalImage, setOriginalImage] = React.useState<string | null>(
     beforeImageDefault.imageUrl
   );
   const [enhancedImage, setEnhancedImage] = React.useState<string | null>(null);
-  const [isEnhancing, setIsEnhancing] = React.useState(false);
-  const [isEnhanced, setIsEnhanced] = React.useState(false);
   const [progress, setProgress] = React.useState(0);
+  const [step, setStep] = React.useState<Step>("upload");
+  const [imageType, setImageType] = React.useState<"flat-lay" | "on-body" | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const isEnhancing = step === "enhancing";
+
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      itemType: "",
+      styleName: "",
+      sizes: "",
+      shadowOption: "soft",
+    },
+  });
+
+  const resetWorkflow = () => {
+    setOriginalImage(beforeImageDefault.imageUrl);
+    setEnhancedImage(null);
+    setImageType(null);
+    setStep('upload');
+    form.reset();
+  }
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      if (file.size > 10 * 1024 * 1024) {
+        // 10MB limit
         toast({
           variant: "destructive",
           title: "Image too large",
@@ -58,17 +111,21 @@ export function GlowUpStudio() {
       reader.onloadend = () => {
         setOriginalImage(reader.result as string);
         setEnhancedImage(null);
-        setIsEnhanced(false);
+        setStep("selectType");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleEnhance = async () => {
-    if (!originalImage) return;
+  const handleSelectType = (type: "flat-lay" | "on-body") => {
+    setImageType(type);
+    setStep("fillForm");
+  };
 
-    setIsEnhancing(true);
-    setIsEnhanced(false);
+  const handleEnhance = async (values: FormValues) => {
+    if (!originalImage || !imageType) return;
+
+    setStep("enhancing");
     setEnhancedImage(null);
     setProgress(0);
 
@@ -78,22 +135,26 @@ export function GlowUpStudio() {
           clearInterval(interval);
           return 95;
         }
-        return prev + Math.floor(Math.random() * 5) + 2; // Smoother progress
+        return prev + Math.floor(Math.random() * 5) + 2;
       });
     }, 500);
 
     try {
-      const result: EnhanceImageOutput = await enhanceImage({ imageDataUri: originalImage });
-      
+      const result: EnhanceImageOutput = await enhanceImage({
+        imageDataUri: originalImage,
+        imageType: imageType,
+        ...values,
+      });
+
       clearInterval(interval);
-      
+
       if (result.enhancedImageDataUri) {
         setProgress(100);
         setEnhancedImage(result.enhancedImageDataUri);
-        setIsEnhanced(true);
+        setStep("done");
         toast({
-            title: "Glow-up complete!",
-            description: "Your image has been successfully enhanced.",
+          title: "Glow-up complete!",
+          description: "Your image has been successfully enhanced.",
         });
       } else {
         throw new Error("The AI did not return an enhanced image.");
@@ -104,16 +165,14 @@ export function GlowUpStudio() {
       toast({
         variant: "destructive",
         title: "Enhancement failed",
-        description: (error instanceof Error ? error.message : "An unknown error occurred") + ". Please try again.",
+        description:
+          (error instanceof Error ? error.message : "An unknown error occurred") +
+          ". Please try again.",
       });
-      setProgress(0);
-      setEnhancedImage(null);
-      setIsEnhanced(false);
-    } finally {
-      setIsEnhancing(false);
+      setStep("fillForm");
     }
   };
-
+  
   const handleDownload = async () => {
     if (!enhancedImage) return;
     try {
@@ -141,19 +200,17 @@ export function GlowUpStudio() {
     title,
     imageUrl,
     isOriginal = false,
-    isLoading = false,
   }: {
     title: string;
     imageUrl: string | null;
     isOriginal?: boolean;
-    isLoading?: boolean;
   }) => (
     <div className="space-y-2">
       <h3 className="text-center font-medium text-muted-foreground">{title}</h3>
       <Card
         className={cn(
-          "relative group aspect-[2/3] w-full max-w-md mx-auto overflow-hidden shadow-lg",
-          isLoading && "bg-muted/30"
+          "relative group aspect-square w-full max-w-md mx-auto overflow-hidden shadow-lg",
+          isEnhancing && !isOriginal && "bg-muted/30"
         )}
       >
         {imageUrl ? (
@@ -162,17 +219,23 @@ export function GlowUpStudio() {
             alt={title}
             fill
             className="object-cover transition-transform duration-300 group-hover:scale-105"
-            data-ai-hint={isOriginal ? beforeImageDefault.imageHint : afterImageDefault.imageHint}
+            data-ai-hint={
+              isOriginal
+                ? beforeImageDefault.imageHint
+                : afterImageDefault.imageHint
+            }
           />
         ) : (
-          !isLoading && (
+          !isEnhancing && !isOriginal && (
             <div className="flex flex-col h-full items-center justify-center bg-muted/30 p-8 text-center">
               <Sparkles className="w-12 h-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">Your enhanced image will appear here</p>
+              <p className="text-muted-foreground">
+                Your enhanced image will appear here
+              </p>
             </div>
           )
         )}
-        {isLoading && (
+        {isEnhancing && !isOriginal && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-8">
             <p className="font-medium text-lg text-primary mb-4">
               Creating your glow-up...
@@ -181,7 +244,7 @@ export function GlowUpStudio() {
             <p className="text-sm text-muted-foreground mt-2">{progress}%</p>
           </div>
         )}
-        {isOriginal && imageUrl && (
+        {step !== 'enhancing' && isOriginal && imageUrl && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button
               variant="secondary"
@@ -192,15 +255,18 @@ export function GlowUpStudio() {
             </Button>
           </div>
         )}
-        {isEnhanced && !isOriginal && imageUrl && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+        {step === 'done' && !isOriginal && imageUrl && (
+          <div className="absolute inset-0 bg-black/50 flex flex-col gap-4 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button variant="secondary" onClick={handleDownload}>
               <Download className="mr-2 h-4 w-4" />
               Download Image
             </Button>
+            <Button variant="outline" size="sm" onClick={resetWorkflow}>
+              Start New Project
+            </Button>
           </div>
         )}
-        {!imageUrl && !isLoading && !isOriginal && <Skeleton className="w-full h-full" />}
+        {!imageUrl && !isEnhancing && !isOriginal && <Skeleton className="w-full h-full" />}
       </Card>
     </div>
   );
@@ -212,8 +278,11 @@ export function GlowUpStudio() {
           Glow-Up Studio
         </CardTitle>
         <CardDescription className="max-w-xl mx-auto">
-          Upload a photo of your clothing item and let our AI transform it into a
-          premium, boutique-quality marketing image.
+          {step === 'upload' && "Upload a photo of your clothing item to get started."}
+          {step === 'selectType' && "Great! Now, what kind of image would you like to create?"}
+          {step === 'fillForm' && "Perfect. Just a few more details to create the perfect shot."}
+          {step === 'enhancing' && "Our AI is working its magic..."}
+          {step === 'done' && "Your boutique-ready image is complete!"}
         </CardDescription>
       </CardHeader>
 
@@ -226,7 +295,6 @@ export function GlowUpStudio() {
       />
 
       <div className="mt-8">
-        {/* Mobile View */}
         <div className="lg:hidden">
           <Tabs defaultValue="before" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
@@ -237,48 +305,178 @@ export function GlowUpStudio() {
               <ImageCard title="Before" imageUrl={originalImage} isOriginal />
             </TabsContent>
             <TabsContent value="after" className="mt-6">
-              <ImageCard
-                title="After"
-                imageUrl={enhancedImage}
-                isLoading={isEnhancing}
-              />
+              <ImageCard title="After" imageUrl={enhancedImage} />
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Desktop View */}
         <div className="hidden lg:grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <ImageCard title="Before" imageUrl={originalImage} isOriginal />
-          <ImageCard
-            title="After"
-            imageUrl={enhancedImage}
-            isLoading={isEnhancing}
-          />
+          <ImageCard title="After" imageUrl={enhancedImage} />
         </div>
       </div>
 
-      <div className="mt-8 flex flex-col items-center">
-        <Button
-          size="lg"
-          className="font-semibold text-lg py-7 px-8 transition-transform duration-200 active:scale-95"
-          onClick={handleEnhance}
-          disabled={!originalImage || isEnhancing}
-        >
-          {isEnhancing ? (
-            <>
-              <Loader2 className="mr-3 h-6 w-6 animate-spin" />
-              Enhancing...
-            </>
-          ) : (
-            <>
-              <Wand2 className="mr-3 h-6 w-6" />
-              Generate Glow-Up
-            </>
-          )}
-        </Button>
-        <p className="text-xs text-muted-foreground mt-3">
-          Click to start the AI enhancement
-        </p>
+      <div className="mt-8 flex flex-col items-center max-w-md mx-auto">
+        {step === 'upload' && (
+             <Button
+             size="lg"
+             className="font-semibold text-lg py-7 px-8"
+             onClick={() => fileInputRef.current?.click()}
+           >
+            <UploadCloud className="mr-3 h-6 w-6" />
+             Upload Clothing Photo
+           </Button>
+        )}
+
+        {step === "selectType" && (
+          <div className="flex flex-col sm:flex-row gap-4 w-full">
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full h-24 text-lg flex-col"
+              onClick={() => handleSelectType("flat-lay")}
+            >
+              <Shirt className="h-8 w-8 mb-2" />
+              Flat Lay
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full h-24 text-lg flex-col"
+              onClick={() => handleSelectType("on-body")}
+            >
+              <User className="h-8 w-8 mb-2" />
+              On-Body Lifestyle
+            </Button>
+          </div>
+        )}
+
+        {step === "fillForm" && (
+          <Form {...form}>
+            <form
+              onSubmit={form.handleSubmit(handleEnhance)}
+              className="space-y-8 w-full"
+            >
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="itemType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Item Type</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., Summer Dress" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="styleName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Style Name (Optional)</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., The Riviera" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
+              <FormField
+                control={form.control}
+                name="sizes"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Sizes (Optional)</FormLabel>
+                    <FormControl>
+                      <Textarea
+                        placeholder="e.g., S, M, L or 2, 4, 6, 8"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      List the available sizes for this item.
+                    </FormDescription>
+                  </FormItem>
+                )}
+              />
+
+              {imageType === "flat-lay" && (
+                <FormField
+                  control={form.control}
+                  name="shadowOption"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>Shadow Option</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          defaultValue={field.value}
+                          className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-6"
+                        >
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="soft" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Soft Shadow (Natural)
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="hard" />
+                            </FormControl>
+                            <FormLabel className="font-normal">
+                              Hard Shadow (Modern)
+                            </FormLabel>
+                          </FormItem>
+                          <FormItem className="flex items-center space-x-3 space-y-0">
+                            <FormControl>
+                              <RadioGroupItem value="none" />
+                            </FormControl>
+                            <FormLabel className="font-normal">None</FormLabel>
+                          </FormItem>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
+              
+              <Separator />
+
+              <div className="flex flex-col items-center">
+                <Button
+                  type="submit"
+                  size="lg"
+                  className="font-semibold text-lg py-7 px-8"
+                  disabled={!originalImage || isEnhancing}
+                >
+                  <Wand2 className="mr-3 h-6 w-6" />
+                  Generate Glow-Up
+                </Button>
+                 <p className="text-xs text-muted-foreground mt-3">
+                    Click to start the AI enhancement
+                </p>
+              </div>
+            </form>
+          </Form>
+        )}
+        
+        {step === 'done' && (
+            <Button
+                size="lg"
+                variant="outline"
+                onClick={resetWorkflow}
+                className="font-semibold text-lg py-7 px-8"
+            >
+                Create Another Image
+            </Button>
+        )}
+
       </div>
     </Card>
   );
