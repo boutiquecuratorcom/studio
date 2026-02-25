@@ -2,9 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // This rule allows anyone to read and write to the test-collection.
-    // This is insecure and should only be used for initial setup.
-    match /test-collection/{testId} {
+    // WARNING: This is a temporary rule for debugging purposes only.
+    // It allows any user to read or write to any part of your database.
+    // This will be removed once the connection test is complete.
+    match /{document=**} {
       allow read, write: if true;
     }
   }
