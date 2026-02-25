@@ -15,6 +15,7 @@ import {
   Palette,
   Cpu,
   Zap,
+  X,
 } from "lucide-react";
 
 import {
@@ -98,6 +99,8 @@ export function GlowUpStudio() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [generationMode, setGenerationMode] = React.useState<GenerationMode>(null);
   const [isInstantGlowUp, setIsInstantGlowUp] = React.useState(false);
+  const [mobileTab, setMobileTab] = React.useState<"before" | "after">("before");
+  const afterImageContainerRef = React.useRef<HTMLDivElement>(null);
   
   const isEnhancing = step === "enhancing";
 
@@ -110,13 +113,13 @@ export function GlowUpStudio() {
     setStep("selectCreationType");
     setGenerationMode(null);
     setIsInstantGlowUp(false);
+    setMobileTab("before");
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
     if (!files || files.length === 0 || !creationType) return;
 
-    // Validate file count
     if (creationType === 'single' && files.length > 1) {
       toast({ variant: 'destructive', title: 'Too many images', description: 'Please select only one image for a single item.' });
       return;
@@ -154,6 +157,15 @@ export function GlowUpStudio() {
 
     Array.from(files).forEach(processFile);
   };
+  
+  const handleRemoveImage = (indexToRemove: number) => {
+    const newImages = originalImages.filter((_, index) => index !== indexToRemove);
+    if (newImages.length === 0) {
+      resetWorkflow();
+    } else {
+      setOriginalImages(newImages);
+    }
+  };
 
   const handleSelectCreationType = (type: CreationType) => {
     setCreationType(type);
@@ -179,6 +191,7 @@ export function GlowUpStudio() {
     setProgress(0);
     setGenerationMode('busy');
     setIsInstantGlowUp(false);
+    setMobileTab("after");
 
     const interval = setInterval(() => {
       setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 5) + 2));
@@ -219,6 +232,10 @@ export function GlowUpStudio() {
       
       setProgress(100);
       setStep("done");
+      setTimeout(() => {
+        afterImageContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+
 
     } catch (error) {
       clearInterval(interval);
@@ -306,9 +323,17 @@ export function GlowUpStudio() {
       </div>
     </Button>
   );
-
-  const ImageCard = ({ title, isOriginal = false }: { title: string; isOriginal?: boolean; }) => (
-    <div className="space-y-2">
+  
+  const ImageCard = ({
+    title,
+    isOriginal = false,
+    wrapperRef,
+  }: {
+    title: string;
+    isOriginal?: boolean;
+    wrapperRef?: React.Ref<HTMLDivElement>;
+  }) => (
+    <div className="space-y-2" ref={wrapperRef}>
       <h3 className="text-center font-medium text-muted-foreground">{title}</h3>
       <Card className={cn("relative group aspect-square w-full max-w-md mx-auto overflow-hidden shadow-lg", isEnhancing && !isOriginal && "bg-muted/30")}>
         {isOriginal && originalImages.length > 0 ? (
@@ -379,6 +404,35 @@ export function GlowUpStudio() {
   
   const currentPresets = styleType === 'flat-lay' ? flatLayPresets : modeledPresets;
 
+  const UploadedImagesPreview = () => {
+    return (
+      <div className="mt-8 max-w-2xl mx-auto">
+        <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-medium text-muted-foreground">Selected Image(s)</h3>
+            <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <UploadCloud className="mr-2 h-4 w-4" />
+                Change / Add
+            </Button>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-4 rounded-lg border bg-card p-4">
+            {originalImages.map((src, i) => (
+                <div key={i} className="relative aspect-square">
+                    <Image src={src} alt={`upload preview ${i}`} fill className="rounded-md object-cover" />
+                    <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={() => handleRemoveImage(i)}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+            ))}
+        </div>
+      </div>
+    );
+  };
+  
   return (
     <Card className="w-full mx-auto p-4 sm:p-6 lg:p-8">
       <CardHeader className="text-center px-0 sm:px-6">
@@ -397,17 +451,21 @@ export function GlowUpStudio() {
 
       <div className="mt-8">
         <div className="lg:hidden">
-          <Tabs defaultValue="before" className="w-full">
+          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)} className="w-full">
             <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="before">Before</TabsTrigger><TabsTrigger value="after">After</TabsTrigger></TabsList>
             <TabsContent value="before" className="mt-6"><ImageCard title="Before" isOriginal /></TabsContent>
-            <TabsContent value="after" className="mt-6"><ImageCard title="After" /></TabsContent>
+            <TabsContent value="after" className="mt-6"><ImageCard title="After" wrapperRef={afterImageContainerRef} /></TabsContent>
           </Tabs>
         </div>
         <div className="hidden lg:grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
           <ImageCard title="Before" isOriginal />
-          <ImageCard title="After" />
+          <ImageCard title="After" wrapperRef={afterImageContainerRef} />
         </div>
       </div>
+
+      {originalImages.length > 0 && (step === "selectStyleType" || step === "selectLookPreset") && (
+        <UploadedImagesPreview />
+      )}
       
       <div className="mt-8 flex flex-col items-center max-w-2xl mx-auto">
         {step === "selectCreationType" && (
