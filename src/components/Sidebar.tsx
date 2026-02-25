@@ -82,7 +82,7 @@ export function Sidebar() {
                             <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col items-start overflow-hidden">
-                            <span className="font-semibold text-sm truncate w-full">{user.displayName || user.email}</span>
+                            <span className="font-semibold text-sm truncate w-full">{user.displayName || user.email?.split('@')[0]}</span>
                             <span className="text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Member'}</span>
                         </div>
                     </div>
@@ -92,8 +92,9 @@ export function Sidebar() {
                 <DropdownMenuLabel className="font-normal">
                   <div className="flex flex-col space-y-1">
                     <p className="text-sm font-medium leading-none">
-                      {user.email}
+                      {user.displayName || user.email?.split('@')[0]}
                     </p>
+                    <p className="text-xs text-muted-foreground">{user.email}</p>
                   </div>
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
