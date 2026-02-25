@@ -5,7 +5,7 @@ import { useUser, useFirestore, useCollection } from '@/firebase';
 import { collection, query, orderBy, Timestamp, DocumentData, limit } from 'firebase/firestore';
 import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Card } from './ui/card';
 import { Skeleton } from './ui/skeleton';
 import { ExternalLink, Sparkles } from 'lucide-react';
 import { usePathname } from 'next/navigation';
@@ -18,11 +18,11 @@ interface Upload extends DocumentData {
   isEnhanced?: boolean;
 }
 
-const UploadGrid = ({ uploads }: { uploads: Upload[] }) => {
+const UploadGrid = ({ uploads, type = 'images' }: { uploads: Upload[], type?: 'images' | 'Glow-Ups' | 'Originals' }) => {
     if (!uploads || uploads.length === 0) {
         return (
             <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card">
-                <p className="text-muted-foreground">No images found.</p>
+                <p className="text-muted-foreground">No {type.toLowerCase()} found.</p>
             </div>
         );
     }
@@ -114,18 +114,18 @@ export function MyUploads() {
   }
   
   if(isDashboard) {
-    return <UploadGrid uploads={validUploads || []} />;
+    return <UploadGrid uploads={enhancedUploads || []} type="Glow-Ups" />;
   }
 
   return (
       <div className="space-y-12">
         <div>
           <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">Glow-Ups</h2>
-          <UploadGrid uploads={enhancedUploads || []} />
+          <UploadGrid uploads={enhancedUploads || []} type="Glow-Ups" />
         </div>
         <div>
           <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">Originals</h2>
-          <UploadGrid uploads={originalUploads || []} />
+          <UploadGrid uploads={originalUploads || []} type="Originals" />
         </div>
       </div>
   );

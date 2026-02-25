@@ -26,7 +26,7 @@ export default function DashboardPage() {
           </Link>
         </Button>
       </header>
-      <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">Recent Uploads</h2>
+      <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">Recent Glow-Ups</h2>
       <MyUploads />
     </div>
   );
