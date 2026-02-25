@@ -64,35 +64,46 @@ const enhanceImageFlow = ai.defineFlow(
 
     if (styleType === 'flat-lay') {
       promptText += `
-
 --- TASK: CREATE A STYLED BOUTIQUE FLAT LAY IMAGE ---
 
---- GOAL ---
-Produce a premium, scroll-stopping flat lay image that looks like it was created by a top online boutique for a Facebook sales post. The image must be warm, inviting, and professional. The final image must be square (1:1 aspect ratio).
+--- STYLE DIRECTION ---
+Generate a boutique-quality styled flat lay outfit as if arranged by a professional boutique stylist for a social media post. The final image should look like a boutique owner styled and photographed the outfit themselves for Facebook or Instagram. It must be a premium, scroll-stopping image that feels authentic and professionally styled.
 
---- GENERAL STYLING RULES ---
-- Camera Angle: Perfect 90-degree overhead, top-down flat lay.
-- Background: Use a warm, soft, clean background like a cream or light beige studio surface, or a light wood texture. Avoid pure white or harsh backgrounds.
-- Layout: Arrange the clothing items in a natural, intentionally styled outfit composition. Avoid rigid, grid-like catalog placements. Create a sense of realism with slight angles and soft, tasteful overlaps between items.
-- Garment Integrity: Preserve the original colors, prints, and proportions of the clothing items accurately. Do not distort or redesign the garments.
-- Lighting: Soft, diffused, even studio light. Shadows should be soft and natural, adding depth without being distracting.
-- Forbidden Elements: Do NOT add text, watermarks, or logos. Avoid a cluttered or stock-photo feel.
+--- COMPOSITION RULES (VERY IMPORTANT) ---
+- **Natural Layout:** Arrange items naturally. AVOID perfect symmetry, rigid grids, or exact centering. Use slight angles and organic placement to mimic a real stylist's work.
+- **No Floating/Awkward Folds:** Garments must look grounded. Avoid awkward or unnatural folding. Pants and leggings should be laid out fully extended to show their length and fit, not folded into squares.
+- **Realistic Scale:** Maintain the realistic scale and proportions of all garments relative to each other. Do not dramatically shrink or enlarge any item.
+- **Cohesive Outfit:** Arrange tops, bottoms, and layers as a cohesive, intentional outfit.
+- **Camera Angle:** Strict 90-degree overhead, top-down flat lay view.
+- **Garment Integrity:** Preserve the original colors, prints, and design of the clothing. Do not alter the garments.
+
+--- BACKGROUND & LIGHTING ---
+- **Background:** Use a warm, neutral boutique-style background (e.g., cream, light beige, off-white seamless paper, or a very light wood texture).
+- **Lighting:** Soft, diffused, even studio light.
+- **Shadows:** Create soft, natural drop shadows to add depth and realism. The result should not look flat.
+
+--- ACCESSORIES ---
+- **Automatic Accessorizing:** Always add 1-3 perfectly coordinated boutique accessories to complete the look (e.g., a stylish bag, simple jewelry, sunglasses, a pair of shoes).
+- **Tasteful Placement:** Accessories must ENHANCE the outfit, not overpower or distract from the main clothing items. They should match the outfit's style and color palette.
+- **Lifestyle Props:** You can optionally add a single, subtle lifestyle prop like a small plant or a coffee mug to enhance the boutique feel, but keep it minimal.
+
+--- FORBIDDEN ELEMENTS (DO NOT INCLUDE) ---
+- Text, watermarks, or logos.
+- Busy, cluttered backgrounds or distracting props.
+- A generic, "stock photo" or AI-generated feel.
+- Symmetrical, catalog-style grid layouts.
 `;
 
       if (creationType === 'multiple') {
         promptText += `
---- OUTFIT COMPOSITION ---
-- Arrange the 2-3 items into a cohesive, styled outfit that looks natural and intentional. Place tops above bottoms.
-- Automatically add 1-3 perfectly coordinated boutique accessories to complete the look.
-- Accessory examples: a stylish crossbody bag, a clutch, simple jewelry (necklace, bracelet), sunglasses, or a pair of shoes.
-- You can optionally add a subtle lifestyle prop like a small plant or a coffee mug to enhance the boutique feel.
-- Critical Rule: Accessories and props must ENHANCE the outfit, not overpower or distract from the main clothing items.
+--- OUTFIT CONTEXT ---
+- The user has provided 2-3 items. Arrange them into a single cohesive outfit.
 `;
       } else { // single item
         promptText += `
---- SINGLE ITEM COMPOSITION ---
-- Center the single garment with generous empty space/margins around it.
-- You can add one or two simple, complementary accessories (like a piece of jewelry or sunglasses) to give it context, but the focus must remain on the main item.
+--- SINGLE ITEM CONTEXT ---
+- The user has provided a single main clothing item. Center it but maintain an organic, styled feel.
+- Add 1-2 complementary accessories to give it context and create a mini-outfit look.
 `;
       }
 
@@ -100,35 +111,32 @@ Produce a premium, scroll-stopping flat lay image that looks like it was created
       switch (lookPreset) {
         case 'clean-catalog':
           promptText += `
-- Style Details: Create a bright, clean, symmetrical arrangement. Keep it very organized and minimal. Reduce overlap and angles for this preset.
-- Shadows: Use minimal to near-zero shadows.
-- Accessories: Minimal to no accessories. Focus is 100% on the product.
-- Vibe: Crisp, professional, e-commerce catalog.
+- **Refinement:** For this preset, lean towards a brighter, cleaner, and more organized arrangement. Reduce overlap and angles slightly. Keep it very organized and minimal.
+- **Accessories:** Minimal (one simple item) or no accessories. The focus is 100% on the product.
+- **Vibe:** Crisp, professional, high-end e-commerce catalog.
 `;
           break;
         case 'styled-boutique':
           promptText += `
-- Style Details: Create a warm, inviting, slightly styled arrangement with a soft, organic feel.
-- Shadows: Apply a soft, realistic drop shadow under each garment for depth.
-- Accessories (Outfit Mode): Add one premium accessory (e.g., a leather bag, high-quality sunglasses).
-- Vibe: High-end boutique, sophisticated, warm.
+- **Refinement:** This is the core style. Create a warm, inviting arrangement with a soft, organic feel and tasteful overlaps.
+- **Shadows:** Emphasize soft, realistic drop shadows for depth.
+- **Accessories:** Add one premium, standout accessory (e.g., a leather bag, high-quality sunglasses).
+- **Vibe:** Sophisticated, warm, high-end boutique.
 `;
           break;
         case 'facebook-sales-post':
           promptText += `
-- Style Details: Create a dynamic but still neat and organized arrangement. This is the primary goal, so embrace the natural, styled look with soft overlaps.
-- Shadows: Soft, natural shadows are encouraged.
-- Accessories (Outfit Mode): Add up to two trendy but tasteful accessories (e.g., sunglasses and a handbag). A lifestyle prop like a plant is a good fit here.
-- Vibe: Engaging, ready for social media, eye-catching.
+- **Refinement:** Create a dynamic but still neat and organized arrangement. Embrace the natural, styled look with soft overlaps to be eye-catching.
+- **Accessories:** Add up to two trendy but tasteful accessories (e.g., sunglasses and a handbag). A lifestyle prop is a good fit here.
+- **Vibe:** Engaging, ready for social media, scroll-stopping.
 `;
           break;
         case 'luxury-editorial':
           promptText += `
-- Style Details: Create a highly stylized, artistic, and aspirational arrangement.
-- Lighting: Use slightly more dramatic lighting, but maintain a clean, high-fashion look.
-- Shadows: Shadows can be more pronounced to create a premium, editorial feel.
-- Accessories (Outfit Mode): Add premium, luxury accessories that tell a story.
-- Vibe: Aspirational, editorial, luxury magazine.
+- **Refinement:** Create a more artistic and aspirational arrangement. The composition can be more creative.
+- **Lighting:** Use slightly more dramatic lighting and shadows to create a premium, editorial feel, while still being clean.
+- **Accessories:** Add premium, luxury-style accessories that tell a story.
+- **Vibe:** Aspirational, editorial, luxury magazine.
 `;
           break;
       }
