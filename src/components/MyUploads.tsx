@@ -8,13 +8,14 @@ import { formatDistanceToNow } from 'date-fns';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Sparkles } from 'lucide-react';
 
 interface Upload extends DocumentData {
   id: string;
   downloadURL: string;
   originalName: string;
   createdAt: Timestamp;
+  isEnhanced?: boolean;
 }
 
 export function MyUploads() {
@@ -60,7 +61,7 @@ export function MyUploads() {
           </p>
         )}
         {validUploads && validUploads.length > 0 && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
             {validUploads.map((upload) => (
               <div key={upload.id} className="relative group aspect-square">
                 <Image
@@ -75,9 +76,14 @@ export function MyUploads() {
                         {upload.createdAt ? formatDistanceToNow(upload.createdAt.toDate(), { addSuffix: true }) : 'just now'}
                     </p>
                 </div>
-                <a href={upload.downloadURL} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 p-1.5 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                <a href={upload.downloadURL} target="_blank" rel="noopener noreferrer" className="absolute top-2 right-2 p-1.5 bg-background/80 rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-accent">
                     <ExternalLink className='h-4 w-4 text-foreground' />
                 </a>
+                {upload.isEnhanced && (
+                  <div className="absolute top-2 left-2 p-1 bg-background/80 rounded-full shadow-lg">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                  </div>
+                )}
               </div>
             ))}
           </div>

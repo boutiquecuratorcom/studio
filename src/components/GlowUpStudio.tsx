@@ -16,6 +16,7 @@ import {
   Cpu,
   Zap,
   X,
+  Save,
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
@@ -96,6 +97,17 @@ const modeledPresets: Record<LookPreset, { label: string; description: string }>
   'styled-boutique': { label: '', description: '' },
   'facebook-sales-post': { label: '', description: '' },
   'luxury-editorial': { label: '', description: '' },
+};
+
+const dataURIToBlob = (dataURI: string) => {
+  const byteString = atob(dataURI.split(",")[1]);
+  const mimeString = dataURI.split(",")[0].split(":")[1].split(";")[0];
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  return new Blob([ab], { type: mimeString });
 };
 
 export function GlowUpStudio() {
@@ -238,6 +250,43 @@ export function GlowUpStudio() {
     setLookPreset(preset);
   }
 
+  const saveEnhancedImage = async (dataUri: string) => {
+    if (!user || !storage || !firestore) return;
+
+    try {
+      const blob = dataURIToBlob(dataUri);
+      const fileName = `glow-up-${Date.now()}.png`;
+      const storagePath = `uploads/${user.uid}/${fileName}`;
+      const storageRef = ref(storage, storagePath);
+
+      await uploadBytes(storageRef, blob);
+      const downloadURL = await getDownloadURL(storageRef);
+
+      const uploadDoc = {
+        uid: user.uid,
+        email: user.email,
+        storagePath,
+        downloadURL,
+        originalName: fileName,
+        contentType: blob.type,
+        size: blob.size,
+        createdAt: serverTimestamp(),
+        isEnhanced: true,
+      };
+
+      await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
+    } catch (error) {
+      console.error("Error saving enhanced image:", error);
+      toast({
+        variant: "destructive",
+        title: "Save Failed",
+        description: "Could not save the enhanced image to your uploads.",
+      });
+      // Re-throw to be caught by the main handler
+      throw error;
+    }
+  };
+
   const handleEnhance = async () => {
     if (!creationType || originalImages.length === 0 || !styleType || !lookPreset) return;
 
@@ -261,7 +310,6 @@ export function GlowUpStudio() {
       };
 
       const result: EnhanceImageOutput = await enhanceImage(input);
-      clearInterval(interval);
 
       if (result.isFallback) {
         setGenerationMode('instant');
@@ -282,9 +330,14 @@ export function GlowUpStudio() {
         setGenerationMode('ai');
         setIsInstantGlowUp(false);
         setEnhancedImage(result.enhancedImageDataUri);
-        toast({ title: "Glow-up complete!", description: "Your new image was generated in AI Studio Mode." });
+
+        // Save the image and update toast on success
+        setProgress(98);
+        await saveEnhancedImage(result.enhancedImageDataUri);
+        toast({ title: "Glow-up complete!", description: "Your new image has been saved to 'My Uploads'." });
       }
       
+      clearInterval(interval);
       setProgress(100);
       setStep("done");
       setTimeout(() => {
