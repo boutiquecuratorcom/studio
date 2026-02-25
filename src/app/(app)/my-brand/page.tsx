@@ -47,6 +47,7 @@ import {
   Palette,
   Sparkles,
   UploadCloud,
+  Type,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -69,8 +70,9 @@ const brandProfileSchema = z.object({
   targetCustomer: z.enum(["Moms", "Young Professionals", "Size-Inclusive Shoppers", "Athleisure Lovers", "Modest Fashion", "Mixed"]).optional(),
   primaryGoal: z.enum(["Sell Faster", "Increase Engagement", "Look More Premium", "Build Community"]).optional(),
   logoUrl: z.string().url().optional().or(z.literal("")),
-  brandColors: z.array(z.string()).max(3).optional(),
-  fontStyle: z.enum(["Elegant Serif", "Clean Sans", "Modern Serif", "Script Accent"]).optional(),
+  brandColors: z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/, { message: "Must be a valid hex code" })).max(3).optional(),
+  primaryFont: z.string().optional(),
+  secondaryFont: z.string().optional(),
   primaryPlatform: z.enum(["Facebook", "Instagram", "Both"]).optional(),
   postingFrequency: z.enum(["Daily", "3x/week", "Weekly"]).optional(),
   promoStyle: z.enum(["Flash Sales", "Lives", "Outfit Drops", "Mystery Bundles"]).optional(),
@@ -83,11 +85,28 @@ const formOptions = {
     brandVibe: ["Cozy Boutique", "Modern Minimal", "Luxury Editorial", "Trendy Pop"],
     targetCustomer: ["Moms", "Young Professionals", "Size-Inclusive Shoppers", "Athleisure Lovers", "Modest Fashion", "Mixed"],
     primaryGoal: ["Sell Faster", "Increase Engagement", "Look More Premium", "Build Community"],
-    fontStyle: ["Elegant Serif", "Clean Sans", "Modern Serif", "Script Accent"],
     primaryPlatform: ["Facebook", "Instagram", "Both"],
     postingFrequency: ["Daily", "3x/week", "Weekly"],
     promoStyle: ["Flash Sales", "Lives", "Outfit Drops", "Mystery Bundles"],
 };
+
+const fontOptions = [
+    { name: 'Inter', family: 'Inter, sans-serif' },
+    { name: 'Playfair Display', family: "'Playfair Display', serif" },
+    { name: 'Lora', family: "'Lora', serif" },
+    { name: 'Montserrat', family: 'Montserrat, sans-serif' },
+    { name: 'Lato', family: 'Lato, sans-serif' },
+    { name: 'Raleway', family: 'Raleway, sans-serif' },
+    { name: 'Poppins', family: 'Poppins, sans-serif' },
+    { name: 'Open Sans', family: "'Open Sans', sans-serif" },
+    { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
+    { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
+    { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
+    { name: 'Dancing Script', family: "'Dancing Script', cursive" },
+    { name: 'Great Vibes', family: "'Great Vibes', cursive" },
+    { name: 'Pacifico', family: "'Pacifico', cursive" },
+    { name: 'Lobster', family: "'Lobster', cursive" },
+];
 
 const totalFields = Object.keys(brandProfileSchema.shape).length;
 
@@ -109,15 +128,22 @@ export default function MyBrandPage() {
 
   const form = useForm<BrandProfileFormValues>({
     resolver: zodResolver(brandProfileSchema),
-    defaultValues: {},
+    defaultValues: {
+      brandColors: [],
+    },
   });
 
   const { watch, reset, setValue } = form;
   const watchedValues = watch();
 
   const completionPercent = useMemo(() => {
-    const filledFields = Object.values(watchedValues).filter(
-      (value) => value && (!Array.isArray(value) || value.length > 0)
+    const filledFields = Object.entries(watchedValues).filter(
+      ([key, value]) => {
+        if (key === 'brandColors') {
+            return Array.isArray(value) && value.length > 0 && value.some(v => !!v);
+        }
+        return value && (!Array.isArray(value) || value.length > 0)
+      }
     ).length;
     return Math.round((filledFields / totalFields) * 100);
   }, [watchedValues]);
@@ -298,13 +324,13 @@ export default function MyBrandPage() {
                     <div>
                       <CardTitle className="text-xl">Visual Identity</CardTitle>
                       <CardDescription className="mt-1">
-                        Upload your logo and set your brand colors.
+                        Upload your logo and set your brand colors & fonts.
                       </CardDescription>
                     </div>
                   </CardHeader>
                 </AccordionTrigger>
                 <AccordionContent asChild>
-                    <CardContent className="space-y-6">
+                    <CardContent className="space-y-8">
                         <FormField control={form.control} name="logoUrl" render={({ field }) => (
                             <FormItem>
                                 <FormLabel>Brand Logo</FormLabel>
@@ -337,9 +363,21 @@ export default function MyBrandPage() {
                                 <FormControl>
                                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                         {[0, 1, 2].map(index => (
-                                            <div key={index} className="relative">
+                                            <div key={index} className="relative flex items-center gap-3">
+                                                <label className="h-10 w-12 flex-shrink-0 rounded-md border cursor-pointer" style={{ backgroundColor: field.value?.[index] || 'transparent' }}>
+                                                    <input
+                                                        type="color"
+                                                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                                                        value={field.value?.[index] || '#ffffff'}
+                                                        onChange={(e) => {
+                                                            const newColors = [...(field.value || [])];
+                                                            newColors[index] = e.target.value;
+                                                            setValue('brandColors', newColors, { shouldDirty: true });
+                                                        }}
+                                                    />
+                                                </label>
                                                 <Input
-                                                    placeholder={`#${index + 1}`}
+                                                    placeholder="e.g., #C56A3D"
                                                     value={field.value?.[index] || ''}
                                                     onChange={(e) => {
                                                         const newColors = [...(field.value || [])];
@@ -347,15 +385,18 @@ export default function MyBrandPage() {
                                                         setValue('brandColors', newColors, { shouldDirty: true });
                                                     }}
                                                 />
-                                                <div className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6 rounded border" style={{ backgroundColor: field.value?.[index] || 'transparent' }} />
                                             </div>
                                         ))}
                                     </div>
                                 </FormControl>
-                                <FormDescription>Enter up to 3 colors in hex format (e.g., #C56A3D).</FormDescription>
+                                 <FormDescription>Choose up to 3 colors for your brand.</FormDescription>
+                                <FormMessage />
                             </FormItem>
                         )} />
-                        <SelectField control={form.control} name="fontStyle" label="Font Style Preference" placeholder="Select a font style" options={formOptions.fontStyle} />
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                            <FontSelectField control={form.control} name="primaryFont" label="Primary Font (Headings)" placeholder="Select a font" fonts={fontOptions} />
+                            <FontSelectField control={form.control} name="secondaryFont" label="Secondary Font (Body)" placeholder="Select a font" fonts={fontOptions} />
+                        </div>
                     </CardContent>
                 </AccordionContent>
               </Card>
@@ -423,12 +464,47 @@ function SelectField({ control, name, label, placeholder, options }: any) {
   );
 }
 
+// --- Reusable Font Select Field ---
+function FontSelectField({ control, name, label, placeholder, fonts }: any) {
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder={placeholder} />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {fonts.map((font: {name: string, family: string}) => (
+                <SelectItem key={font.name} value={font.name} style={{fontFamily: font.family}}>
+                  {font.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormItem>
+      )}
+    />
+  );
+}
+
+
 // --- Preview Panel ---
 function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
-  const renderValue = (value: any, placeholder: string = "Not set") => {
-    if (Array.isArray(value) && value.length === 0) return placeholder;
-    if (!value) return <span className="text-muted-foreground/70">{placeholder}</span>;
-    return <span className="font-semibold text-foreground">{value}</span>;
+  const getFontFamily = (fontName: string | undefined) => {
+    return fontOptions.find(f => f.name === fontName)?.family || 'Inter, sans-serif';
+  }
+
+  const renderValue = (value: any, placeholder: string = "Not set", style: React.CSSProperties = {}) => {
+    if (!value || (Array.isArray(value) && value.length === 0)) {
+        return <span className="text-muted-foreground/70">{placeholder}</span>;
+    }
+    return <span className="font-semibold text-foreground truncate" style={style}>{value}</span>;
   }
   
   return (
@@ -450,36 +526,44 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
                 </div>
             )}
             <div>
-                <h3 className="text-lg font-bold">{values.brandName || "Your Brand Name"}</h3>
-                <p className="text-sm text-muted-foreground">{values.tagline || "Your tagline"}</p>
+                <h3 className="text-lg font-bold" style={{fontFamily: getFontFamily(values.primaryFont)}}>
+                  {values.brandName || "Your Brand Name"}
+                </h3>
+                <p className="text-sm text-muted-foreground" style={{fontFamily: getFontFamily(values.secondaryFont)}}>
+                  {values.tagline || "Your tagline"}
+                </p>
             </div>
             <div className="flex justify-center gap-2 pt-2">
-                {(values.brandColors || []).map((color, i) => (
+                {(values.brandColors || []).filter(c => !!c).map((color, i) => (
                     <div key={i} className="h-6 w-6 rounded-full border" style={{backgroundColor: color}}></div>
                 ))}
             </div>
         </div>
 
         <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center gap-4">
                 <p className="text-muted-foreground">Tone</p>
                 {renderValue(values.toneOfVoice)}
             </div>
-             <div className="flex justify-between">
+             <div className="flex justify-between items-center gap-4">
                 <p className="text-muted-foreground">Vibe</p>
                 {renderValue(values.brandVibe)}
             </div>
-             <div className="flex justify-between">
+             <div className="flex justify-between items-center gap-4">
                 <p className="text-muted-foreground">Customer</p>
                 {renderValue(values.targetCustomer)}
             </div>
-             <div className="flex justify-between">
+             <div className="flex justify-between items-center gap-4">
                 <p className="text-muted-foreground">Main Goal</p>
                 {renderValue(values.primaryGoal)}
             </div>
-            <div className="flex justify-between">
-                <p className="text-muted-foreground">Font</p>
-                {renderValue(values.fontStyle)}
+            <div className="flex justify-between items-center gap-4">
+                <p className="text-muted-foreground flex-shrink-0 mr-2">Primary Font</p>
+                {renderValue(values.primaryFont, "Not set", { fontFamily: getFontFamily(values.primaryFont) })}
+            </div>
+            <div className="flex justify-between items-center gap-4">
+                <p className="text-muted-foreground flex-shrink-0 mr-2">Secondary Font</p>
+                {renderValue(values.secondaryFont, "Not set", { fontFamily: getFontFamily(values.secondaryFont) })}
             </div>
         </div>
       </CardContent>

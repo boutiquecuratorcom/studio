@@ -20,7 +20,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;700&family=DM+Serif+Display&family=Dancing+Script&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Lato&family=Libre+Baskerville&family=Lobster&family=Lora&family=Montserrat&family=Open+Sans&family=Pacifico&family=Playfair+Display:wght@400;700&family=Poppins&family=Raleway&display=swap"
           rel="stylesheet"
         />
       </head>
