@@ -53,6 +53,31 @@
         "contentType",
         "createdAt"
       ]
+    },
+    "BrandProfile": {
+      "title": "Brand Profile",
+      "description": "Represents a user's brand identity, voice, and visual settings.",
+      "type": "object",
+      "properties": {
+        "brandName": { "type": "string", "description": "The user's brand name." },
+        "tagline": { "type": "string", "description": "The brand's tagline." },
+        "location": { "type": "string", "description": "City/State of the brand." },
+        "websiteUrl": { "type": "string", "format": "uri", "description": "The brand's website URL." },
+        "instagramUrl": { "type": "string", "format": "uri", "description": "The brand's Instagram URL." },
+        "facebookUrl": { "type": "string", "format": "uri", "description": "The brand's Facebook page URL." },
+        "toneOfVoice": { "type": "string", "enum": ["Warm & Friendly", "Witty", "Southern", "High-Fashion", "Minimal", "Bold", "Playful"] },
+        "brandVibe": { "type": "string", "enum": ["Cozy Boutique", "Modern Minimal", "Luxury Editorial", "Trendy Pop"] },
+        "targetCustomer": { "type": "string", "enum": ["Moms", "Young Professionals", "Size-Inclusive Shoppers", "Athleisure Lovers", "Modest Fashion", "Mixed"] },
+        "primaryGoal": { "type": "string", "enum": ["Sell Faster", "Increase Engagement", "Look More Premium", "Build Community"] },
+        "logoUrl": { "type": "string", "format": "uri", "description": "URL to the uploaded brand logo." },
+        "brandColors": { "type": "array", "items": { "type": "string" }, "description": "Up to 3 brand colors in hex format." },
+        "fontStyle": { "type": "string", "enum": ["Elegant Serif", "Clean Sans", "Modern Serif", "Script Accent"] },
+        "primaryPlatform": { "type": "string", "enum": ["Facebook", "Instagram", "Both"] },
+        "postingFrequency": { "type": "string", "enum": ["Daily", "3x/week", "Weekly"] },
+        "promoStyle": { "type": "string", "enum": ["Flash Sales", "Lives", "Outfit Drops", "Mystery Bundles"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
     }
   },
   "auth": {
@@ -69,6 +94,10 @@
     "/users/{userId}/uploads/{uploadId}": {
       "schema": { "$ref": "#/entities/UserUpload" },
       "description": "Stores metadata for files uploaded by a user."
+    },
+    "/users/{userId}/brandProfile/{brandProfileId}": {
+      "schema": { "$ref": "#/entities/BrandProfile" },
+      "description": "Stores the user's brand profile. Expect a single document per user."
     }
   }
 }

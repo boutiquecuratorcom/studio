@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Sparkles, Upload, Wand2, BookOpen, Settings } from 'lucide-react';
+import { Home, Sparkles, Upload, Wand2, BookOpen, Settings, Briefcase } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
 import {
@@ -23,6 +23,7 @@ const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/editor', label: 'AI Editor', icon: Wand2 },
   { href: '/uploads', label: 'My Library', icon: Upload },
+  { href: '/my-brand', label: 'My Brand', icon: Briefcase },
   { href: '/looks', label: 'Looks', icon: BookOpen },
 ];
 
