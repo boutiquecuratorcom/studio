@@ -7,7 +7,7 @@ service cloud.firestore {
       allow read: if true;
     }
 
-    // Allow writes to the test collection for verification
+    // Allow writes to the test collection for verification.
     match /test-collection/{docId} {
       allow write: if true;
     }
