@@ -162,40 +162,28 @@ export function GlowUpStudio() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-    
+
     if (!files || files.length === 0 || !creationType || !user || !storage || !firestore) {
-        if (step === 'upload') {
-            setStep('selectCreationType');
-            setCreationType(null);
-        }
-        return;
-    }
-
-    const uniqueFiles = Array.from(files).filter(file => {
-      const isDuplicate = existingUploads?.some(upload => 
-        upload.originalName === file.name && upload.size === file.size
-      );
-      if (isDuplicate) {
-        toast({
-          title: "Duplicate Skipped",
-          description: `"${file.name}" is already in your library.`,
-        });
-        return false;
-      }
-      return true;
-    });
-
-    if (uniqueFiles.length === 0) {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
+      if (step === 'upload') {
+        setStep('selectCreationType');
+        setCreationType(null);
       }
       return;
     }
 
-    const prospectiveCount = originalImages.length + uniqueFiles.length;
-
+    // --- Validation Checks ---
+    let hasError = false;
+    Array.from(files).forEach((file) => {
+      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+        toast({ variant: "destructive", title: "Image too large", description: `"${file.name}" is over 10MB.` });
+        hasError = true;
+      }
+    });
+    if (hasError) return;
+    
+    const prospectiveCount = originalImages.length + files.length;
     if (creationType === 'single' && prospectiveCount > 1) {
       toast({ variant: 'destructive', title: 'Invalid Selection', description: 'For a "Single Item", you can only upload one image.' });
       return;
@@ -204,52 +192,77 @@ export function GlowUpStudio() {
       toast({ variant: 'destructive', title: 'Too many images', description: 'You can select up to 3 images for an outfit.' });
       return;
     }
-    
-    let hasError = false;
-    uniqueFiles.forEach((file) => {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
-        toast({ variant: "destructive", title: "Image too large", description: `"${file.name}" is over 10MB. Please upload smaller images.` });
-        hasError = true;
+
+    // --- File Processing ---
+    const existingImageUrls: string[] = [];
+    const filesToUpload: File[] = [];
+
+    Array.from(files).forEach(file => {
+      const existingFile = existingUploads?.find(upload =>
+        upload.originalName === file.name && upload.size === file.size
+      );
+
+      if (existingFile?.downloadURL) {
+        existingImageUrls.push(existingFile.downloadURL);
+        toast({
+          title: "Image Added",
+          description: `Used "${file.name}" from your library.`,
+        });
+      } else {
+        filesToUpload.push(file);
       }
     });
-    if (hasError) return;
 
-    toast({ title: 'Uploading image(s)...', description: 'Your files are being securely saved.' });
-    
-    const uploadPromises = uniqueFiles.map(async (file) => {
-      const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
-      const storageRef = ref(storage, storagePath);
+    const allUrlsToAdd = [...existingImageUrls];
 
-      await uploadBytes(storageRef, file);
-      const downloadURL = await getDownloadURL(storageRef);
+    // --- Uploading new files (if any) ---
+    if (filesToUpload.length > 0) {
+      toast({ title: 'Uploading new image(s)...', description: 'Your new files are being securely saved.' });
+      try {
+        const newlyUploadedUrls = await Promise.all(filesToUpload.map(async (file) => {
+          const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
+          const storageRef = ref(storage, storagePath);
 
-      const uploadDoc = {
-        uid: user.uid,
-        email: user.email,
-        storagePath,
-        downloadURL,
-        originalName: file.name,
-        contentType: file.type,
-        size: file.size,
-        createdAt: serverTimestamp(),
-      };
+          await uploadBytes(storageRef, file);
+          const downloadURL = await getDownloadURL(storageRef);
 
-      await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
-      
-      return downloadURL;
-    });
+          const uploadDoc = {
+            uid: user.uid,
+            email: user.email,
+            storagePath,
+            downloadURL,
+            originalName: file.name,
+            contentType: file.type,
+            size: file.size,
+            createdAt: serverTimestamp(),
+          };
 
-    Promise.all(uploadPromises).then(newImageUrls => {
-        setOriginalImages(prev => [...prev, ...newImageUrls]);
+          await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
+          return downloadURL;
+        }));
+        
+        allUrlsToAdd.push(...newlyUploadedUrls);
         toast({ title: 'Upload complete!', description: 'You can now style your image(s).' });
-        if (step === 'upload') {
-            setEnhancedImage(null);
-            setStep("selectStyleType");
-        }
-    }).catch(error => {
+
+      } catch (error) {
         console.error("Error uploading files:", error);
         toast({ variant: "destructive", title: "Upload failed", description: "There was an error saving your files. Please try again." });
-    });
+        return; // Stop execution if upload fails
+      }
+    }
+
+    // --- Final State Update ---
+    if(allUrlsToAdd.length > 0) {
+      setOriginalImages(prev => [...prev, ...allUrlsToAdd]);
+      if (step === 'upload') {
+        setEnhancedImage(null);
+        setStep("selectStyleType");
+      }
+    }
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
   };
   
   const handleRemoveImage = (indexToRemove: number) => {
