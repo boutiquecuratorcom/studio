@@ -67,31 +67,32 @@ const enhanceImageFlow = ai.defineFlow(
 --- TASK: CREATE A STYLED BOUTIQUE FLAT LAY IMAGE ---
 
 --- STYLE DIRECTION ---
-Generate a boutique-quality styled flat lay outfit as if arranged by a professional boutique stylist for a social media post. The final image should look like a boutique owner styled and photographed the outfit themselves for Facebook or Instagram. It must be a premium, scroll-stopping image that feels authentic and professionally styled.
+Generate a boutique-quality styled flat lay outfit as if arranged by a professional boutique stylist for a social media post or live sale. The final image should look like a successful boutique owner styled and photographed the outfit themselves for Facebook or Instagram. It must be a premium, scroll-stopping image that feels authentic, warm, and inviting.
 
 --- COMPOSITION RULES (VERY IMPORTANT) ---
-- **Natural Layout:** Arrange items naturally. AVOID perfect symmetry, rigid grids, or exact centering. Use slight angles and organic placement to mimic a real stylist's work.
-- **No Floating/Awkward Folds:** Garments must look grounded. Avoid awkward or unnatural folding. Pants and leggings should be laid out fully extended to show their length and fit, not folded into squares.
-- **Realistic Scale:** Maintain the realistic scale and proportions of all garments relative to each other. Do not dramatically shrink or enlarge any item.
-- **Cohesive Outfit:** Arrange tops, bottoms, and layers as a cohesive, intentional outfit.
+- **Natural, Intentional Layout:** Arrange items naturally as a cohesive, intentionally styled outfit. AVOID perfect symmetry, rigid grids, or exact centering. Use slight angles and organic placement to mimic a real stylist's work. Ensure clean spacing and visual balance.
+- **Garment Presentation:**
+    - Tops should be laid flat and fully visible.
+    - Bottoms (pants, leggings) must be displayed fully extended to show their length and fit. A single, gentle fold is acceptable only if required for styling, but avoid random, excessive, or square folding.
+    - Garments must look grounded. Avoid awkward or unnatural folding and never overlap garments in a way that obscures them.
+- **Realistic Scale & Integrity:** Maintain the realistic scale and proportions of all garments relative to each other. Do not dramatically shrink or enlarge any item. Preserve the original colors, prints, and design of the clothing. Do not alter the garments.
 - **Camera Angle:** Strict 90-degree overhead, top-down flat lay view.
-- **Garment Integrity:** Preserve the original colors, prints, and design of the clothing. Do not alter the garments.
 
 --- BACKGROUND & LIGHTING ---
-- **Background:** Use a warm, neutral boutique-style background (e.g., cream, light beige, off-white seamless paper, or a very light wood texture).
+- **Background:** Use a warm, neutral boutique-style background (e.g., cream, light beige, off-white seamless paper, a very light wood texture, or a soft fabric surface).
 - **Lighting:** Soft, diffused, even studio light.
 - **Shadows:** Create soft, natural drop shadows to add depth and realism. The result should not look flat.
 
---- ACCESSORIES ---
-- **Automatic Accessorizing:** Always add 1-3 perfectly coordinated boutique accessories to complete the look (e.g., a stylish bag, simple jewelry, sunglasses, a pair of shoes).
-- **Tasteful Placement:** Accessories must ENHANCE the outfit, not overpower or distract from the main clothing items. They should match the outfit's style and color palette.
+--- ACCESSORIES (MUST BE INCLUDED) ---
+- **Automatic Accessorizing:** Always add 1-3 perfectly coordinated boutique accessories to complete the look (e.g., a stylish bag, simple jewelry, sunglasses, a pair of shoes). Do not overcrowd the layout.
+- **Tasteful & Complementary:** Accessories must ENHANCE the outfit, not overpower or distract from the main clothing items. They must match the outfit's style and color palette.
 - **Lifestyle Props:** You can optionally add a single, subtle lifestyle prop like a small plant or a coffee mug to enhance the boutique feel, but keep it minimal.
 
 --- FORBIDDEN ELEMENTS (DO NOT INCLUDE) ---
 - Text, watermarks, or logos.
 - Busy, cluttered backgrounds or distracting props.
-- A generic, "stock photo" or AI-generated feel.
-- Symmetrical, catalog-style grid layouts.
+- A generic, "stock photo" or AI-generated feel. Symmetrical, catalog-style grid layouts are forbidden.
+- Distorted or redesigned clothing shapes.
 `;
 
       if (creationType === 'multiple') {
