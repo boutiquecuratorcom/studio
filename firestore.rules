@@ -1,0 +1,15 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Allow public read access to all documents
+    match /{document=**} {
+      allow read: if true;
+    }
+
+    // Allow writes to the test collection for verification
+    match /test-collection/{docId} {
+      allow write: if true;
+    }
+  }
+}
