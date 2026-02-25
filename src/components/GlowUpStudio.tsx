@@ -10,6 +10,7 @@ import {
   Wand2,
 } from "lucide-react";
 
+import { enhanceImage, type EnhanceImageOutput } from "@/ai/flows/enhance-image-flow";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -63,7 +64,7 @@ export function GlowUpStudio() {
     }
   };
 
-  const handleEnhance = () => {
+  const handleEnhance = async () => {
     if (!originalImage) return;
 
     setIsEnhancing(true);
@@ -77,21 +78,40 @@ export function GlowUpStudio() {
           clearInterval(interval);
           return 95;
         }
-        return prev + Math.floor(Math.random() * 10) + 5;
+        return prev + Math.floor(Math.random() * 5) + 2; // Smoother progress
       });
-    }, 250);
+    }, 500);
 
-    setTimeout(() => {
+    try {
+      const result: EnhanceImageOutput = await enhanceImage({ imageDataUri: originalImage });
+      
       clearInterval(interval);
-      setProgress(100);
-      setEnhancedImage(afterImageDefault.imageUrl);
-      setIsEnhancing(false);
-      setIsEnhanced(true);
+      
+      if (result.enhancedImageDataUri) {
+        setProgress(100);
+        setEnhancedImage(result.enhancedImageDataUri);
+        setIsEnhanced(true);
+        toast({
+            title: "Glow-up complete!",
+            description: "Your image has been successfully enhanced.",
+        });
+      } else {
+        throw new Error("The AI did not return an enhanced image.");
+      }
+    } catch (error) {
+      clearInterval(interval);
+      console.error("Error enhancing image:", error);
       toast({
-        title: "Glow-up complete!",
-        description: "Your image has been successfully enhanced.",
+        variant: "destructive",
+        title: "Enhancement failed",
+        description: (error instanceof Error ? error.message : "An unknown error occurred") + ". Please try again.",
       });
-    }, 3000);
+      setProgress(0);
+      setEnhancedImage(null);
+      setIsEnhanced(false);
+    } finally {
+      setIsEnhancing(false);
+    }
   };
 
   const handleDownload = async () => {
