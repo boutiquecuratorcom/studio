@@ -19,7 +19,7 @@ import {
   Save,
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
 
 
 import {
@@ -48,7 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { cn } from "@/lib/utils";
-import { useUser, useFirestore, useStorage } from "@/firebase";
+import { useUser, useFirestore, useStorage, useCollection } from "@/firebase";
 
 
 const beforeImageDefault = PlaceHolderImages.find(
@@ -116,6 +116,15 @@ export function GlowUpStudio() {
   const firestore = useFirestore();
   const storage = useStorage();
 
+  const uploadsQuery = React.useMemo(() => {
+    if (user && firestore) {
+      return query(collection(firestore, `users/${user.uid}/uploads`));
+    }
+    return null;
+  }, [user, firestore]);
+  const { data: existingUploads } = useCollection(uploadsQuery);
+
+
   const [originalImages, setOriginalImages] = React.useState<string[]>([]);
   const [enhancedImage, setEnhancedImage] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
@@ -164,7 +173,28 @@ export function GlowUpStudio() {
         return;
     }
 
-    const prospectiveCount = originalImages.length + files.length;
+    const uniqueFiles = Array.from(files).filter(file => {
+      const isDuplicate = existingUploads?.some(upload => 
+        upload.originalName === file.name && upload.size === file.size
+      );
+      if (isDuplicate) {
+        toast({
+          title: "Duplicate Skipped",
+          description: `"${file.name}" is already in your library.`,
+        });
+        return false;
+      }
+      return true;
+    });
+
+    if (uniqueFiles.length === 0) {
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
+    }
+
+    const prospectiveCount = originalImages.length + uniqueFiles.length;
 
     if (creationType === 'single' && prospectiveCount > 1) {
       toast({ variant: 'destructive', title: 'Invalid Selection', description: 'For a "Single Item", you can only upload one image.' });
@@ -176,7 +206,7 @@ export function GlowUpStudio() {
     }
     
     let hasError = false;
-    Array.from(files).forEach((file) => {
+    uniqueFiles.forEach((file) => {
       if (file.size > 10 * 1024 * 1024) { // 10MB limit
         toast({ variant: "destructive", title: "Image too large", description: `"${file.name}" is over 10MB. Please upload smaller images.` });
         hasError = true;
@@ -186,7 +216,7 @@ export function GlowUpStudio() {
 
     toast({ title: 'Uploading image(s)...', description: 'Your files are being securely saved.' });
     
-    const uploadPromises = Array.from(files).map(async (file) => {
+    const uploadPromises = uniqueFiles.map(async (file) => {
       const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
       const storageRef = ref(storage, storagePath);
 
