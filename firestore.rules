@@ -2,9 +2,9 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules are insecure and should not be used in production.
-    // They are for initial setup and testing only.
-    match /{document=**} {
+    // This rule allows anyone to read and write to the test-collection.
+    // This is insecure and should only be used for initial setup.
+    match /test-collection/{testId} {
       allow read, write: if true;
     }
   }
