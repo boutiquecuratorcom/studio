@@ -200,9 +200,9 @@ export function GlowUpStudio() {
 
     try {
       for (const file of Array.from(files)) {
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
           await new Promise<void>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.readAsDataURL(file);
               reader.onload = () => {
                   const existingImage = existingUploads?.find(upload =>
                       upload.originalName === file.name && upload.size === file.size
@@ -249,10 +249,11 @@ export function GlowUpStudio() {
           const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
           const storageRef = ref(storage, storagePath);
           
-          const reader = new FileReader();
-          reader.readAsDataURL(file);
-          const dataUrl = await new Promise<string>(resolve => {
+          const dataUrl = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.readAsDataURL(file);
               reader.onload = () => resolve(reader.result as string);
+              reader.onerror = (error) => reject(error);
           });
 
           await uploadBytes(storageRef, file);
