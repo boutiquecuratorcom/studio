@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -277,7 +276,7 @@ export default function MyBrandPage() {
       </div>
 
       <Form {...form}>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <Accordion type="multiple" defaultValue={["item-1", "item-2", "item-3", "item-4"]} className="lg:col-span-2 space-y-6">
             {/* Brand Identity */}
             <AccordionItem value="item-1" className="border-none">
@@ -295,7 +294,7 @@ export default function MyBrandPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <CardContent>
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <FormField control={form.control} name="brandName" render={({ field }) => ( <FormItem><FormLabel>Brand Name</FormLabel><FormControl><Input placeholder="e.g., Stella & Grace" {...field} value={field.value || ''} /></FormControl></FormItem> )} />
                         <FormField control={form.control} name="tagline" render={({ field }) => ( <FormItem><FormLabel>Tagline</FormLabel><FormControl><Input placeholder="e.g., Effortless style, everyday." {...field} value={field.value || ''} /></FormControl></FormItem> )} />
@@ -310,7 +309,7 @@ export default function MyBrandPage() {
                             Save Changes
                          </Button>
                       </div>
-                    </form>
+                    </div>
                   </CardContent>
                 </AccordionContent>
               </Card>
@@ -331,7 +330,7 @@ export default function MyBrandPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <CardContent>
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <SelectField control={form.control} name="toneOfVoice" label="Tone of Voice" placeholder="Select a tone" options={formOptions.toneOfVoice} />
                         <SelectField control={form.control} name="brandVibe" label="Brand Vibe" placeholder="Select a vibe" options={formOptions.brandVibe} />
@@ -344,7 +343,7 @@ export default function MyBrandPage() {
                             Save Changes
                          </Button>
                       </div>
-                    </form>
+                    </div>
                   </CardContent>
                 </AccordionContent>
               </Card>
@@ -365,7 +364,7 @@ export default function MyBrandPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                     <CardContent>
-                      <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+                      <div className="space-y-8">
                           <FormField control={form.control} name="logoUrl" render={({ field }) => (
                               <FormItem>
                                   <FormLabel>Brand Logo</FormLabel>
@@ -438,7 +437,7 @@ export default function MyBrandPage() {
                                 Save Changes
                              </Button>
                           </div>
-                      </form>
+                      </div>
                     </CardContent>
                 </AccordionContent>
               </Card>
@@ -459,7 +458,7 @@ export default function MyBrandPage() {
                 </AccordionTrigger>
                 <AccordionContent>
                   <CardContent>
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    <div className="space-y-6">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                          <SelectField control={form.control} name="primaryPlatform" label="Primary Platform" placeholder="Select a platform" options={formOptions.primaryPlatform} />
                          <SelectField control={form.control} name="postingFrequency" label="Posting Frequency" placeholder="Select a frequency" options={formOptions.postingFrequency} />
@@ -471,7 +470,7 @@ export default function MyBrandPage() {
                             Save Changes
                          </Button>
                       </div>
-                    </form>
+                    </div>
                   </CardContent>
                 </AccordionContent>
               </Card>
@@ -481,7 +480,7 @@ export default function MyBrandPage() {
           <div className="lg:col-span-1 lg:sticky top-12">
             <BrandProfilePreview values={watchedValues} />
           </div>
-        </div>
+        </form>
       </Form>
     </div>
   );
