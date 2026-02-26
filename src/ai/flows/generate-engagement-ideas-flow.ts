@@ -9,7 +9,7 @@
  */
 
 import { ai } from '@/ai/genkit';
-import { z } from 'genkit';
+import { z } from 'zod';
 
 // --- Input Schemas ---
 
@@ -26,7 +26,7 @@ const BrandProfileSchema = z.object({
 export type BrandProfile = z.infer<typeof BrandProfileSchema>;
 
 
-export const EngagementSettingsSchema = z.object({
+const EngagementSettingsSchema = z.object({
   intensity: z.enum(['Safe', 'Bold', 'Viral']),
   goal: z.enum(['Engagement', 'Sales', 'Both']),
   platform: z.enum(['Facebook', 'Instagram', 'Both']),
@@ -36,7 +36,7 @@ export type EngagementSettings = z.infer<typeof EngagementSettingsSchema>;
 
 // --- Output Schemas ---
 
-export const EngagementIdeaSchema = z.object({
+const EngagementIdeaSchema = z.object({
   title: z.string().describe("The short, catchy title for the idea (e.g., 'This or That: Weekend Edition')."),
   caption: z.string().describe("The ready-to-post caption text, including emojis and hashtags."),
   whyItWorks: z.string().describe("A brief, 1-2 sentence explanation of the strategy behind the idea."),
@@ -46,7 +46,7 @@ export const EngagementIdeaSchema = z.object({
 export type EngagementIdea = z.infer<typeof EngagementIdeaSchema>;
 
 
-export const EngagementDropSchema = z.object({
+const EngagementDropSchema = z.object({
   ideas: z.array(EngagementIdeaSchema).length(5).describe('An array of exactly 5 unique engagement ideas.'),
 });
 export type EngagementDrop = z.infer<typeof EngagementDropSchema>;
