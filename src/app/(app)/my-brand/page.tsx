@@ -325,27 +325,25 @@ export default function MyBrandPage() {
     }
 
     setIsSaving(true);
-    console.log('Saving brand profile data:', data);
+    
+    const payload: { [key: string]: any } = {};
+    // Filter out undefined values from the form data
+    Object.entries(data).forEach(([key, value]) => {
+      if (value !== undefined) {
+        payload[key] = value;
+      }
+    });
+    
+    // Special handling for brandColors to filter out empty strings
+    if (data.brandColors) {
+      payload.brandColors = data.brandColors.filter(
+        (color) => !!color && color.match(/^#[0-9a-fA-F]{6}$/)
+      );
+    }
+    
+    console.log('Saving brand profile data:', payload);
 
     try {
-      const payload: { [key: string]: any } = {};
-      // Filter out undefined values from the form data
-      Object.entries(data).forEach(([key, value]) => {
-        if (value !== undefined) {
-          payload[key] = value;
-        }
-      });
-      
-      // Special handling for brandColors to filter out empty strings
-      if (data.brandColors) {
-        payload.brandColors = data.brandColors.filter(
-          (color) => !!color && color.match(/^#[0-9a-fA-F]{6}$/)
-        );
-      }
-      
-      console.log('Payload being sent to Firestore:', payload);
-      console.log('Firestore doc path:', brandProfileRef.path);
-
       await setDoc(
         brandProfileRef,
         { ...payload, updatedAt: serverTimestamp() },
@@ -872,7 +870,7 @@ function SelectField({ control, name, label, placeholder, options }: any) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <Select onValueChange={field.onChange} defaultValue={field.value} key={field.value ?? name}>
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
@@ -901,7 +899,7 @@ function FontSelectField({ control, name, label, placeholder, fonts }: any) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <Select onValueChange={field.onChange} defaultValue={field.value} key={field.value ?? name}>
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
