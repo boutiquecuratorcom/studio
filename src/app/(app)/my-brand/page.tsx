@@ -71,7 +71,7 @@ const brandProfileSchema = z.object({
   targetCustomer: z.enum(["Moms", "Young Professionals", "Size-Inclusive Shoppers", "Athleisure Lovers", "Modest Fashion", "Mixed"]).optional(),
   primaryGoal: z.enum(["Sell Faster", "Increase Engagement", "Look More Premium", "Build Community"]).optional(),
   logoUrl: z.string().url().optional().or(z.literal("")),
-  brandColors: z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/, { message: "Must be a valid hex code" })).max(3).optional(),
+  brandColors: z.array(z.string().regex(/^#[0-9a-fA-F]{6}$/, { message: "Must be a valid hex code" }).or(z.literal(''))).max(3).optional(),
   primaryFont: z.string().optional(),
   secondaryFont: z.string().optional(),
   primaryPlatform: z.enum(["Facebook", "Instagram", "Both"]).optional(),
@@ -130,7 +130,16 @@ export default function MyBrandPage() {
   const form = useForm<BrandProfileFormValues>({
     resolver: zodResolver(brandProfileSchema),
     defaultValues: {
-      brandColors: [],
+      brandColors: ['', '', ''],
+      brandName: '',
+      tagline: '',
+      location: '',
+      websiteUrl: '',
+      instagramUrl: '',
+      facebookUrl: '',
+      logoUrl: '',
+      primaryFont: '',
+      secondaryFont: '',
     },
   });
 
@@ -158,7 +167,12 @@ export default function MyBrandPage() {
 
   useEffect(() => {
     if (brandProfileData) {
-      reset(brandProfileData);
+      const colors = brandProfileData.brandColors || [];
+      const paddedColors = [ colors[0] || '', colors[1] || '', colors[2] || '' ];
+      reset({
+        ...brandProfileData,
+        brandColors: paddedColors,
+      });
     }
   }, [brandProfileData, reset]);
 
@@ -197,7 +211,12 @@ export default function MyBrandPage() {
     setIsSaving(true);
     
     try {
-        await setDoc(brandProfileRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+        const dataToSave = {
+            ...data,
+            brandColors: data.brandColors?.filter(color => !!color) || []
+        };
+
+        await setDoc(brandProfileRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
         toast({ title: "My Brand Saved!", description: "Your changes have been saved." });
     } catch (error: any) {
         toast({ variant: "destructive", title: "Save failed", description: error.message });
@@ -371,7 +390,7 @@ export default function MyBrandPage() {
                                                         onChange={(e) => {
                                                             const newColors = [...(field.value || [])];
                                                             newColors[index] = e.target.value;
-                                                            setValue('brandColors', newColors, { shouldDirty: true });
+                                                            setValue('brandColors', newColors, { shouldDirty: true, shouldValidate: true });
                                                         }}
                                                     />
                                                 </label>
@@ -381,7 +400,7 @@ export default function MyBrandPage() {
                                                     onChange={(e) => {
                                                         const newColors = [...(field.value || [])];
                                                         newColors[index] = e.target.value;
-                                                        setValue('brandColors', newColors, { shouldDirty: true });
+                                                        setValue('brandColors', newColors, { shouldDirty: true, shouldValidate: true });
                                                     }}
                                                 />
                                             </div>
@@ -583,3 +602,5 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   )
 }
+
+    
