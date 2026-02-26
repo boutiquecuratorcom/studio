@@ -60,6 +60,8 @@ function ImageSelector({ onImageSelect }: { onImageSelect: (url: string) => void
 
   const { data: uploads, loading } = useCollection(uploadsQuery, user ? `users/${user.uid}/uploads` : null);
 
+  const validUploads = useMemo(() => uploads?.filter(u => u.downloadURL), [uploads]);
+
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
       <header className="mb-10 text-center flex flex-col items-center">
@@ -84,14 +86,14 @@ function ImageSelector({ onImageSelect }: { onImageSelect: (url: string) => void
             ))}
           </div>
         )}
-        {!loading && (!uploads || uploads.length === 0) && (
+        {!loading && (!validUploads || validUploads.length === 0) && (
           <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card">
             <p className="text-muted-foreground">No recent uploads found.</p>
           </div>
         )}
-        {!loading && uploads && uploads.length > 0 && (
+        {!loading && validUploads && validUploads.length > 0 && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-            {uploads.map((upload) => (
+            {validUploads.map((upload) => (
               <div
                 key={upload.id}
                 className="relative group aspect-square cursor-pointer"
