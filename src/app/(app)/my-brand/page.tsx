@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -174,8 +175,16 @@ export default function MyBrandPage() {
             setIsSaving(true);
             debounceTimeout.current = setTimeout(async () => {
                 if (!brandProfileRef) return;
+                
+                const dataToSave = Object.entries(value).reduce((acc, [key, val]) => {
+                    if (val !== undefined) {
+                        acc[key as keyof BrandProfileFormValues] = val;
+                    }
+                    return acc;
+                }, {} as Partial<BrandProfileFormValues>);
+
                 try {
-                    await setDoc(brandProfileRef, { ...value, updatedAt: serverTimestamp() }, { merge: true });
+                    await setDoc(brandProfileRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
                     toast({ title: "My Brand Saved!", description: "Your changes have been saved." });
                 } catch (error: any) {
                     toast({ variant: "destructive", title: "Save failed", description: error.message });
@@ -571,5 +580,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   )
 }
+
+    
 
     
