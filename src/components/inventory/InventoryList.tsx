@@ -52,9 +52,8 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
                     analysis: {
                         ...analysisResult,
                         status: 'complete',
-                        error: null,
+                        error: undefined, // Clear any previous error
                     },
-                    updatedAt: new Date(),
                 });
                 toast({
                     title: 'Analysis Complete',
@@ -66,11 +65,10 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
             if (isMounted) {
                 await updateInventoryItem(firestore, item.id, {
                     analysis: {
-                        ...item.analysis,
+                        ...(item.analysis || {}),
                         status: 'failed',
                         error: error.message || 'An unknown error occurred during analysis.',
                     },
-                    updatedAt: new Date(),
                 });
                 toast({
                     variant: 'destructive',
@@ -159,7 +157,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
         </div>
         <div className="p-4 flex-grow flex flex-col">
             <div className="flex justify-between items-start gap-2 mb-2">
-                <h3 className="font-semibold leading-snug flex-grow">{item.title}</h3>
+                <h3 className="font-semibold leading-snug flex-grow min-w-0">{item.title}</h3>
                 {getStatusBadge()}
             </div>
           <p className="text-sm text-muted-foreground mb-3 flex-grow">{item.type}</p>
