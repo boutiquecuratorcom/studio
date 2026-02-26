@@ -111,11 +111,23 @@ const EngagementMachineClient = () => {
             // If no cache or settings mismatch, generate new ideas
             toast({ title: 'Generating fresh ideas... 🤖' });
             
+            // Sanitize brandProfile to be a plain object for the server action
+            const plainBrandProfile = brandProfile ? {
+                brandName: brandProfile.brandName,
+                tagline: brandProfile.tagline,
+                toneOfVoice: brandProfile.toneOfVoice,
+                brandVibe: brandProfile.brandVibe,
+                targetCustomer: brandProfile.targetCustomer,
+                primaryGoal: brandProfile.primaryGoal,
+                primaryPlatform: brandProfile.primaryPlatform,
+                promoStyle: brandProfile.promoStyle,
+            } : {};
+
             const result = await generateEngagementIdeas({
                 intensity,
                 goal,
                 platform,
-                brandProfile: brandProfile || {},
+                brandProfile: plainBrandProfile,
             });
 
             if (result.ideas) {
