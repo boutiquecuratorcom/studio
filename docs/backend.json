@@ -329,6 +329,37 @@
           "enum": ["top", "center", "bottom"]
         }
       }
+    },
+    "EngagementIdea": {
+      "title": "Engagement Idea",
+      "description": "A single AI-generated engagement idea.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "The short, catchy title for the idea." },
+        "caption": { "type": "string", "description": "The ready-to-post caption text." },
+        "whyItWorks": { "type": "string", "description": "A brief explanation of the strategy behind the idea." },
+        "ctaSuggestion": { "type": "string", "description": "A suggested call-to-action to include." },
+        "recommendedFormat": { "type": "string", "description": "The suggested post format (e.g., 'Reel', 'Carousel', 'Static Post')." }
+      },
+      "required": ["title", "caption", "whyItWorks", "ctaSuggestion"]
+    },
+    "EngagementDrop": {
+      "title": "Daily Engagement Drop",
+      "description": "Stores a user's daily set of 5 generated engagement ideas and the settings used.",
+      "type": "object",
+      "properties": {
+        "createdAt": { "type": "string", "format": "date-time" },
+        "intensity": { "type": "string", "enum": ["Safe", "Bold", "Viral"] },
+        "goal": { "type": "string", "enum": ["Engagement", "Sales", "Both"] },
+        "platform": { "type": "string", "enum": ["Facebook", "Instagram", "Both"] },
+        "ideas": {
+          "type": "array",
+          "items": { "$ref": "#/entities/EngagementIdea" },
+          "minItems": 5,
+          "maxItems": 5
+        }
+      },
+      "required": ["createdAt", "intensity", "goal", "platform", "ideas"]
     }
   },
   "auth": {
@@ -367,6 +398,12 @@
         "$ref": "#/entities/InventoryItem"
       },
       "description": "Stores all user inventory items in a single collection."
+    },
+    "/users/{userId}/engagementDrops/{dropId}": {
+      "schema": {
+        "$ref": "#/entities/EngagementDrop"
+      },
+      "description": "Stores a user's daily generated engagement ideas. The {dropId} should be in YYYY-MM-DD format."
     }
   }
 }

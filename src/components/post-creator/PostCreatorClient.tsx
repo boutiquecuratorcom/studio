@@ -11,10 +11,11 @@ import { toPng } from 'html-to-image';
 import { useCollection, useDoc, useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PostControls } from './PostControls';
 import { PostPreview } from './PostPreview';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 // Types
 export type PlatformFormat = 'IG_FEED' | 'FB_FEED';
@@ -145,6 +146,7 @@ export default function PostCreatorClient() {
   const { toast } = useToast();
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
+  const [importedCaption, setImportedCaption] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isInitialStyleSet, setIsInitialStyleSet] = useState(false);
@@ -164,8 +166,31 @@ export default function PostCreatorClient() {
   const [subtextStyle, setSubtextStyle] = useState<TextLayerStyle>(DEFAULT_SUBTEXT_STYLE);
   const [ctaStyle, setCtaStyle] = useState<TextLayerStyle>(DEFAULT_CTA_STYLE);
   
-  // Check for image URL on mount from param or local storage
+  // Check for image URL and prefills on mount
   useEffect(() => {
+    // Check for text prefills from Engagement Machine
+    const prefillJson = localStorage.getItem('postCreatorPrefill');
+    if (prefillJson) {
+      try {
+        const prefill = JSON.parse(prefillJson);
+        if (prefill.headline) setHeadlineText(prefill.headline);
+        if (prefill.cta) setCtaText(prefill.cta);
+        if (prefill.fullCaption) {
+            setImportedCaption(prefill.fullCaption);
+            toast({
+                title: "Content Prefilled!",
+                description: "Headline and CTA have been updated from your engagement idea."
+            })
+        }
+        localStorage.removeItem('postCreatorPrefill');
+      } catch (e) {
+        console.error("Failed to parse prefill data", e);
+        localStorage.removeItem('postCreatorPrefill');
+      }
+    }
+
+
+    // Check for image URL from param or local storage
     const imgParam = searchParams.get('img');
     if (imgParam) {
       setSelectedImageUrl(imgParam);
@@ -182,7 +207,7 @@ export default function PostCreatorClient() {
     }
 
     setIsLoadingImage(false);
-  }, [searchParams]);
+  }, [searchParams, toast]);
 
   // Fetch brand profile
   const brandProfileRef = useMemo(() => {
@@ -238,10 +263,10 @@ export default function PostCreatorClient() {
       });
   }, [previewRef, toast]);
 
-  const handleCopyCaption = () => {
-    const caption = `✨ ${headlineText.toUpperCase()} ✨\n\n${subtextText}\n\nTo purchase, ${ctaText}!`;
-    navigator.clipboard.writeText(caption);
-    toast({ title: 'Caption Copied!' });
+  const handleCopyImportedCaption = () => {
+    if (!importedCaption) return;
+    navigator.clipboard.writeText(importedCaption);
+    toast({ title: 'Full Caption Copied!' });
   };
 
   const handleSaveDraft = async () => {
@@ -296,13 +321,27 @@ export default function PostCreatorClient() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleCopyCaption}><Copy /> Copy Caption</Button>
           <Button variant="outline" onClick={handleDownload}><Download /> Download PNG</Button>
           <Button onClick={handleSaveDraft} disabled={isSaving}>
             {isSaving ? <Loader2 className="animate-spin" /> : <Save />} Save Draft
           </Button>
         </div>
       </header>
+
+      {importedCaption && (
+        <Alert className="mb-8 max-w-3xl mx-auto">
+          <Sparkles className="h-4 w-4" />
+          <AlertTitle>You&apos;ve got a pre-filled caption!</AlertTitle>
+          <AlertDescription className="flex items-center justify-between">
+            The full caption from your engagement idea is ready to be pasted.
+            <Button variant="outline" size="sm" onClick={handleCopyImportedCaption} className="ml-4">
+              <Copy className="mr-2 h-4 w-4" />
+              Copy Full Caption
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-1 lg:sticky top-12">
           <PostControls
