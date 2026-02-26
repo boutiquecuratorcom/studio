@@ -248,6 +248,17 @@
             "COMMENT_SOLD_LIVE"
           ]
         },
+        "frameStyle": {
+          "type": "string",
+          "enum": [
+            "none",
+            "classicBorder",
+            "polaroid",
+            "shadowCard",
+            "accentStroke"
+          ],
+          "description": "The decorative frame style for the post."
+        },
         "enhancedImageUrl": {
           "type": "string",
           "format": "uri"

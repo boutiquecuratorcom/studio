@@ -26,13 +26,15 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RotateCcw } from 'lucide-react';
-import type { PlatformFormat, TemplateId, TextLayerStyle } from './PostCreatorClient';
+import type { PlatformFormat, TemplateId, TextLayerStyle, FrameStyle } from './PostCreatorClient';
 
 interface PostControlsProps {
   platformFormat: PlatformFormat;
   setPlatformFormat: (value: PlatformFormat) => void;
   templateId: TemplateId;
   setTemplateId: (value: TemplateId) => void;
+  frameStyle: FrameStyle;
+  setFrameStyle: (value: FrameStyle) => void;
   headlineText: string;
   setHeadlineText: (value: string) => void;
   subtextText: string;
@@ -120,6 +122,8 @@ export function PostControls({
   setPlatformFormat,
   templateId,
   setTemplateId,
+  frameStyle,
+  setFrameStyle,
   headlineText,
   setHeadlineText,
   subtextText,
@@ -138,8 +142,8 @@ export function PostControls({
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Format &amp; Template</CardTitle>
-          <CardDescription>Choose the right size and style.</CardDescription>
+          <CardTitle>Format &amp; Style</CardTitle>
+          <CardDescription>Choose the right size, template, and frame.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -166,6 +170,21 @@ export function PostControls({
                 <SelectItem value="BOLD_DROP">Bold Drop</SelectItem>
                 <SelectItem value="MINIMAL_LUXE">Minimal Luxe</SelectItem>
                 <SelectItem value="COMMENT_SOLD_LIVE">Comment-Sold Live</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+           <div>
+            <Label>Frame</Label>
+            <Select value={frameStyle} onValueChange={(value) => setFrameStyle(value as FrameStyle)}>
+              <SelectTrigger className="mt-2">
+                <SelectValue placeholder="Select a frame" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">None</SelectItem>
+                <SelectItem value="classicBorder">Classic Border</SelectItem>
+                <SelectItem value="polaroid">Polaroid</SelectItem>
+                <SelectItem value="shadowCard">Shadow Card</SelectItem>
+                <SelectItem value="accentStroke">Accent Stroke</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { collection, doc, orderBy, query, serverTimestamp, setDoc, limit } from 'firebase/firestore';
-import { Copy, Download, Loader2, Save, Sparkles, Wand2, RotateCcw } from 'lucide-react';
+import { Copy, Download, Loader2, Save, Sparkles, Wand2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
 import { useCollection, useDoc, useFirestore, useUser } from '@/firebase';
@@ -19,6 +19,7 @@ import { PostPreview } from './PostPreview';
 // Types
 export type PlatformFormat = 'IG_FEED' | 'FB_FEED';
 export type TemplateId = 'CLEAN_BOUTIQUE' | 'BOLD_DROP' | 'MINIMAL_LUXE' | 'COMMENT_SOLD_LIVE';
+export type FrameStyle = 'none' | 'classicBorder' | 'polaroid' | 'shadowCard' | 'accentStroke';
 
 export type TextLayerStyle = {
   textColorMode: 'auto' | 'light' | 'dark' | 'brandPrimary' | 'brandAccent';
@@ -29,7 +30,7 @@ export type TextLayerStyle = {
 // Default Styles
 const DEFAULT_HEADLINE_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'top' };
 const DEFAULT_SUBTEXT_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'bottom' };
-const DEFAULT_CTA_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'bottom' };
+const DEFAULT_CTA_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: true, position: 'bottom' };
 
 
 function LoadingState() {
@@ -150,6 +151,7 @@ export default function PostCreatorClient() {
   // --- State for post customization ---
   const [platformFormat, setPlatformFormat] = useState<PlatformFormat>('IG_FEED');
   const [templateId, setTemplateId] = useState<TemplateId>('CLEAN_BOUTIQUE');
+  const [frameStyle, setFrameStyle] = useState<FrameStyle>('none');
 
   // Text content state
   const [headlineText, setHeadlineText] = useState('new arrival');
@@ -241,6 +243,7 @@ export default function PostCreatorClient() {
         createdAt: serverTimestamp(),
         platformFormat,
         templateId,
+        frameStyle,
         enhancedImageUrl: selectedImageUrl,
         textFields: { headline: headlineText, subtext: subtextText, cta: ctaText },
         styleConfig: { headline: headlineStyle, subtext: subtextStyle, cta: ctaStyle },
@@ -295,6 +298,8 @@ export default function PostCreatorClient() {
             setPlatformFormat={setPlatformFormat}
             templateId={templateId}
             setTemplateId={setTemplateId}
+            frameStyle={frameStyle}
+            setFrameStyle={setFrameStyle}
             headlineText={headlineText}
             setHeadlineText={setHeadlineText}
             subtextText={subtextText}
@@ -316,6 +321,7 @@ export default function PostCreatorClient() {
             imageUrl={selectedImageUrl}
             platformFormat={platformFormat}
             templateId={templateId}
+            frameStyle={frameStyle}
             headline={{text: headlineText, ...headlineStyle}}
             subtext={{text: subtextText, ...subtextStyle}}
             cta={{text: ctaText, ...ctaStyle}}
