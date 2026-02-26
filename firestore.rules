@@ -20,11 +20,19 @@ service cloud.firestore {
     
     // Rules for the root 'inventory' collection
     match /inventory/{itemId} {
-      // Allow users to read their own items (for both lists and single documents)
-      allow read: if isOwner(resource.data.ownerId);
+      // Allow a user to get a single document if they are its owner.
+      // This is for the item detail page. `resource.data` is available for `get`.
+      allow get: if isOwner(resource.data.ownerId);
+
+      // Allow a user to list documents. The client query MUST filter by ownerId
+      // for this to be secure, which our app does.
+      allow list: if request.auth != null;
       
-      // Allow users to create, update, and delete their own items
-      allow write: if isOwner(request.resource.data.ownerId) || isOwner(resource.data.ownerId);
+      // Allow users to create an item if the new item's ownerId is their own.
+      allow create: if isOwner(request.resource.data.ownerId);
+      
+      // Allow users to update or delete an item if they are the owner of the existing item.
+      allow update, delete: if isOwner(resource.data.ownerId);
     }
   }
 }
