@@ -74,14 +74,14 @@ Today, you will generate a "Daily Engagement Drop" of EXACTLY 5 unique content i
 Analyze the user's brand profile and settings carefully to tailor your response.
 
 --- USER'S BRAND PROFILE ---
-- Brand Name: {{brandProfile.brandName | "Not specified"}}
-- Tagline: {{brandProfile.tagline | "Not specified"}}
-- Tone of Voice: {{brandProfile.toneOfVoice | "Not specified"}}
-- Brand Vibe: {{brandProfile.brandVibe | "Not specified"}}
-- Target Customer: {{brandProfile.targetCustomer | "Not specified"}}
-- Primary Business Goal: {{brandProfile.primaryGoal | "Not specified"}}
-- Primary Social Platform: {{brandProfile.primaryPlatform | "Not specified"}}
-- Typical Promo Style: {{brandProfile.promoStyle | "Not specified"}}
+- Brand Name: {{#if brandProfile.brandName}}{{brandProfile.brandName}}{{else}}Not specified{{/if}}
+- Tagline: {{#if brandProfile.tagline}}{{brandProfile.tagline}}{{else}}Not specified{{/if}}
+- Tone of Voice: {{#if brandProfile.toneOfVoice}}{{brandProfile.toneOfVoice}}{{else}}Not specified{{/if}}
+- Brand Vibe: {{#if brandProfile.brandVibe}}{{brandProfile.brandVibe}}{{else}}Not specified{{/if}}
+- Target Customer: {{#if brandProfile.targetCustomer}}{{brandProfile.targetCustomer}}{{else}}Not specified{{/if}}
+- Primary Business Goal: {{#if brandProfile.primaryGoal}}{{brandProfile.primaryGoal}}{{else}}Not specified{{/if}}
+- Primary Social Platform: {{#if brandProfile.primaryPlatform}}{{brandProfile.primaryPlatform}}{{else}}Not specified{{/if}}
+- Typical Promo Style: {{#if brandProfile.promoStyle}}{{brandProfile.promoStyle}}{{else}}Not specified{{/if}}
 
 --- TODAY'S SETTINGS ---
 - Content Goal: {{{goal}}}
