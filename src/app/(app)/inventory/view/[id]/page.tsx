@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag, UserX, FileQuestion, ServerCrash, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 // --- Define State Types ---
 interface DebugInfo {
@@ -135,6 +137,17 @@ export default function ViewInventoryItemPage() {
       } catch (e: any) {
         setError(e);
         setDebugInfo(prev => ({ ...prev, result: { ...prev.result, errorCode: e.code, errorMessage: e.message }}));
+        
+        // For one-time reads like getDoc, if we get a permission error, we need to
+        // manually construct and emit our rich contextual error so the developer
+        // can see it in the Next.js error overlay.
+        if (e.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: itemRef.path,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
       } finally {
         setLoading(false);
       }
@@ -362,5 +375,7 @@ function DetailItem({ label, value, icon: Icon, isBlock = false }: { label: stri
     </div>
   );
 }
+
+    
 
     
