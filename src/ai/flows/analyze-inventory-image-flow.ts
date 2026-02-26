@@ -1,9 +1,9 @@
 'use server';
 /**
- * @fileOverview A placeholder Genkit flow to analyze an inventory image.
- * This flow simulates an AI analysis process and returns mock data.
+ * @fileOverview An advanced Genkit flow to perform AI analysis on an inventory image
+ * using Gemini Vision.
  *
- * - analyzeInventoryImage - A function that returns mock analysis data for an image.
+ * - analyzeInventoryImage - A function that returns structured analysis data for an image.
  * - AnalyzeInventoryImageInput - The input type for the analyzeInventoryImage function.
  * - AnalyzeInventoryImageOutput - The return type for the analyzeInventoryImage function.
  */
@@ -21,13 +21,39 @@ export type AnalyzeInventoryImageInput = z.infer<
 >;
 
 const AnalyzeInventoryImageOutputSchema = z.object({
-  colors: z.array(z.string()).describe('Dominant colors found in the image.'),
-  pattern: z.string().describe('The primary pattern of the clothing item.'),
-  categoryGuess: z
+  dominantColors: z
+    .array(z.string().regex(/^#[0-9a-fA-F]{6}$/))
+    .min(3)
+    .max(6)
+    .describe('An array of 3-6 dominant colors from the image as hex codes.'),
+  patternType: z
     .string()
-    .describe('The AI-guessed category of the item.'),
-  tags: z.array(z.string()).describe('A list of descriptive tags.'),
-  confidence: z.number().describe('The confidence score of the analysis.'),
+    .describe('The primary pattern type (e.g., "Floral", "Geometric", "Striped", "Solid", "Abstract", "Animal Print").'),
+  patternDescription: z
+    .string()
+    .describe('A human-readable, one-sentence description of the visual pattern.'),
+  styleVibe: z
+    .string()
+    .describe('The overall style vibe of the item (e.g., "Bold & Vibrant", "Soft & Romantic", "Elegant & Classic", "Casual & Relaxed").'),
+  clothingType: z
+    .string()
+    .describe("The AI's best guess of the clothing type (e.g., 'Midi Dress', 'Graphic Tee', 'High-Waisted Leggings'). Be specific."),
+  visualDescription: z
+    .string()
+    .describe("A 1-2 sentence descriptive summary of the item's key visual features."),
+  tags: z
+    .array(z.string())
+    .min(8)
+    .max(15)
+    .describe('An array of 8-15 relevant keywords for search and filtering.'),
+  facebookCaptionHooks: z
+    .array(z.string())
+    .length(3)
+    .describe('3 short, engaging, question-based hooks for Facebook captions.'),
+  instagramCaptionHooks: z
+    .array(z.string())
+    .length(3)
+    .describe('3 short, trendy, emoji-heavy hooks for Instagram captions.'),
 });
 export type AnalyzeInventoryImageOutput = z.infer<
   typeof AnalyzeInventoryImageOutputSchema
@@ -39,15 +65,29 @@ export async function analyzeInventoryImage(
   return analyzeInventoryImageFlow(input);
 }
 
-// A list of mock tags for the placeholder.
-const mockTags = [
-  'floral', 'stripes', 'polka dots', 'animal print', 'geometric', 
-  'solid color', 'casual', 'formal', 'summer', 'winter', 'boho', 
-  'classic', 'vintage feel', 'lace detail', 'ruffles', 'athleisure'
-];
-const mockPatterns = ['Floral', 'Striped', 'Solid', 'Geometric', 'Leopard Print', 'Abstract'];
-const mockCategories = ['Dress', 'Top', 'Leggings', 'Skirt', 'Cardigan'];
-const mockColors = ['#D4A5A5', '#A5D4D4', '#D4C3A5', '#A5B1D4', '#B1D4A5'];
+const analysisPrompt = ai.definePrompt({
+  name: 'inventoryAnalysisPrompt',
+  input: {schema: AnalyzeInventoryImageInputSchema},
+  output: {schema: AnalyzeInventoryImageOutputSchema},
+  prompt: `You are an expert fashion merchandiser and AI analyst for a high-end online boutique. Your task is to analyze the provided image of a clothing item and extract detailed, structured metadata.
+
+The image to analyze is: {{media url=imageUrl}}
+
+Carefully examine the item's color, pattern, style, and type. Generate the following structured information.
+
+Your response MUST be a valid JSON object that conforms to the specified output schema.
+
+- **dominantColors**: Identify 3-6 primary colors and return them as an array of hex codes.
+- **patternType**: Classify the main pattern (e.g., "Floral", "Geometric", "Striped", "Solid").
+- **patternDescription**: Briefly describe the pattern in one sentence.
+- **styleVibe**: Describe the overall feeling or vibe of the item (e.g., "Bold & Vibrant", "Elegant & Classic").
+- **clothingType**: Provide a specific guess for the clothing type (e.g., "A-Line Midi Skirt", "Oversized Knit Sweater").
+- **visualDescription**: Write a compelling 1-2 sentence summary of the item's appearance.
+- **tags**: Generate 8-15 diverse and useful keywords for search (include type, style, pattern, colors, occasion, etc.).
+- **facebookCaptionHooks**: Write 3 short, engaging, question-based hooks to start a Facebook post.
+- **instagramCaptionHooks**: Write 3 short, trendy hooks using relevant emojis for an Instagram post.
+`,
+});
 
 const analyzeInventoryImageFlow = ai.defineFlow(
   {
@@ -56,19 +96,7 @@ const analyzeInventoryImageFlow = ai.defineFlow(
     outputSchema: AnalyzeInventoryImageOutputSchema,
   },
   async ({imageUrl}) => {
-    // Simulate network delay and processing time for a more realistic feel.
-    await new Promise(resolve => setTimeout(resolve, 2000 + Math.random() * 3000));
-    
-    // In a real implementation, you would use the imageUrl to perform
-    // a Gemini Vision API call here.
-    
-    // For now, return mock data.
-    return {
-      colors: mockColors.sort(() => 0.5 - Math.random()).slice(0, 3),
-      pattern: mockPatterns[Math.floor(Math.random() * mockPatterns.length)],
-      categoryGuess: mockCategories[Math.floor(Math.random() * mockCategories.length)],
-      tags: mockTags.sort(() => 0.5 - Math.random()).slice(0, 5),
-      confidence: Math.random() * (0.98 - 0.85) + 0.85, // Simulate high confidence
-    };
+    const {output} = await analysisPrompt({imageUrl});
+    return output!;
   }
 );

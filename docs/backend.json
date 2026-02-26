@@ -158,29 +158,49 @@
                 "failed"
               ]
             },
-            "colors": {
+            "dominantColors": {
               "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "items": { "type": "string" },
+              "description": "3-6 dominant colors from the image as hex codes."
             },
-            "pattern": {
-              "type": "string"
+            "patternType": {
+              "type": "string",
+              "description": "e.g., floral, geometric, stripe, solid, abstract"
             },
-            "categoryGuess": {
-              "type": "string"
+            "patternDescription": {
+              "type": "string",
+              "description": "A human-readable description of the pattern."
+            },
+            "styleVibe": {
+              "type": "string",
+              "description": "e.g., bold, soft, elegant, casual"
+            },
+            "clothingType": {
+              "type": "string",
+              "description": "AI's best guess of the clothing type (dress, top, etc.)."
+            },
+            "visualDescription": {
+              "type": "string",
+              "description": "A 1-2 sentence descriptive summary of the item's appearance."
             },
             "tags": {
               "type": "array",
-              "items": {
-                "type": "string"
-              }
+              "items": { "type": "string" },
+              "description": "8-15 relevant keywords for search and filtering."
             },
-            "confidence": {
-              "type": "number"
+            "facebookCaptionHooks": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "3 short, engaging hooks for Facebook captions."
+            },
+            "instagramCaptionHooks": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "3 short, engaging hooks for Instagram captions."
             },
             "error": {
-              "type": "string"
+              "type": "string",
+              "description": "Stores an error message if the analysis failed."
             }
           }
         }

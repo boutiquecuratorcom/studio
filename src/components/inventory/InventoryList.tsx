@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInventoryItems, deleteInventoryItem, updateInventoryItem, type InventoryItem } from '@/lib/inventory';
-import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, RefreshCw, Trash2, XCircle } from 'lucide-react';
 import { useFirestore, useStorage, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -46,13 +46,13 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
         }
 
         try {
-            const analysisResult: AnalyzeInventoryImageOutput = await analyzeInventoryImage({ imageUrl: item.image.thumbUrl });
+            const analysisResult = await analyzeInventoryImage({ imageUrl: item.image.thumbUrl });
             if (isMounted) {
                 await updateInventoryItem(firestore, item.id, {
                     analysis: {
                         ...analysisResult,
                         status: 'complete',
-                        error: undefined, // Clear any previous error
+                        error: '', // Clear any previous error
                     },
                 });
                 toast({
@@ -84,7 +84,7 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
     return () => {
       isMounted = false;
     };
-  }, [item.id, item.analysis, item.image.thumbUrl, item.title, user, firestore, toast]);
+  }, [item.id, item.analysis?.status, item.image.thumbUrl, item.title, user, firestore, toast]);
 
   return null; // This component does not render anything itself
 }
@@ -106,6 +106,20 @@ function ItemCard({ item }: { item: InventoryItem }) {
     setIsDeleteDialogOpen(false);
   };
   
+  const handleRetryAnalysis = async () => {
+    if (!firestore || !item) return;
+    try {
+        await updateInventoryItem(firestore, item.id, {
+            analysis: {
+                status: 'pending',
+            },
+        });
+        toast({ title: 'Re-analysis Queued', description: `Will try analyzing "${item.title}" again.` });
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Retry Failed', description: error.message });
+    }
+  };
+
   const getStatusIcon = () => {
     const commonClasses = "absolute top-2 left-2 p-1.5 bg-background/80 rounded-full shadow-lg";
     switch (item.analysis?.status) {
@@ -160,6 +174,15 @@ function ItemCard({ item }: { item: InventoryItem }) {
                     <span>Edit Item</span>
                   </Link>
                 </DropdownMenuItem>
+                {item.analysis?.status === 'failed' && (
+                    <>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={handleRetryAnalysis} className="cursor-pointer">
+                            <RefreshCw className="mr-2 h-4 w-4" />
+                            <span>Retry Analysis</span>
+                        </DropdownMenuItem>
+                    </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={() => setIsDeleteDialogOpen(true)} className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer">
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -170,16 +193,25 @@ function ItemCard({ item }: { item: InventoryItem }) {
           </div>
         </div>
         <div className="p-4 flex-grow flex flex-col">
-            <div className="flex justify-between items-start gap-2 mb-2">
-                <h3 className="font-semibold leading-snug flex-grow min-w-0 break-words">{item.title}</h3>
-            </div>
+            <h3 className="font-semibold leading-snug break-words mb-2">{item.title}</h3>
           <p className="text-sm text-muted-foreground mb-3 flex-grow">{item.type}</p>
           <div className="flex flex-wrap gap-2 mb-3">
             {item.sizes.map((size) => (
               <Badge key={size} variant="outline">{size}</Badge>
             ))}
           </div>
-          <div className="flex justify-between items-center mt-auto pt-2">
+
+          {item.analysis?.status === 'complete' && item.analysis.tags && (
+              <div className="border-t pt-3 mt-auto">
+                  <div className="flex flex-wrap gap-1">
+                      {item.analysis.tags.slice(0, 4).map(tag => (
+                          <Badge key={tag} variant="secondary" className="text-xs font-normal">{`#${tag.replace(/\s+/g, '')}`}</Badge>
+                      ))}
+                  </div>
+              </div>
+          )}
+
+          <div className="flex justify-between items-center mt-3 pt-2 border-t">
             <p className="text-xs text-muted-foreground/80">
                 Added {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'just now'}
             </p>
