@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag } from 'lucide-react';
+import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag, UserX, FileQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
@@ -19,6 +19,16 @@ export default function ViewInventoryItemPage() {
   const { item, loading: itemLoading, error } = useInventoryItem(id);
 
   const loading = itemLoading || userLoading;
+
+  // --- Debug Logging ---
+  console.log('--- Inventory Detail Page ---');
+  console.log(`Route Param ID:`, id);
+  console.log(`User Loading: ${userLoading}, Item Loading: ${itemLoading}`);
+  console.log(`User:`, user ? user.uid : 'null');
+  console.log(`Item:`, item ? item.id : 'null');
+  console.log(`Error:`, error);
+  console.log('---------------------------');
+
 
   if (loading) {
     return (
@@ -59,14 +69,14 @@ export default function ViewInventoryItemPage() {
     );
   }
   
-  // 2. Check if the user or item data is missing.
-  if (!user || !item) {
+  // 2. Check if the item data is missing after loading and with no errors.
+  if (!item) {
      return (
       <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
+        <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" />
         <h2 className="text-2xl font-bold">Item Not Found</h2>
         <p className="text-muted-foreground mt-2 max-w-md">
-          We couldn't find the inventory item you're looking for. It may have been deleted.
+          We couldn't find an inventory item with this ID. It may have been deleted.
         </p>
         <Button asChild className="mt-6">
           <Link href="/inventory">Back to Inventory</Link>
@@ -76,13 +86,13 @@ export default function ViewInventoryItemPage() {
   }
   
   // 3. Final client-side authorization check as a safeguard.
-  if (item.ownerId !== user.uid) {
+  if (!user || item.ownerId !== user.uid) {
     return (
       <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
+        <UserX className="h-16 w-16 text-destructive mb-4" />
         <h2 className="text-2xl font-bold">Access Denied</h2>
         <p className="text-muted-foreground mt-2 max-w-md">
-          You do not have permission to view this item.
+          You do not have permission to view this item. Please sign in to the correct account.
         </p>
         <Button asChild className="mt-6">
           <Link href="/inventory">Back to Inventory</Link>
