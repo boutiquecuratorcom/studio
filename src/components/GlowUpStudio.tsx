@@ -116,13 +116,14 @@ export function GlowUpStudio() {
   const firestore = useFirestore();
   const storage = useStorage();
 
+  const uploadsCollectionPath = React.useMemo(() => (user ? `users/${user.uid}/uploads` : null), [user]);
   const uploadsQuery = React.useMemo(() => {
-    if (user && firestore) {
-      return query(collection(firestore, `users/${user.uid}/uploads`));
+    if (uploadsCollectionPath && firestore) {
+      return query(collection(firestore, uploadsCollectionPath));
     }
     return null;
-  }, [user, firestore]);
-  const { data: existingUploads } = useCollection(uploadsQuery);
+  }, [uploadsCollectionPath, firestore]);
+  const { data: existingUploads } = useCollection(uploadsQuery, uploadsCollectionPath);
 
 
   const [originalImages, setOriginalImages] = React.useState<string[]>([]);

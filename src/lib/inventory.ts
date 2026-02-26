@@ -72,7 +72,7 @@ export const useInventoryItems = (userId: string | null, searchToken: string | n
     return queryRef;
   }, [userId, firestore, searchToken]);
 
-  const { data, loading, error } = useCollection<InventoryItem>(q);
+  const { data, loading, error } = useCollection<InventoryItem>(q, 'inventory');
 
   const sortedItems = useMemo(() => {
     if (!data) return null;

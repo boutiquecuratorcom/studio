@@ -2,24 +2,17 @@
 import { useState, useEffect } from 'react';
 import {
   onSnapshot,
-  collection,
-  query,
-  where,
-  orderBy,
-  limit,
-  startAfter,
-  endBefore,
-  limitToLast,
-  startAt,
   Query,
   DocumentData,
   FirestoreError,
   QuerySnapshot,
 } from 'firebase/firestore';
-import { useFirestore } from '../provider';
+import { errorEmitter } from '../error-emitter';
+import { FirestorePermissionError } from '../errors';
 
 export const useCollection = <T extends DocumentData>(
-  q: Query<T> | null
+  q: Query<T> | null,
+  collectionPathForDebug: string | null = null
 ) => {
   const [data, setData] = useState<T[] | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -42,16 +35,28 @@ export const useCollection = <T extends DocumentData>(
         );
         setData(docs);
         setLoading(false);
+        setError(null); // Clear previous errors on success
       },
       (err: FirestoreError) => {
-        console.error(err);
+        console.error(err); // Keep for basic console logging
         setError(err);
         setLoading(false);
+        
+        // For real-time listeners, if we get a permission error, we need to
+        // manually construct and emit our rich contextual error so the developer
+        // can see it in the Next.js error overlay.
+        if (err.code === 'permission-denied' && collectionPathForDebug) {
+            const permissionError = new FirestorePermissionError({
+                path: collectionPathForDebug,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
       }
     );
 
     return () => unsubscribe();
-  }, [q]);
+  }, [q, collectionPathForDebug]);
 
   return { data, loading, error };
 };

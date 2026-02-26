@@ -67,18 +67,20 @@ export function MyUploads() {
   const pathname = usePathname();
   const isDashboard = pathname === '/dashboard';
 
+  const collectionPath = useMemo(() => (user ? `users/${user.uid}/uploads` : null), [user]);
+
   const uploadsQuery = useMemo(() => {
-    if (user && firestore) {
-        const baseQuery = collection(firestore, `users/${user.uid}/uploads`);
+    if (user && firestore && collectionPath) {
+        const baseQuery = collection(firestore, collectionPath);
         // On dashboard, limit to recent uploads. On uploads page, show all.
         return isDashboard 
             ? query(baseQuery, orderBy('createdAt', 'desc'), limit(12))
             : query(baseQuery, orderBy('createdAt', 'desc'));
     }
     return null;
-  }, [user, firestore, isDashboard]);
+  }, [user, firestore, isDashboard, collectionPath]);
 
-  const { data: uploads, loading, error } = useCollection<Upload>(uploadsQuery);
+  const { data: uploads, loading, error } = useCollection<Upload>(uploadsQuery, collectionPath);
 
   const validUploads = useMemo(() => uploads?.filter(u => u.downloadURL), [uploads]);
   const originalUploads = useMemo(() => validUploads?.filter(u => !u.isEnhanced), [validUploads]);
