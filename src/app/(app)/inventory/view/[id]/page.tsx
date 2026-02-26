@@ -16,70 +16,6 @@ import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 
-// --- Define State Types ---
-interface DebugInfo {
-  auth: {
-    userId: string | null;
-    isLoaded: boolean;
-  };
-  route: {
-    rawId: string | null;
-    decodedId: string | null;
-  };
-  firestore: {
-    collection: string | null;
-    docPath: string | null;
-  };
-  result: {
-    snapExists: boolean | null;
-    ownerId: string | null;
-    errorCode: string | null;
-    errorMessage: string | null;
-  };
-}
-
-// --- Debug Panel Component ---
-function DebugPanel({ info }: { info: DebugInfo }) {
-  const renderStatus = (value: any) => {
-    if (value === null || value === undefined) return <Badge variant="secondary">N/A</Badge>;
-    if (typeof value === 'boolean') return value ? <Badge className="bg-green-600 hover:bg-green-600">true</Badge> : <Badge variant="destructive">false</Badge>;
-    return <code className="text-sm bg-muted px-2 py-1 rounded">{String(value)}</code>;
-  };
-
-  return (
-    <Card className="mb-8 border-yellow-400 border-2 bg-yellow-50/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-6 w-6 text-yellow-600" /> Live Debug Panel</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 font-mono text-xs">
-        <div className="space-y-2">
-            <h4 className="font-bold text-sm">AUTH</h4>
-            <div className="flex justify-between items-center"><span>User Loaded:</span> {renderStatus(info.auth.isLoaded)}</div>
-            <div className="flex justify-between items-center"><span>User ID:</span> {renderStatus(info.auth.userId)}</div>
-        </div>
-         <div className="space-y-2">
-            <h4 className="font-bold text-sm">ROUTE</h4>
-            <div className="flex justify-between items-center"><span>Raw Param:</span> {renderStatus(info.route.rawId)}</div>
-            <div className="flex justify-between items-center"><span>Decoded ID:</span> {renderStatus(info.route.decodedId)}</div>
-        </div>
-         <div className="space-y-2">
-            <h4 className="font-bold text-sm">FIRESTORE</h4>
-            <div className="flex justify-between items-center"><span>Collection:</span> {renderStatus(info.firestore.collection)}</div>
-            <div className="flex justify-between items-center"><span>Doc Path:</span> {renderStatus(info.firestore.docPath)}</div>
-        </div>
-         <div className="space-y-2">
-            <h4 className="font-bold text-sm">RESULT</h4>
-            <div className="flex justify-between items-center"><span>Doc Exists:</span> {renderStatus(info.result.snapExists)}</div>
-            <div className="flex justify-between items-center"><span>Doc Owner ID:</span> {renderStatus(info.result.ownerId)}</div>
-            <div className="flex justify-between items-center"><span>Error Code:</span> {renderStatus(info.result.errorCode)}</div>
-            <div className="flex justify-between items-center"><span>Error Message:</span> {renderStatus(info.result.errorMessage)}</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-
 export default function ViewInventoryItemPage() {
   const params = useParams();
   const id = params.id as string;
@@ -90,23 +26,12 @@ export default function ViewInventoryItemPage() {
   const [item, setItem] = useState<InventoryItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<FirestoreError | null>(null);
-  const [debugInfo, setDebugInfo] = useState<DebugInfo>({
-    auth: { userId: null, isLoaded: false },
-    route: { rawId: null, decodedId: null },
-    firestore: { collection: null, docPath: null },
-    result: { snapExists: null, ownerId: null, errorCode: null, errorMessage: null },
-  });
 
   // --- Direct Data Fetching Effect ---
   useEffect(() => {
     const fetchItem = async () => {
       // Wait for dependencies
       if (!firestore || !id || userLoading) {
-        setDebugInfo(prev => ({
-          ...prev,
-          auth: { userId: user?.uid ?? null, isLoaded: !userLoading },
-          route: { rawId: id, decodedId: id ? decodeURIComponent(id) : null }
-        }));
         return;
       }
       
@@ -116,27 +41,17 @@ export default function ViewInventoryItemPage() {
       const decodedId = decodeURIComponent(id);
       const itemRef = doc(firestore, 'inventory', decodedId);
 
-      setDebugInfo(prev => ({
-        auth: { userId: user?.uid ?? null, isLoaded: true },
-        route: { rawId: id, decodedId: decodedId },
-        firestore: { collection: 'inventory', docPath: itemRef.path },
-        result: { snapExists: null, ownerId: null, errorCode: null, errorMessage: null },
-      }));
-
       try {
         const docSnap = await getDoc(itemRef);
 
         if (docSnap.exists()) {
           const data = { ...docSnap.data(), id: docSnap.id } as InventoryItem;
           setItem(data);
-          setDebugInfo(prev => ({ ...prev, result: { ...prev.result, snapExists: true, ownerId: data.ownerId }}));
         } else {
           setItem(null);
-          setDebugInfo(prev => ({ ...prev, result: { ...prev.result, snapExists: false }}));
         }
       } catch (e: any) {
         setError(e);
-        setDebugInfo(prev => ({ ...prev, result: { ...prev.result, errorCode: e.code, errorMessage: e.message }}));
         
         // For one-time reads like getDoc, if we get a permission error, we need to
         // manually construct and emit our rich contextual error so the developer
@@ -161,7 +76,6 @@ export default function ViewInventoryItemPage() {
   if (loading) {
     return (
       <div className="flex-1 p-8 sm:p-10 lg:p-12">
-        <DebugPanel info={debugInfo} />
         <header className="mb-10">
           <Skeleton className="h-12 w-3/5" />
           <Skeleton className="mt-4 h-6 w-2/5" />
@@ -184,7 +98,6 @@ export default function ViewInventoryItemPage() {
   
   const renderErrorState = (icon: React.ReactNode, title: string, description: string, rawError?: string) => (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
-        <DebugPanel info={debugInfo} />
         <div className="text-center flex flex-col items-center justify-center mt-10">
             {icon}
             <h2 className="text-2xl font-bold mt-4">{title}</h2>
@@ -210,7 +123,7 @@ export default function ViewInventoryItemPage() {
      return renderErrorState(
         <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" />,
         "Document Truly Not Found",
-        `No document exists at the path: inventory/${debugInfo.route.decodedId}`
+        `No document exists at the path: inventory/${decodeURIComponent(id)}`
     );
   }
   
@@ -294,7 +207,6 @@ export default function ViewInventoryItemPage() {
   
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
-      <DebugPanel info={debugInfo} />
       <header className="mb-10">
         <h1 className="text-4xl font-headline font-bold text-foreground tracking-tight break-words">{item.title}</h1>
         <p className="text-lg text-muted-foreground mt-2">{item.type}</p>
@@ -375,7 +287,3 @@ function DetailItem({ label, value, icon: Icon, isBlock = false }: { label: stri
     </div>
   );
 }
-
-    
-
-    

@@ -165,7 +165,7 @@ export function GlowUpStudio() {
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = event.target.files;
-
+  
     if (!files || files.length === 0 || !creationType || !user || !storage || !firestore) {
       if (step === 'upload' && (!files || files.length === 0)) {
         setStep('selectCreationType');
@@ -173,7 +173,7 @@ export function GlowUpStudio() {
       }
       return;
     }
-
+  
     // --- Validation Checks ---
     let hasError = false;
     Array.from(files).forEach((file) => {
@@ -183,7 +183,7 @@ export function GlowUpStudio() {
       }
     });
     if (hasError) return;
-    
+  
     const prospectiveCount = originalImages.length + files.length;
     if (creationType === 'single' && prospectiveCount > 1) {
       toast({ variant: 'destructive', title: 'Invalid Selection', description: 'For a "Single Item", you can only upload one image.' });
@@ -193,107 +193,127 @@ export function GlowUpStudio() {
       toast({ variant: 'destructive', title: 'Too many images', description: 'You can select up to 3 images for an outfit.' });
       return;
     }
-
-    // --- File Processing ---
+  
+    // --- Helper: safe FileReader with timeout (prevents hangs) ---
+    const readFileAsDataURL = (file: File, timeoutMs = 15000): Promise<string> => {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+  
+        const timeoutId = window.setTimeout(() => {
+          try { reader.abort(); } catch {}
+          reject(new Error(`FileReader timed out after ${timeoutMs}ms for ${file.name}`));
+        }, timeoutMs);
+  
+        const cleanup = () => window.clearTimeout(timeoutId);
+  
+        reader.onload = () => {
+          cleanup();
+          resolve(reader.result as string);
+        };
+  
+        reader.onerror = () => {
+          cleanup();
+          reject(reader.error ?? new Error(`FileReader error for ${file.name}`));
+        };
+  
+        reader.onabort = () => {
+          cleanup();
+          reject(new Error(`FileReader aborted for ${file.name}`));
+        };
+  
+        reader.readAsDataURL(file);
+      });
+    };
+  
+    // --- File Processing (NO FileReader here) ---
     const existingImageUrls: string[] = [];
     const filesToUpload: File[] = [];
-
+  
     try {
       for (const file of Array.from(files)) {
-          await new Promise<void>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.readAsDataURL(file);
-              reader.onload = () => {
-                  const existingImage = existingUploads?.find(upload =>
-                      upload.originalName === file.name && upload.size === file.size
-                  );
-
-                  if (existingImage) {
-                      if (!originalImages.includes(existingImage.downloadURL)) {
-                          existingImageUrls.push(existingImage.downloadURL);
-                          toast({
-                              title: "Image Added From Library",
-                              description: `Used "${file.name}" from your uploads.`,
-                          });
-                      }
-                  } else {
-                      filesToUpload.push(file);
-                  }
-                  resolve();
-              };
-              reader.onerror = (error) => {
-                console.error("FileReader error:", error);
-                toast({
-                    variant: "destructive",
-                    title: "File Read Error",
-                    description: `Could not read the file: ${file.name}.`,
-                });
-                reject(error);
-              };
-          });
+        const existingImage = existingUploads?.find(upload =>
+          upload.originalName === file.name && upload.size === file.size
+        );
+  
+        if (existingImage) {
+          if (!originalImages.includes(existingImage.downloadURL)) {
+            existingImageUrls.push(existingImage.downloadURL);
+            toast({
+              title: "Image Added From Library",
+              description: `Used "${file.name}" from your uploads.`,
+            });
+          }
+        } else {
+          filesToUpload.push(file);
+        }
       }
     } catch (error) {
-        if (fileInputRef.current) {
-            fileInputRef.current.value = "";
-        }
-        return;
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      return;
     }
-
+  
     const allUrlsToAdd = [...existingImageUrls];
-
+  
     // --- Uploading new files (if any) ---
     if (filesToUpload.length > 0) {
       toast({ title: 'Uploading new image(s)...', description: 'Your new files are being securely saved.' });
+  
       try {
-        const newlyUploadedUrls = await Promise.all(filesToUpload.map(async (file) => {
-          const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
-          const storageRef = ref(storage, storagePath);
-          
-          const dataUrl = await new Promise<string>((resolve, reject) => {
-              const reader = new FileReader();
-              reader.readAsDataURL(file);
-              reader.onload = () => resolve(reader.result as string);
-              reader.onerror = (error) => reject(error);
-          });
-
-          await uploadBytes(storageRef, file);
-          const downloadURL = await getDownloadURL(storageRef);
-
-          const uploadDoc = {
-            uid: user.uid,
-            email: user.email,
-            storagePath,
-            downloadURL,
-            originalName: file.name,
-            contentType: file.type,
-            size: file.size,
-            createdAt: serverTimestamp(),
-            isEnhanced: false,
-          };
-
-          await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
-          return dataUrl;
-        }));
-        
+        const newlyUploadedUrls = await Promise.all(
+          filesToUpload.map(async (file) => {
+            const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
+            const storageRef = ref(storage, storagePath);
+  
+            // Only read file ONCE, safely, for AI input
+            const dataUrl = await readFileAsDataURL(file);
+  
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+  
+            const uploadDoc = {
+              uid: user.uid,
+              email: user.email,
+              storagePath,
+              downloadURL,
+              originalName: file.name,
+              contentType: file.type,
+              size: file.size,
+              createdAt: serverTimestamp(),
+              isEnhanced: false,
+            };
+  
+            await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
+  
+            // Keep returning the dataUrl because your AI flow expects data URIs
+            return dataUrl;
+          })
+        );
+  
         allUrlsToAdd.push(...newlyUploadedUrls);
         toast({ title: 'Upload complete!', description: 'You can now style your new image(s).' });
-
+  
       } catch (error) {
         console.error("Error uploading files:", error);
         toast({ variant: "destructive", title: "Upload failed", description: "There was an error saving your files. Please try again." });
-        return; // Stop execution if upload fails
+  
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        return;
       }
     }
-
+  
     // --- Final State Update ---
-    if(allUrlsToAdd.length > 0) {
+    if (allUrlsToAdd.length > 0) {
       setOriginalImages(prev => [...prev, ...allUrlsToAdd]);
       if (step === 'upload') {
         setEnhancedImage(null);
         setStep("selectStyleType");
       }
     }
-
+  
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -303,42 +323,49 @@ export function GlowUpStudio() {
     const newImages = originalImages.filter((_, index) => index !== indexToRemove);
     setOriginalImages(newImages);
     if (newImages.length === 0) {
-        if (creationType) {
-            setStep("upload");
-        } else {
-            resetWorkflow();
-        }
+      if (creationType) {
+        setStep('upload');
+      } else {
+        resetWorkflow();
+      }
     }
   };
-
+  
   const handleSelectCreationType = (type: CreationType) => {
     setCreationType(type);
     setStep("upload");
-    setTimeout(triggerFileInput, 0);
-  };
 
+    //must be inside the user's click event (no setTimeout), or some browsers block it.
+  
+    // MUST fire immediately inside user click
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ""; //alows re-selecting same file
+      fileInputRef.current.click();
+    }
+  };
+  
   const handleSelectStyleType = (type: StyleType) => {
     setStyleType(type);
     setLookPreset(null);
-    setStep("selectLookPreset");
+    setStep('selectLookPreset');
   };
   
   const handleSelectLookPreset = (preset: LookPreset) => {
     setLookPreset(preset);
-  }
-
+  };
+  
   const saveEnhancedImage = async (dataUri: string) => {
     if (!user || !storage || !firestore) return;
-
+  
     try {
       const blob = dataURIToBlob(dataUri);
       const fileName = `glow-up-${Date.now()}.png`;
       const storagePath = `uploads/${user.uid}/${fileName}`;
       const storageRef = ref(storage, storagePath);
-
+  
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
-
+  
       const uploadDoc = {
         uid: user.uid,
         email: user.email,
@@ -350,34 +377,33 @@ export function GlowUpStudio() {
         createdAt: serverTimestamp(),
         isEnhanced: true,
       };
-
+  
       await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
     } catch (error) {
-      console.error("Error saving enhanced image:", error);
+      console.error('Error saving enhanced image:', error);
       toast({
-        variant: "destructive",
-        title: "Save Failed",
-        description: "Could not save the enhanced image to your uploads.",
+        variant: 'destructive',
+        title: 'Save Failed',
+        description: 'Could not save the enhanced image to your uploads.',
       });
-      // Re-throw to be caught by the main handler
       throw error;
     }
   };
-
+  
   const handleEnhance = async () => {
     if (!creationType || originalImages.length === 0 || !styleType || !lookPreset) return;
-
-    setStep("enhancing");
+  
+    setStep('enhancing');
     setEnhancedImage(null);
     setProgress(0);
     setGenerationMode('busy');
     setIsInstantGlowUp(false);
-    setMobileTab("after");
-
+    setMobileTab('after');
+  
     const interval = setInterval(() => {
       setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 5) + 2));
     }, 500);
-
+  
     try {
       const input: EnhanceImageInput = {
         imageDataUris: originalImages,
@@ -385,7 +411,6 @@ export function GlowUpStudio() {
         styleType,
         lookPreset,
       };
-
       const result: EnhanceImageOutput = await enhanceImage(input);
 
       if (result.isFallback) {
@@ -626,6 +651,15 @@ export function GlowUpStudio() {
   
   return (
     <Card className="w-full mx-auto p-4 sm:p-6 lg:p-8 border-none bg-transparent shadow-none">
+    <input
+  ref={fileInputRef}
+  type="file"
+  accept="image/*"
+  className="hidden"
+  multiple={creationType === "multiple"}
+  onChange={handleFileChange}
+/>
+
       
       <div className="mt-8">
         <div className="lg:hidden">
