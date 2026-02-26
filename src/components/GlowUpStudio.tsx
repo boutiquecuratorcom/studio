@@ -22,6 +22,7 @@ import {
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 import {
   enhanceImage,
@@ -116,6 +117,7 @@ export function GlowUpStudio() {
   const { user } = useUser();
   const firestore = useFirestore();
   const storage = useStorage();
+  const router = useRouter();
 
   const uploadsCollectionPath = React.useMemo(() => (user ? `users/${user.uid}/uploads` : null), [user]);
   const uploadsQuery = React.useMemo(() => {
@@ -436,6 +438,13 @@ export function GlowUpStudio() {
       });
     }
   };
+
+  const handleCreatePost = () => {
+    if (enhancedImage) {
+      localStorage.setItem('lastEnhancedImageURL', enhancedImage);
+      router.push('/post-creator');
+    }
+  };
   
   const GenerationStatusBadge = () => {
     if (!generationMode || (step !== 'enhancing' && step !== 'done')) return null;
@@ -690,11 +699,9 @@ export function GlowUpStudio() {
                   </Button>
                 )}
                 {enhancedImage && (
-                    <Button asChild size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
-                        <Link href={`/post-creator?img=${encodeURIComponent(enhancedImage)}`}>
-                            <Send className="mr-3 h-6 w-6" />
-                            Create Post
-                        </Link>
+                    <Button onClick={handleCreatePost} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
+                        <Send className="mr-3 h-6 w-6" />
+                        Create Post
                     </Button>
                 )}
                 <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8 rounded-full">
