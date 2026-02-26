@@ -1,43 +1,154 @@
 'use client';
 
-import { useInventoryItem } from '@/lib/inventory';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
+import { doc, getDoc, type DocumentData, type FirestoreError } from 'firebase/firestore';
+
+import { useUser, useFirestore } from '@/firebase';
+import { type InventoryItem } from '@/lib/inventory';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag, UserX, FileQuestion } from 'lucide-react';
+import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag, UserX, FileQuestion, ServerCrash, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useUser, useFirestore } from '@/firebase';
-import { doc } from 'firebase/firestore';
+
+// --- Define State Types ---
+interface DebugInfo {
+  auth: {
+    userId: string | null;
+    isLoaded: boolean;
+  };
+  route: {
+    rawId: string | null;
+    decodedId: string | null;
+  };
+  firestore: {
+    collection: string | null;
+    docPath: string | null;
+  };
+  result: {
+    snapExists: boolean | null;
+    ownerId: string | null;
+    errorCode: string | null;
+    errorMessage: string | null;
+  };
+}
+
+// --- Debug Panel Component ---
+function DebugPanel({ info }: { info: DebugInfo }) {
+  const renderStatus = (value: any) => {
+    if (value === null || value === undefined) return <Badge variant="secondary">N/A</Badge>;
+    if (typeof value === 'boolean') return value ? <Badge className="bg-green-600 hover:bg-green-600">true</Badge> : <Badge variant="destructive">false</Badge>;
+    return <code className="text-sm bg-muted px-2 py-1 rounded">{String(value)}</code>;
+  };
+
+  return (
+    <Card className="mb-8 border-yellow-400 border-2 bg-yellow-50/50">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><ShieldAlert className="h-6 w-6 text-yellow-600" /> Live Debug Panel</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4 font-mono text-xs">
+        <div className="space-y-2">
+            <h4 className="font-bold text-sm">AUTH</h4>
+            <div className="flex justify-between items-center"><span>User Loaded:</span> {renderStatus(info.auth.isLoaded)}</div>
+            <div className="flex justify-between items-center"><span>User ID:</span> {renderStatus(info.auth.userId)}</div>
+        </div>
+         <div className="space-y-2">
+            <h4 className="font-bold text-sm">ROUTE</h4>
+            <div className="flex justify-between items-center"><span>Raw Param:</span> {renderStatus(info.route.rawId)}</div>
+            <div className="flex justify-between items-center"><span>Decoded ID:</span> {renderStatus(info.route.decodedId)}</div>
+        </div>
+         <div className="space-y-2">
+            <h4 className="font-bold text-sm">FIRESTORE</h4>
+            <div className="flex justify-between items-center"><span>Collection:</span> {renderStatus(info.firestore.collection)}</div>
+            <div className="flex justify-between items-center"><span>Doc Path:</span> {renderStatus(info.firestore.docPath)}</div>
+        </div>
+         <div className="space-y-2">
+            <h4 className="font-bold text-sm">RESULT</h4>
+            <div className="flex justify-between items-center"><span>Doc Exists:</span> {renderStatus(info.result.snapExists)}</div>
+            <div className="flex justify-between items-center"><span>Doc Owner ID:</span> {renderStatus(info.result.ownerId)}</div>
+            <div className="flex justify-between items-center"><span>Error Code:</span> {renderStatus(info.result.errorCode)}</div>
+            <div className="flex justify-between items-center"><span>Error Message:</span> {renderStatus(info.result.errorMessage)}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 
 export default function ViewInventoryItemPage() {
   const params = useParams();
   const id = params.id as string;
   const firestore = useFirestore();
-
   const { user, loading: userLoading } = useUser();
-  const { item, loading: itemLoading, error } = useInventoryItem(id);
+  
+  // --- Component State ---
+  const [item, setItem] = useState<InventoryItem | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<FirestoreError | null>(null);
+  const [debugInfo, setDebugInfo] = useState<DebugInfo>({
+    auth: { userId: null, isLoaded: false },
+    route: { rawId: null, decodedId: null },
+    firestore: { collection: null, docPath: null },
+    result: { snapExists: null, ownerId: null, errorCode: null, errorMessage: null },
+  });
 
-  const loading = itemLoading || userLoading;
+  // --- Direct Data Fetching Effect ---
+  useEffect(() => {
+    const fetchItem = async () => {
+      // Wait for dependencies
+      if (!firestore || !id || userLoading) {
+        setDebugInfo(prev => ({
+          ...prev,
+          auth: { userId: user?.uid ?? null, isLoaded: !userLoading },
+          route: { rawId: id, decodedId: id ? decodeURIComponent(id) : null }
+        }));
+        return;
+      }
+      
+      setLoading(true);
+      setError(null);
+      
+      const decodedId = decodeURIComponent(id);
+      const itemRef = doc(firestore, 'inventory', decodedId);
 
-  // --- Debug Logging as per requirements ---
-  console.log('--- Inventory Detail Page Debug ---');
-  console.log(`1. Route Param ID:`, id);
-  if (firestore && id) {
-    console.log(`2. Firestore Path Being Fetched:`, doc(firestore, 'inventory', id).path);
-  }
-  console.log(`3. Loading States: User=${userLoading}, Item=${itemLoading}`);
-  if (!itemLoading) {
-    console.log(`4. Document Exists Check (post-load):`, !!item);
-  }
-  console.log('---------------------------------');
+      setDebugInfo(prev => ({
+        auth: { userId: user?.uid ?? null, isLoaded: true },
+        route: { rawId: id, decodedId: decodedId },
+        firestore: { collection: 'inventory', docPath: itemRef.path },
+        result: { snapExists: null, ownerId: null, errorCode: null, errorMessage: null },
+      }));
 
+      try {
+        const docSnap = await getDoc(itemRef);
+
+        if (docSnap.exists()) {
+          const data = { ...docSnap.data(), id: docSnap.id } as InventoryItem;
+          setItem(data);
+          setDebugInfo(prev => ({ ...prev, result: { ...prev.result, snapExists: true, ownerId: data.ownerId }}));
+        } else {
+          setItem(null);
+          setDebugInfo(prev => ({ ...prev, result: { ...prev.result, snapExists: false }}));
+        }
+      } catch (e: any) {
+        setError(e);
+        setDebugInfo(prev => ({ ...prev, result: { ...prev.result, errorCode: e.code, errorMessage: e.message }}));
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchItem();
+  }, [id, firestore, user, userLoading]);
+  
+  // --- Rendering Logic ---
 
   if (loading) {
     return (
       <div className="flex-1 p-8 sm:p-10 lg:p-12">
+        <DebugPanel info={debugInfo} />
         <header className="mb-10">
           <Skeleton className="h-12 w-3/5" />
           <Skeleton className="mt-4 h-6 w-2/5" />
@@ -55,58 +166,53 @@ export default function ViewInventoryItemPage() {
       </div>
     );
   }
-
-  // After loading, check for issues sequentially.
   
-  // 1. Check for a database error. This often indicates a permissions issue.
+  // After loading, show debug info and handle outcomes
+  
+  const renderErrorState = (icon: React.ReactNode, title: string, description: string, rawError?: string) => (
+    <div className="flex-1 p-8 sm:p-10 lg:p-12">
+        <DebugPanel info={debugInfo} />
+        <div className="text-center flex flex-col items-center justify-center mt-10">
+            {icon}
+            <h2 className="text-2xl font-bold mt-4">{title}</h2>
+            <p className="text-muted-foreground mt-2 max-w-md">{description}</p>
+            {rawError && <Card className="mt-4 p-4 bg-destructive/10 w-full max-w-lg text-left"><pre className="text-xs text-destructive whitespace-pre-wrap">{rawError}</pre></Card>}
+            <Button asChild className="mt-6">
+                <Link href="/inventory">Back to Inventory</Link>
+            </Button>
+        </div>
+    </div>
+  );
+
   if (error) {
-    return (
-      <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
-        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold">Error Loading Item</h2>
-        <p className="text-muted-foreground mt-2 max-w-md">
-          {error.message || 'An error occurred while fetching the item.'}
-        </p>
-        <Button asChild className="mt-6">
-          <Link href="/inventory">Back to Inventory</Link>
-        </Button>
-      </div>
+    return renderErrorState(
+        <ServerCrash className="h-16 w-16 text-destructive mb-4" />,
+        "Firestore Error",
+        `A database error occurred. Code: ${error.code}`,
+        error.message
     );
   }
   
-  // 2. Check if the item data is missing after loading and with no errors.
   if (!item) {
-     return (
-      <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
-        <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-bold">Item Not Found</h2>
-        <p className="text-muted-foreground mt-2 max-w-md">
-          We couldn't find an inventory item with this ID. It may have been deleted.
-        </p>
-        <Button asChild className="mt-6">
-          <Link href="/inventory">Back to Inventory</Link>
-        </Button>
-      </div>
+     return renderErrorState(
+        <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" />,
+        "Document Truly Not Found",
+        `No document exists at the path: inventory/${debugInfo.route.decodedId}`
     );
   }
   
-  // 3. Final client-side authorization check. We know the item exists.
   if (!user || item.ownerId !== user.uid) {
-    return (
-      <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
-        <UserX className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold">Access Denied</h2>
-        <p className="text-muted-foreground mt-2 max-w-md">
-          You do not have permission to view this item. Please sign in to the correct account.
-        </p>
-        <Button asChild className="mt-6">
-          <Link href="/inventory">Back to Inventory</Link>
-        </Button>
-      </div>
+    return renderErrorState(
+      <UserX className="h-16 w-16 text-destructive mb-4" />,
+      "Access Denied",
+      "You do not have permission to view this item. Please sign in to the correct account."
     );
   }
 
+  // --- Success State: Render Item ---
+  
   const AnalysisContent = () => {
+    // This part is unchanged as per the instructions.
     if (!item.analysis || item.analysis.status === 'pending') {
       return (
         <div className="flex flex-col items-center justify-center text-center p-8">
@@ -175,6 +281,7 @@ export default function ViewInventoryItemPage() {
   
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
+      <DebugPanel info={debugInfo} />
       <header className="mb-10">
         <h1 className="text-4xl font-headline font-bold text-foreground tracking-tight break-words">{item.title}</h1>
         <p className="text-lg text-muted-foreground mt-2">{item.type}</p>
@@ -255,3 +362,5 @@ function DetailItem({ label, value, icon: Icon, isBlock = false }: { label: stri
     </div>
   );
 }
+
+    
