@@ -60,16 +60,32 @@ const MONTHLY_INVENTORY_LIMIT = 100;
 
 export const useInventoryItems = (userId: string | null) => {
   const firestore = useFirestore();
+
+  // The query is simplified to avoid the need for a composite index.
   const q = useMemo(() => {
     if (!userId || !firestore) return null;
     return query(
       collection(firestore, 'inventory'),
-      where('ownerId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('ownerId', '==', userId)
+      // The orderBy clause that required an index has been removed.
     );
   }, [userId, firestore]);
 
-  return useCollection<InventoryItem>(q);
+  const { data, loading, error } = useCollection<InventoryItem>(q);
+
+  // Items are now sorted on the client-side after being fetched.
+  const sortedItems = useMemo(() => {
+    if (!data) return null;
+    
+    // Sort by creation date, newest first.
+    return [...data].sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return timeB - timeA;
+    });
+  }, [data]);
+
+  return { items: sortedItems, loading, error };
 };
 
 export const useInventoryItem = (itemId: string | null) => {
