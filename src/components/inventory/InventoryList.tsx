@@ -106,14 +106,27 @@ function ItemCard({ item }: { item: InventoryItem }) {
     setIsDeleteDialogOpen(false);
   };
   
-  const getStatusBadge = () => {
+  const getStatusIcon = () => {
+    const commonClasses = "absolute top-2 left-2 p-1.5 bg-background/80 rounded-full shadow-lg";
     switch (item.analysis?.status) {
         case 'pending':
-            return <Badge variant="secondary" className="gap-1.5 pl-2"><Cpu className="h-3 w-3 animate-pulse" /> Analyzing...</Badge>;
+            return (
+                <div className={commonClasses} title="Analyzing...">
+                    <Cpu className="h-4 w-4 text-muted-foreground animate-pulse" />
+                </div>
+            );
         case 'complete':
-            return <Badge className="bg-green-600 hover:bg-green-700 gap-1.5 pl-2"><BadgeCheck className="h-3 w-3" /> Analyzed</Badge>;
+            return (
+                 <div className={commonClasses} title="Analyzed">
+                    <BadgeCheck className="h-4 w-4 text-green-600" />
+                 </div>
+            );
         case 'failed':
-            return <Badge variant="destructive" className="gap-1.5 pl-2"><XCircle className="h-3 w-3" /> Failed</Badge>;
+            return (
+                 <div className={commonClasses} title={`Analysis Failed: ${item.analysis.error || 'Unknown error'}`}>
+                    <XCircle className="h-4 w-4 text-destructive" />
+                 </div>
+            );
         default:
             return null;
     }
@@ -132,6 +145,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
             sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
             className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
           />
+           {getStatusIcon()}
           <div className="absolute top-2 right-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -169,7 +183,6 @@ function ItemCard({ item }: { item: InventoryItem }) {
             <p className="text-xs text-muted-foreground/80">
                 Added {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'just now'}
             </p>
-            {getStatusBadge()}
           </div>
         </div>
       </Card>
