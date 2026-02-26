@@ -56,36 +56,70 @@ const MONTHLY_INVENTORY_LIMIT = 100;
 
 // --- Hooks ---
 
-export const useInventoryItems = (userId: string | null, searchToken: string | null) => {
+const searchStopwords = new Set(['a', 'an', 'the', 'in', 'on', 'for', 'with', 'and', 'or', 'but', 'is', 'it', 'of', 'to', 'as', 'at', 'by']);
+
+export const useInventoryItems = (userId: string | null, searchTerm: string | null) => {
   const firestore = useFirestore();
 
+  // 1. Tokenize the search term
+  const searchTokens = useMemo(() => {
+    if (!searchTerm || searchTerm.trim() === '') return [];
+    
+    const normalized = searchTerm.toLowerCase().trim();
+    // Split on whitespace, hyphens, and underscores, then filter
+    return normalized
+        .split(/[\s\-_]+/)
+        .filter(token => token.length > 0 && !searchStopwords.has(token));
+  }, [searchTerm]);
+
+
+  // 2. Build the Firestore query using array-contains-any
   const q = useMemo(() => {
     if (!userId || !firestore) return null;
     let queryRef: Query<InventoryItem> = collection(firestore, 'inventory') as Query<InventoryItem>;
     
     queryRef = query(queryRef, where('ownerId', '==', userId));
 
-    if (searchToken && searchToken.trim().length > 0) {
-        queryRef = query(queryRef, where('searchKeywords', 'array-contains', searchToken.trim().toLowerCase()));
+    // Use array-contains-any for broad fetching. Max 10 tokens for Firestore query.
+    if (searchTokens.length > 0) {
+        queryRef = query(queryRef, where('searchKeywords', 'array-contains-any', searchTokens.slice(0, 10)));
     }
     
     return queryRef;
-  }, [userId, firestore, searchToken]);
+  }, [userId, firestore, searchTokens]);
 
   const { data, loading, error } = useCollection<InventoryItem>(q, 'inventory');
 
-  const sortedItems = useMemo(() => {
+  // 3. Apply client-side AND filtering and sorting
+  const filteredAndSortedItems = useMemo(() => {
     if (!data) return null;
-    
-    return [...data].sort((a, b) => {
+
+    // Apply AND logic filter on the client
+    const filteredItems = searchTokens.length > 0
+        ? data.filter(item => {
+            // Ensure searchKeywords exists and is an array
+            if (!Array.isArray(item.searchKeywords)) return false;
+            
+            // Use a Set for efficient lookups
+            const itemKeywords = new Set(item.searchKeywords.map(k => k.toLowerCase()));
+            
+            // Every search token must be in the item's keywords
+            return searchTokens.every(token => itemKeywords.has(token));
+        })
+        : data;
+
+    // Sort the final list of items
+    return [...filteredItems].sort((a, b) => {
         const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
         const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
         return timeB - timeA;
     });
-  }, [data]);
 
-  return { items: sortedItems, loading, error };
+  }, [data, searchTokens]);
+
+  return { items: filteredAndSortedItems, loading, error };
 };
+
 
 export const useInventoryItem = (itemId: string | null) => {
   const firestore = useFirestore();
