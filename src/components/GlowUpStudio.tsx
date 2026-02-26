@@ -488,7 +488,7 @@ export function GlowUpStudio() {
   }) => (
     <div className="space-y-3" ref={wrapperRef}>
       <h3 className="text-center font-medium text-lg text-muted-foreground">{title}</h3>
-      <Card className={cn("relative group aspect-square w-full max-w-lg mx-auto overflow-hidden shadow-lg", isEnhancing && "bg-muted/30")}>
+      <Card className={cn("relative group aspect-square w-full overflow-hidden shadow-lg", isEnhancing && "bg-muted/30")}>
         {enhancedImage ? (
            <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isInstantGlowUp && "saturate-125 brightness-110 contrast-105")} data-ai-hint="dress mannequin" />
         ) : (
@@ -593,7 +593,7 @@ export function GlowUpStudio() {
         onChange={handleFileChange}
       />
       
-      <div className="mt-8 flex justify-center">
+      <div className="mt-8 w-full max-w-lg mx-auto">
         <ImageCard title="After" wrapperRef={afterImageContainerRef} />
       </div>
 
