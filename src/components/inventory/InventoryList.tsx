@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInventoryItems, deleteInventoryItem, updateInventoryItem, type InventoryItem, generateSearchKeywords } from '@/lib/inventory';
-import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, RefreshCw, Trash2, XCircle, Search, Loader2 } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, RefreshCw, Trash2, XCircle, Search, Loader2, Eye } from 'lucide-react';
 import { useFirestore, useStorage, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -171,6 +171,12 @@ function ItemCard({ item }: { item: InventoryItem }) {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
+                <DropdownMenuItem asChild>
+                  <Link href={`/inventory/view/${item.id}`} className="flex items-center cursor-pointer">
+                    <Eye className="mr-2 h-4 w-4" />
+                    <span>View Details</span>
+                  </Link>
+                </DropdownMenuItem>
                 <DropdownMenuItem asChild>
                   <Link href={`/inventory/edit/${item.id}`} className="flex items-center cursor-pointer">
                     <Edit className="mr-2 h-4 w-4" />
