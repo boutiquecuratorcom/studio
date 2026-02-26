@@ -41,25 +41,48 @@ export default function ViewInventoryItemPage() {
     );
   }
 
-  // Handle errors, not found, and unauthorized access
-  if (error || !item || !user || item.ownerId !== user.uid) {
-    let title = "Item Not Found";
-    let description = "We couldn't find the inventory item you're looking for.";
-    
-    if (error) {
-        title = "Error Loading Item";
-        description = error.message;
-    } else if (item && (!user || item.ownerId !== user.uid)) {
-        title = "Access Denied";
-        description = "You do not have permission to view this item.";
-    }
-
+  // After loading, check for issues sequentially.
+  
+  // 1. Check for a database error. This often indicates a permissions issue.
+  if (error) {
     return (
       <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold">{title}</h2>
+        <h2 className="text-2xl font-bold">Error Loading Item</h2>
         <p className="text-muted-foreground mt-2 max-w-md">
-          {description}
+          {error.message || 'An error occurred while fetching the item.'}
+        </p>
+        <Button asChild className="mt-6">
+          <Link href="/inventory">Back to Inventory</Link>
+        </Button>
+      </div>
+    );
+  }
+  
+  // 2. Check if the user or item data is missing.
+  if (!user || !item) {
+     return (
+      <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold">Item Not Found</h2>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          We couldn't find the inventory item you're looking for. It may have been deleted.
+        </p>
+        <Button asChild className="mt-6">
+          <Link href="/inventory">Back to Inventory</Link>
+        </Button>
+      </div>
+    );
+  }
+  
+  // 3. Final client-side authorization check as a safeguard.
+  if (item.ownerId !== user.uid) {
+    return (
+      <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
+        <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
+        <h2 className="text-2xl font-bold">Access Denied</h2>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          You do not have permission to view this item.
         </p>
         <Button asChild className="mt-6">
           <Link href="/inventory">Back to Inventory</Link>
