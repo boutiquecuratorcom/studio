@@ -12,6 +12,7 @@ import { AlertTriangle, Copy, Cpu, Lightbulb, Send } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { format } from 'date-fns';
+import { Label } from '@/components/ui/label';
 
 type Intensity = 'Safe' | 'Bold' | 'Viral';
 type Goal = 'Engagement' | 'Sales' | 'Both';
