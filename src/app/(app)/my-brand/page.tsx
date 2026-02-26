@@ -239,11 +239,32 @@ export default function MyBrandPage() {
 
   useEffect(() => {
     if (brandProfileData) {
-      const colors = brandProfileData.brandColors || [];
+      // When Firestore data arrives, reset the form to populate the fields.
+      // This is necessary because react-hook-form doesn't automatically update
+      // on async default value changes.
+      const data = brandProfileData || {};
+      const colors = data.brandColors || [];
+      // Ensure the brandColors array always has 3 elements for the form fields
       const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
+
       reset({
-        ...brandProfileData,
+        brandName: data.brandName || '',
+        tagline: data.tagline || '',
+        location: data.location || '',
+        websiteUrl: data.websiteUrl || '',
+        instagramUrl: data.instagramUrl || '',
+        facebookUrl: data.facebookUrl || '',
+        toneOfVoice: data.toneOfVoice || '',
+        brandVibe: data.brandVibe || '',
+        targetCustomer: data.targetCustomer || '',
+        primaryGoal: data.primaryGoal || '',
+        logoUrl: data.logoUrl || '',
         brandColors: paddedColors,
+        primaryFont: data.primaryFont || '',
+        secondaryFont: data.secondaryFont || '',
+        primaryPlatform: data.primaryPlatform || '',
+        postingFrequency: data.postingFrequency || '',
+        promoStyle: data.promoStyle || '',
       });
     }
   }, [brandProfileData, reset]);
@@ -304,6 +325,7 @@ export default function MyBrandPage() {
     }
 
     setIsSaving(true);
+    console.log('Saving brand profile data:', data);
 
     try {
       const payload: { [key: string]: any } = {};
@@ -313,19 +335,23 @@ export default function MyBrandPage() {
           payload[key] = value;
         }
       });
-
+      
       // Special handling for brandColors to filter out empty strings
       if (data.brandColors) {
         payload.brandColors = data.brandColors.filter(
           (color) => !!color && color.match(/^#[0-9a-fA-F]{6}$/)
         );
       }
+      
+      console.log('Payload being sent to Firestore:', payload);
+      console.log('Firestore doc path:', brandProfileRef.path);
 
       await setDoc(
         brandProfileRef,
         { ...payload, updatedAt: serverTimestamp() },
         { merge: true }
       );
+
       toast({
         title: 'My Brand Saved!',
         description: 'Your changes have been saved.',
@@ -396,330 +422,306 @@ export default function MyBrandPage() {
           >
             {/* Brand Identity */}
             <AccordionItem value="item-1" className="border-none">
-                <Card>
-                  <AccordionTrigger className="p-6">
-                    <CardHeader className="p-0 flex-row items-center gap-4 text-left">
-                      <Building className="h-6 w-6 text-accent" />
-                      <div>
-                        <CardTitle className="text-xl">
-                          Brand Identity
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          The basics of who you are.
-                        </CardDescription>
-                      </div>
-                    </CardHeader>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <CardContent>
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          <FormField
-                            control={form.control}
-                            name="brandName"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Brand Name</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="e.g., Stella & Grace"
-                                    {...field}
-                                    value={field.value || ''}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="tagline"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Tagline</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="e.g., Effortless style, everyday."
-                                    {...field}
-                                    value={field.value || ''}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="location"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Location</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    placeholder="e.g., Nashville, TN"
-                                    {...field}
-                                    value={field.value || ''}
-                                  />
-                                </FormControl>
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="websiteUrl"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Website URL</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="url"
-                                    placeholder="https://..."
-                                    {...field}
-                                    value={field.value || ''}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="instagramUrl"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Instagram URL</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="url"
-                                    placeholder="https://instagram.com/..."
-                                    {...field}
-                                    value={field.value || ''}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                          <FormField
-                            control={form.control}
-                            name="facebookUrl"
-                            render={({ field }) => (
-                              <FormItem>
-                                <FormLabel>Facebook Page/Group URL</FormLabel>
-                                <FormControl>
-                                  <Input
-                                    type="url"
-                                    placeholder="https://facebook.com/..."
-                                    {...field}
-                                    value={field.value || ''}
-                                  />
-                                </FormControl>
-                                <FormMessage />
-                              </FormItem>
-                            )}
-                          />
-                        </div>
-                        <div className="mt-6 flex justify-end border-t pt-6">
-                          <Button type="submit" disabled={isSaving}>
-                            {isSaving ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Save Changes
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </AccordionContent>
-                </Card>
-            </AccordionItem>
-            {/* Brand Voice */}
-            <AccordionItem value="item-2" className="border-none">
-                <Card>
-                  <AccordionTrigger className="p-6">
-                    <CardHeader className="p-0 flex-row items-center gap-4 text-left">
-                      <Megaphone className="h-6 w-6 text-accent" />
-                      <div>
-                        <CardTitle className="text-xl">
-                          Brand Voice & Positioning
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          Define your brand's personality and audience.
-                        </CardDescription>
-                      </div>
-                    </CardHeader>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <CardContent>
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          <SelectField
-                            control={form.control}
-                            name="toneOfVoice"
-                            label="Tone of Voice"
-                            placeholder="Select a tone"
-                            options={formOptions.toneOfVoice}
-                          />
-                          <SelectField
-                            control={form.control}
-                            name="brandVibe"
-                            label="Brand Vibe"
-                            placeholder="Select a vibe"
-                            options={formOptions.brandVibe}
-                          />
-                          <SelectField
-                            control={form.control}
-                            name="targetCustomer"
-                            label="Target Customer"
-                            placeholder="Select an audience"
-                            options={formOptions.targetCustomer}
-                          />
-                          <SelectField
-                            control={form.control}
-                            name="primaryGoal"
-                            label="Primary Goal"
-                            placeholder="Select a goal"
-                            options={formOptions.primaryGoal}
-                          />
-                        </div>
-                        <div className="mt-6 flex justify-end border-t pt-6">
-                          <Button type="submit" disabled={isSaving}>
-                            {isSaving ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Save Changes
-                          </Button>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </AccordionContent>
-                </Card>
-            </AccordionItem>
-            {/* Visual Identity */}
-            <AccordionItem value="item-3" className="border-none">
-                <Card>
-                  <AccordionTrigger className="p-6">
-                    <CardHeader className="p-0 flex-row items-center gap-4 text-left">
-                      <Palette className="h-6 w-6 text-accent" />
-                      <div>
-                        <CardTitle className="text-xl">
-                          Visual Identity
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          Upload your logo and set your brand colors & fonts.
-                        </CardDescription>
-                      </div>
-                    </CardHeader>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <CardContent>
-                      <div className="space-y-8">
+              <Card>
+                <AccordionTrigger className="p-6">
+                  <CardHeader className="p-0 flex-row items-center gap-4 text-left">
+                    <Building className="h-6 w-6 text-accent" />
+                    <div>
+                      <CardTitle className="text-xl">Brand Identity</CardTitle>
+                      <CardDescription className="mt-1">
+                        The basics of who you are.
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <FormField
                           control={form.control}
-                          name="logoUrl"
+                          name="brandName"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Brand Logo</FormLabel>
-                              <div className="flex items-center gap-6">
-                                <div className="relative h-24 w-24 rounded-full border bg-muted flex-shrink-0 overflow-hidden">
-                                  {isUploading ? (
-                                    <div className="flex items-center justify-center h-full w-full">
-                                      <Loader2 className="h-6 w-6 animate-spin" />
-                                    </div>
-                                  ) : field.value ? (
-                                    <Image
-                                      src={field.value}
-                                      alt="Brand Logo"
-                                      layout="fill"
-                                      objectFit="cover"
-                                    />
-                                  ) : (
-                                    <div className="flex items-center justify-center h-full w-full">
-                                      <Camera className="h-8 w-8 text-muted-foreground" />
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex-grow">
-                                  <FormControl>
-                                    <Button
-                                      type="button"
-                                      variant="outline"
-                                      onClick={() =>
-                                        document
-                                          .getElementById('logo-upload')
-                                          ?.click()
-                                      }
-                                      disabled={isUploading}
-                                    >
-                                      <UploadCloud className="mr-2 h-4 w-4" />
-                                      {isUploading
-                                        ? 'Uploading...'
-                                        : 'Upload Logo'}
-                                    </Button>
-                                  </FormControl>
-                                  <FormDescription className="mt-2">
-                                    PNG or JPG, up to 5MB. Recommended:
-                                    512x512px.
-                                  </FormDescription>
-                                  <input
-                                    type="file"
-                                    id="logo-upload"
-                                    accept="image/png, image/jpeg"
-                                    className="hidden"
-                                    onChange={handleLogoUpload}
-                                  />
-                                </div>
-                              </div>
+                              <FormLabel>Brand Name</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="e.g., Stella & Grace"
+                                  {...field}
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
                             </FormItem>
                           )}
                         />
                         <FormField
                           control={form.control}
-                          name="brandColors"
+                          name="tagline"
                           render={({ field }) => (
                             <FormItem>
-                              <FormLabel>Brand Colors</FormLabel>
+                              <FormLabel>Tagline</FormLabel>
                               <FormControl>
-                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                                  {[0, 1, 2].map((index) => (
-                                    <div
-                                      key={index}
-                                      className="relative flex items-center gap-3"
+                                <Input
+                                  placeholder="e.g., Effortless style, everyday."
+                                  {...field}
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="location"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Location</FormLabel>
+                              <FormControl>
+                                <Input
+                                  placeholder="e.g., Nashville, TN"
+                                  {...field}
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="websiteUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Website URL</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="url"
+                                  placeholder="https://..."
+                                  {...field}
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="instagramUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Instagram URL</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="url"
+                                  placeholder="https://instagram.com/..."
+                                  {...field}
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="facebookUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Facebook Page/Group URL</FormLabel>
+                              <FormControl>
+                                <Input
+                                  type="url"
+                                  placeholder="https://facebook.com/..."
+                                  {...field}
+                                  value={field.value || ''}
+                                />
+                              </FormControl>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                      <div className="mt-6 flex justify-end border-t pt-6">
+                        <Button type="submit" disabled={isSaving}>
+                          {isSaving ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </AccordionContent>
+              </Card>
+            </AccordionItem>
+            {/* Brand Voice */}
+            <AccordionItem value="item-2" className="border-none">
+              <Card>
+                <AccordionTrigger className="p-6">
+                  <CardHeader className="p-0 flex-row items-center gap-4 text-left">
+                    <Megaphone className="h-6 w-6 text-accent" />
+                    <div>
+                      <CardTitle className="text-xl">
+                        Brand Voice & Positioning
+                      </CardTitle>
+                      <CardDescription className="mt-1">
+                        Define your brand's personality and audience.
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <SelectField
+                          control={form.control}
+                          name="toneOfVoice"
+                          label="Tone of Voice"
+                          placeholder="Select a tone"
+                          options={formOptions.toneOfVoice}
+                        />
+                        <SelectField
+                          control={form.control}
+                          name="brandVibe"
+                          label="Brand Vibe"
+                          placeholder="Select a vibe"
+                          options={formOptions.brandVibe}
+                        />
+                        <SelectField
+                          control={form.control}
+                          name="targetCustomer"
+                          label="Target Customer"
+                          placeholder="Select an audience"
+                          options={formOptions.targetCustomer}
+                        />
+                        <SelectField
+                          control={form.control}
+                          name="primaryGoal"
+                          label="Primary Goal"
+                          placeholder="Select a goal"
+                          options={formOptions.primaryGoal}
+                        />
+                      </div>
+                      <div className="mt-6 flex justify-end border-t pt-6">
+                        <Button type="submit" disabled={isSaving}>
+                          {isSaving ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </AccordionContent>
+              </Card>
+            </AccordionItem>
+            {/* Visual Identity */}
+            <AccordionItem value="item-3" className="border-none">
+              <Card>
+                <AccordionTrigger className="p-6">
+                  <CardHeader className="p-0 flex-row items-center gap-4 text-left">
+                    <Palette className="h-6 w-6 text-accent" />
+                    <div>
+                      <CardTitle className="text-xl">Visual Identity</CardTitle>
+                      <CardDescription className="mt-1">
+                        Upload your logo and set your brand colors & fonts.
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <CardContent>
+                    <div className="space-y-8">
+                      <FormField
+                        control={form.control}
+                        name="logoUrl"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Brand Logo</FormLabel>
+                            <div className="flex items-center gap-6">
+                              <div className="relative h-24 w-24 rounded-full border bg-muted flex-shrink-0 overflow-hidden">
+                                {isUploading ? (
+                                  <div className="flex items-center justify-center h-full w-full">
+                                    <Loader2 className="h-6 w-6 animate-spin" />
+                                  </div>
+                                ) : field.value ? (
+                                  <Image
+                                    src={field.value}
+                                    alt="Brand Logo"
+                                    fill
+                                    objectFit="cover"
+                                  />
+                                ) : (
+                                  <div className="flex items-center justify-center h-full w-full">
+                                    <Camera className="h-8 w-8 text-muted-foreground" />
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex-grow">
+                                <FormControl>
+                                  <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() =>
+                                      document
+                                        .getElementById('logo-upload')
+                                        ?.click()
+                                    }
+                                    disabled={isUploading}
+                                  >
+                                    <UploadCloud className="mr-2 h-4 w-4" />
+                                    {isUploading
+                                      ? 'Uploading...'
+                                      : 'Upload Logo'}
+                                  </Button>
+                                </FormControl>
+                                <FormDescription className="mt-2">
+                                  PNG or JPG, up to 5MB. Recommended: 512x512px.
+                                </FormDescription>
+                                <input
+                                  type="file"
+                                  id="logo-upload"
+                                  accept="image/png, image/jpeg"
+                                  className="hidden"
+                                  onChange={handleLogoUpload}
+                                />
+                              </div>
+                            </div>
+                          </FormItem>
+                        )}
+                      />
+                      <FormField
+                        control={form.control}
+                        name="brandColors"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Brand Colors</FormLabel>
+                            <FormControl>
+                              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                {[0, 1, 2].map((index) => (
+                                  <div
+                                    key={index}
+                                    className="relative flex items-center gap-3"
+                                  >
+                                    <label
+                                      className="h-10 w-12 flex-shrink-0 rounded-md border cursor-pointer"
+                                      style={{
+                                        backgroundColor:
+                                          field.value?.[index] ||
+                                          'transparent',
+                                      }}
                                     >
-                                      <label
-                                        className="h-10 w-12 flex-shrink-0 rounded-md border cursor-pointer"
-                                        style={{
-                                          backgroundColor:
-                                            field.value?.[index] ||
-                                            'transparent',
-                                        }}
-                                      >
-                                        <input
-                                          type="color"
-                                          className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                                          value={
-                                            field.value?.[index] || '#ffffff'
-                                          }
-                                          onChange={(e) => {
-                                            const newColors = [
-                                              ...(field.value || ['', '', '']),
-                                            ];
-                                            newColors[index] = e.target.value;
-                                            form.setValue(
-                                              'brandColors',
-                                              newColors,
-                                              {
-                                                shouldDirty: true,
-                                                shouldValidate: true,
-                                              }
-                                            );
-                                          }}
-                                        />
-                                      </label>
-                                      <Input
-                                        placeholder="e.g., #C56A3D"
-                                        value={field.value?.[index] || ''}
+                                      <input
+                                        type="color"
+                                        className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
+                                        value={
+                                          field.value?.[index] || '#ffffff'
+                                        }
                                         onChange={(e) => {
                                           const newColors = [
                                             ...(field.value || ['', '', '']),
@@ -735,104 +737,121 @@ export default function MyBrandPage() {
                                           );
                                         }}
                                       />
-                                    </div>
-                                  ))}
-                                </div>
-                              </FormControl>
-                              <FormDescription>
-                                Choose up to 3 colors for your brand.
-                              </FormDescription>
-                              <FormMessage />
-                            </FormItem>
-                          )}
+                                    </label>
+                                    <Input
+                                      placeholder="e.g., #C56A3D"
+                                      value={field.value?.[index] || ''}
+                                      onChange={(e) => {
+                                        const newColors = [
+                                          ...(field.value || ['', '', '']),
+                                        ];
+                                        newColors[index] = e.target.value;
+                                        form.setValue(
+                                          'brandColors',
+                                          newColors,
+                                          {
+                                            shouldDirty: true,
+                                            shouldValidate: true,
+                                          }
+                                        );
+                                      }}
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </FormControl>
+                            <FormDescription>
+                              Choose up to 3 colors for your brand.
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <FontSelectField
+                          control={form.control}
+                          name="primaryFont"
+                          label="Primary Font (Headings)"
+                          placeholder="Select a font"
+                          fonts={fontOptions}
                         />
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          <FontSelectField
-                            control={form.control}
-                            name="primaryFont"
-                            label="Primary Font (Headings)"
-                            placeholder="Select a font"
-                            fonts={fontOptions}
-                          />
-                          <FontSelectField
-                            control={form.control}
-                            name="secondaryFont"
-                            label="Secondary Font (Body)"
-                            placeholder="Select a font"
-                            fonts={fontOptions}
-                          />
-                        </div>
-                        <div className="mt-6 flex justify-end border-t pt-6">
-                          <Button type="submit" disabled={isSaving}>
-                            {isSaving ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Save Changes
-                          </Button>
-                        </div>
+                        <FontSelectField
+                          control={form.control}
+                          name="secondaryFont"
+                          label="Secondary Font (Body)"
+                          placeholder="Select a font"
+                          fonts={fontOptions}
+                        />
                       </div>
-                    </CardContent>
-                  </AccordionContent>
-                </Card>
+                      <div className="mt-6 flex justify-end border-t pt-6">
+                        <Button type="submit" disabled={isSaving}>
+                          {isSaving ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
+                      </div>
+                    </div>
+                  </CardContent>
+                </AccordionContent>
+              </Card>
             </AccordionItem>
             {/* Business Basics */}
             <AccordionItem value="item-4" className="border-none">
-                <Card>
-                  <AccordionTrigger className="p-6">
-                    <CardHeader className="p-0 flex-row items-center gap-4 text-left">
-                      <Heart className="h-6 w-6 text-accent" />
-                      <div>
-                        <CardTitle className="text-xl">
-                          Business Basics
-                        </CardTitle>
-                        <CardDescription className="mt-1">
-                          How you connect with your customers.
-                        </CardDescription>
+              <Card>
+                <AccordionTrigger className="p-6">
+                  <CardHeader className="p-0 flex-row items-center gap-4 text-left">
+                    <Heart className="h-6 w-6 text-accent" />
+                    <div>
+                      <CardTitle className="text-xl">Business Basics</CardTitle>
+                      <CardDescription className="mt-1">
+                        How you connect with your customers.
+                      </CardDescription>
+                    </div>
+                  </CardHeader>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <CardContent>
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                        <SelectField
+                          control={form.control}
+                          name="primaryPlatform"
+                          label="Primary Platform"
+                          placeholder="Select a platform"
+                          options={formOptions.primaryPlatform}
+                        />
+                        <SelectField
+                          control={form.control}
+                          name="postingFrequency"
+                          label="Posting Frequency"
+                          placeholder="Select a frequency"
+                          options={formOptions.postingFrequency}
+                        />
+                        <SelectField
+                          control={form.control}
+                          name="promoStyle"
+                          label="Promo Style"
+                          placeholder="Select a style"
+                          options={formOptions.promoStyle}
+                        />
                       </div>
-                    </CardHeader>
-                  </AccordionTrigger>
-                  <AccordionContent>
-                    <CardContent>
-                      <div className="space-y-6">
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                          <SelectField
-                            control={form.control}
-                            name="primaryPlatform"
-                            label="Primary Platform"
-                            placeholder="Select a platform"
-                            options={formOptions.primaryPlatform}
-                          />
-                          <SelectField
-                            control={form.control}
-                            name="postingFrequency"
-                            label="Posting Frequency"
-                            placeholder="Select a frequency"
-                            options={formOptions.postingFrequency}
-                          />
-                          <SelectField
-                            control={form.control}
-                            name="promoStyle"
-                            label="Promo Style"
-                            placeholder="Select a style"
-                            options={formOptions.promoStyle}
-                          />
-                        </div>
-                        <div className="mt-6 flex justify-end border-t pt-6">
-                          <Button type="submit" disabled={isSaving}>
-                            {isSaving ? (
-                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                            ) : (
-                              <Save className="mr-2 h-4 w-4" />
-                            )}
-                            Save Changes
-                          </Button>
-                        </div>
+                      <div className="mt-6 flex justify-end border-t pt-6">
+                        <Button type="submit" disabled={isSaving}>
+                          {isSaving ? (
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Save className="mr-2 h-4 w-4" />
+                          )}
+                          Save Changes
+                        </Button>
                       </div>
-                    </CardContent>
-                  </AccordionContent>
-                </Card>
+                    </div>
+                  </CardContent>
+                </AccordionContent>
+              </Card>
             </AccordionItem>
           </Accordion>
           <div className="lg:col-span-1 lg:sticky top-12">
