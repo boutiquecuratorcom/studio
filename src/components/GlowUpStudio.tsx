@@ -17,10 +17,11 @@ import {
   Zap,
   X,
   Save,
+  Send,
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
-
+import Link from 'next/link';
 
 import {
   enhanceImage,
@@ -174,10 +175,9 @@ export function GlowUpStudio() {
       return;
     }
   
-    // --- Validation Checks ---
     let hasError = false;
     Array.from(files).forEach((file) => {
-      if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      if (file.size > 10 * 1024 * 1024) {
         toast({ variant: "destructive", title: "Image too large", description: `"${file.name}" is over 10MB.` });
         hasError = true;
       }
@@ -194,80 +194,47 @@ export function GlowUpStudio() {
       return;
     }
   
-    // --- Helper: safe FileReader with timeout (prevents hangs) ---
-    const readFileAsDataURL = (file: File, timeoutMs = 15000): Promise<string> => {
+    const readFileAsDataURL = (file: File): Promise<string> => {
       return new Promise((resolve, reject) => {
         const reader = new FileReader();
-  
-        const timeoutId = window.setTimeout(() => {
-          try { reader.abort(); } catch {}
-          reject(new Error(`FileReader timed out after ${timeoutMs}ms for ${file.name}`));
-        }, timeoutMs);
-  
-        const cleanup = () => window.clearTimeout(timeoutId);
-  
-        reader.onload = () => {
-          cleanup();
-          resolve(reader.result as string);
-        };
-  
-        reader.onerror = () => {
-          cleanup();
-          reject(reader.error ?? new Error(`FileReader error for ${file.name}`));
-        };
-  
-        reader.onabort = () => {
-          cleanup();
-          reject(new Error(`FileReader aborted for ${file.name}`));
-        };
-  
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
         reader.readAsDataURL(file);
       });
     };
   
-    // --- File Processing (NO FileReader here) ---
     const existingImageUrls: string[] = [];
-    const filesToUpload: File[] = [];
+    const filesToUpload: { file: File, dataUrlPromise: Promise<string> }[] = [];
   
-    try {
-      for (const file of Array.from(files)) {
-        const existingImage = existingUploads?.find(upload =>
-          upload.originalName === file.name && upload.size === file.size
-        );
+    // Immediately check for duplicates without reading files first
+    for (const file of Array.from(files)) {
+      const existingImage = existingUploads?.find(upload =>
+        upload.originalName === file.name && upload.size === file.size
+      );
   
-        if (existingImage) {
-          if (!originalImages.includes(existingImage.downloadURL)) {
-            existingImageUrls.push(existingImage.downloadURL);
-            toast({
-              title: "Image Added From Library",
-              description: `Used "${file.name}" from your uploads.`,
-            });
-          }
-        } else {
-          filesToUpload.push(file);
+      if (existingImage) {
+        if (!originalImages.includes(existingImage.downloadURL)) {
+          existingImageUrls.push(existingImage.downloadURL);
+          toast({
+            title: "Image Added From Library",
+            description: `Used "${file.name}" from your uploads.`,
+          });
         }
+      } else {
+        filesToUpload.push({ file, dataUrlPromise: readFileAsDataURL(file) });
       }
-    } catch (error) {
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-      return;
     }
   
     const allUrlsToAdd = [...existingImageUrls];
   
-    // --- Uploading new files (if any) ---
     if (filesToUpload.length > 0) {
       toast({ title: 'Uploading new image(s)...', description: 'Your new files are being securely saved.' });
   
       try {
-        const newlyUploadedUrls = await Promise.all(
-          filesToUpload.map(async (file) => {
+        const uploadedResults = await Promise.all(
+          filesToUpload.map(async ({ file, dataUrlPromise }) => {
             const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
             const storageRef = ref(storage, storagePath);
-  
-            // Only read file ONCE, safely, for AI input
-            const dataUrl = await readFileAsDataURL(file);
   
             await uploadBytes(storageRef, file);
             const downloadURL = await getDownloadURL(storageRef);
@@ -285,27 +252,24 @@ export function GlowUpStudio() {
             };
   
             await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
-  
-            // Keep returning the dataUrl because your AI flow expects data URIs
+            
+            // Now await the dataUrl which was being read in parallel
+            const dataUrl = await dataUrlPromise;
             return dataUrl;
           })
         );
   
-        allUrlsToAdd.push(...newlyUploadedUrls);
+        allUrlsToAdd.push(...uploadedResults);
         toast({ title: 'Upload complete!', description: 'You can now style your new image(s).' });
   
-      } catch (error) {
-        console.error("Error uploading files:", error);
-        toast({ variant: "destructive", title: "Upload failed", description: "There was an error saving your files. Please try again." });
-  
-        if (fileInputRef.current) {
-          fileInputRef.current.value = "";
-        }
+      } catch (error: any) {
+        console.error("Error handling files:", error);
+        toast({ variant: "destructive", title: "Upload failed", description: error.message || "There was an error saving your files. Please try again." });
+        if (fileInputRef.current) fileInputRef.current.value = "";
         return;
       }
     }
   
-    // --- Final State Update ---
     if (allUrlsToAdd.length > 0) {
       setOriginalImages(prev => [...prev, ...allUrlsToAdd]);
       if (step === 'upload') {
@@ -592,7 +556,6 @@ export function GlowUpStudio() {
         {step === "done" && !isOriginal && enhancedImage && (
           <div className="absolute inset-0 bg-black/60 flex flex-col gap-4 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button variant="secondary" onClick={handleDownload}><Download className="mr-2 h-4 w-4" />Download Image</Button>
-            <Button variant="outline" size="sm" onClick={resetWorkflow}>Start New Project</Button>
           </div>
         )}
         {(!enhancedImage && !isEnhancing && !isOriginal) && <Skeleton className="w-full h-full" />}
@@ -730,17 +693,25 @@ export function GlowUpStudio() {
               </Button>
             )}
             {step === 'done' && (
-              <>
+              <div className="flex flex-wrap justify-center gap-4">
                 {generationMode === 'instant' && (
                   <Button onClick={handleEnhance} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
                       <Sparkles className="mr-3 h-6 w-6" />
                       Try AI Studio Again
                   </Button>
                 )}
+                {enhancedImage && (
+                    <Button asChild size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
+                        <Link href={`/post-creator?img=${encodeURIComponent(enhancedImage)}`}>
+                            <Send className="mr-3 h-6 w-6" />
+                            Create Post
+                        </Link>
+                    </Button>
+                )}
                 <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8 rounded-full">
                   Create Another Image
                 </Button>
-              </>
+              </div>
             )}
            </div>
         )}

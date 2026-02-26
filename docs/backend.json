@@ -222,6 +222,75 @@
         "updatedAt",
         "image"
       ]
+    },
+    "Post": {
+      "title": "Post Draft",
+      "description": "A saved draft of a social media post created in the Post Creator.",
+      "type": "object",
+      "properties": {
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "platformFormat": {
+          "type": "string",
+          "enum": [
+            "IG_FEED",
+            "IG_STORY",
+            "FB_FEED"
+          ]
+        },
+        "templateId": {
+          "type": "string",
+          "enum": [
+            "MODERN_CATALOG",
+            "MINIMAL_LOOK",
+            "BOLD_STATEMENT"
+          ]
+        },
+        "enhancedImageUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "textFields": {
+          "type": "object",
+          "properties": {
+            "headline": {
+              "type": "string"
+            },
+            "subtext": {
+              "type": "string"
+            },
+            "cta": {
+              "type": "string"
+            }
+          }
+        },
+        "brandSnapshot": {
+          "type": "object",
+          "properties": {
+            "primaryFont": {
+              "type": "string"
+            },
+            "secondaryFont": {
+              "type": "string"
+            },
+            "brandColors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "required": [
+        "createdAt",
+        "platformFormat",
+        "templateId",
+        "enhancedImageUrl",
+        "textFields"
+      ]
     }
   },
   "auth": {
@@ -248,6 +317,12 @@
         "$ref": "#/entities/BrandProfile"
       },
       "description": "Stores the user's brand profile. Expect a single document per user."
+    },
+    "/users/{userId}/posts/{postId}": {
+      "schema": {
+        "$ref": "#/entities/Post"
+      },
+      "description": "Stores saved post drafts for a user."
     },
     "/inventory/{itemId}": {
       "schema": {

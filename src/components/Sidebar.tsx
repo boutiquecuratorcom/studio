@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Sparkles, Upload, Wand2, BookOpen, Settings, Briefcase, Boxes } from 'lucide-react';
+import { Home, Sparkles, Upload, Wand2, BookOpen, Settings, Briefcase, Boxes, LayoutTemplate } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
 import {
@@ -22,6 +22,7 @@ import { isAdminEmail } from '@/lib/admin';
 const navItems = [
   { href: '/dashboard', label: 'Dashboard', icon: Home },
   { href: '/editor', label: 'AI Editor', icon: Wand2 },
+  { href: '/post-creator', label: 'Post Creator', icon: LayoutTemplate },
   { href: '/inventory', label: 'Inventory', icon: Boxes },
   { href: '/uploads', label: 'My Library', icon: Upload },
   { href: '/my-brand', label: 'My Brand', icon: Briefcase },
