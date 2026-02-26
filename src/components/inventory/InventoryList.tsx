@@ -64,11 +64,8 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
             console.error('AI Analysis failed:', error);
             if (isMounted) {
                 await updateInventoryItem(firestore, item.id, {
-                    analysis: {
-                        ...(item.analysis || {}),
-                        status: 'failed',
-                        error: error.message || 'An unknown error occurred during analysis.',
-                    },
+                    'analysis.status': 'failed',
+                    'analysis.error': error.message || 'An unknown error occurred during analysis.',
                 });
                 toast({
                     variant: 'destructive',
@@ -110,9 +107,8 @@ function ItemCard({ item }: { item: InventoryItem }) {
     if (!firestore || !item) return;
     try {
         await updateInventoryItem(firestore, item.id, {
-            analysis: {
-                status: 'pending',
-            },
+            'analysis.status': 'pending',
+            'analysis.error': '',
         });
         toast({ title: 'Re-analysis Queued', description: `Will try analyzing "${item.title}" again.` });
     } catch (error: any) {
