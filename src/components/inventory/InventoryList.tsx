@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
-import { analyzeInventoryImage, AnalyzeInventoryImageOutput } from '@/ai/flows/analyze-inventory-image-flow';
+import { analyzeInventoryImage } from '@/ai/flows/analyze-inventory-image-flow';
 
 
 function InventoryAnalysis({ item }: { item: InventoryItem }) {
@@ -189,29 +189,41 @@ function ItemCard({ item }: { item: InventoryItem }) {
           </div>
         </div>
         <div className="p-4 flex-grow flex flex-col">
-            <h3 className="font-semibold leading-snug break-words mb-2">{item.title}</h3>
-          <p className="text-sm text-muted-foreground mb-3 flex-grow">{item.type}</p>
-          <div className="flex flex-wrap gap-2 mb-3">
-            {item.sizes.map((size) => (
-              <Badge key={size} variant="outline">{size}</Badge>
-            ))}
-          </div>
+            <div>
+                <h3 className="font-semibold leading-snug break-words mb-2">{item.title}</h3>
+                <p className="text-sm text-muted-foreground mb-3">{item.type}</p>
+                <div className="flex flex-wrap gap-2">
+                    {item.sizes.map((size) => (
+                    <Badge key={size} variant="outline">{size}</Badge>
+                    ))}
+                </div>
+            </div>
 
-          {item.analysis?.status === 'complete' && item.analysis.tags && (
-              <div className="border-t pt-3 mt-auto">
-                  <div className="flex flex-wrap gap-1">
-                      {item.analysis.tags.slice(0, 4).map(tag => (
-                          <Badge key={tag} variant="secondary" className="text-xs font-normal">{`#${tag.replace(/\s+/g, '')}`}</Badge>
-                      ))}
-                  </div>
-              </div>
-          )}
-
-          <div className="flex justify-between items-center mt-3 pt-2 border-t">
-            <p className="text-xs text-muted-foreground/80">
-                Added {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'just now'}
-            </p>
-          </div>
+            <div className="mt-auto pt-4 space-y-3">
+                {item.analysis?.status === 'complete' && (
+                    <div className="space-y-2">
+                        {item.analysis.dominantColors && item.analysis.dominantColors.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5">
+                                {item.analysis.dominantColors.map((color) => (
+                                    <div key={color} className="h-4 w-4 rounded-full border" style={{ backgroundColor: color }} title={color} />
+                                ))}
+                            </div>
+                        )}
+                        {item.analysis.tags && (
+                            <div className="flex flex-wrap gap-1">
+                                {item.analysis.tags.slice(0, 3).map(tag => (
+                                    <Badge key={tag} variant="secondary" className="text-xs font-normal">{`#${tag.replace(/\s+/g, '')}`}</Badge>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                )}
+                <div className="border-t pt-2">
+                    <p className="text-xs text-muted-foreground/80">
+                        Added {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'just now'}
+                    </p>
+                </div>
+            </div>
         </div>
       </Card>
 

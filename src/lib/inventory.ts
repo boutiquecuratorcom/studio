@@ -24,6 +24,7 @@ import type { User } from 'firebase/auth';
 import { useCollection, useDoc, useFirestore } from '@/firebase';
 import { useMemo } from 'react';
 import { resizeImage } from './image-utils';
+import type { AnalyzeInventoryImageOutput } from '@/ai/flows/analyze-inventory-image-flow';
 
 export interface InventoryItem extends DocumentData {
   id: string;
@@ -41,13 +42,8 @@ export interface InventoryItem extends DocumentData {
     width?: number;
     height?: number;
   };
-  analysis?: {
+  analysis?: AnalyzeInventoryImageOutput & {
     status: 'pending' | 'complete' | 'failed';
-    colors?: string[];
-    pattern?: string;
-    categoryGuess?: string;
-    tags?: string[];
-    confidence?: number;
     error?: string;
   };
   createdAt: any;
