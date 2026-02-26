@@ -21,7 +21,7 @@ import {
   type FirebaseStorage,
 } from 'firebase/storage';
 import type { User } from 'firebase/auth';
-import { useCollection, useDoc } from '@/firebase';
+import { useCollection, useDoc, useFirestore } from '@/firebase';
 import { useMemo } from 'react';
 import { resizeImage } from './image-utils';
 
@@ -59,7 +59,7 @@ const MONTHLY_INVENTORY_LIMIT = 100;
 // --- Hooks ---
 
 export const useInventoryItems = (userId: string | null) => {
-  const { firestore } = useMemo(() => ({ firestore: (window as any).firestore }), []);
+  const firestore = useFirestore();
   const q = useMemo(() => {
     if (!userId || !firestore) return null;
     return query(
@@ -73,7 +73,7 @@ export const useInventoryItems = (userId: string | null) => {
 };
 
 export const useInventoryItem = (itemId: string | null) => {
-  const { firestore } = useMemo(() => ({ firestore: (window as any).firestore }), []);
+  const firestore = useFirestore();
   const docRef = useMemo(() => {
     if (!itemId || !firestore) return null;
     return doc(firestore, 'inventory', itemId) as any;
