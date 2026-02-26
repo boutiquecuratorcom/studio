@@ -26,7 +26,6 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RotateCcw, X } from 'lucide-react';
 import type { PlatformFormat, TemplateId, TextLayerStyle, FrameStyle } from './PostCreatorClient';
-import { FormDescription } from '../ui/form';
 import { cn } from '@/lib/utils';
 
 interface PostControlsProps {
@@ -85,7 +84,10 @@ const TextLayerEditor = ({
                 <Label>Text Color</Label>
                 <Select
                     value={style.textColorMode}
-                    onValueChange={(v) => setStyle({ ...style, textColorMode: v as TextLayerStyle['textColorMode'] })}
+                    onValueChange={(v) => {
+                        const newStyle = { ...style, textColorMode: v as TextLayerStyle['textColorMode'] };
+                        setStyle(newStyle);
+                    }}
                     disabled={style.badgeColor !== 'none'}
                 >
                     <SelectTrigger><SelectValue /></SelectTrigger>
@@ -98,9 +100,9 @@ const TextLayerEditor = ({
                     </SelectContent>
                 </Select>
                  {style.badgeColor !== 'none' && (
-                    <FormDescription className="text-xs px-1">
+                    <p className="text-xs px-1 text-muted-foreground">
                         Automatic for badge contrast.
-                    </FormDescription>
+                    </p>
                 )}
             </div>
             <div className="space-y-2">
@@ -125,7 +127,14 @@ const TextLayerEditor = ({
                     <button
                         key={color}
                         type="button"
-                        onClick={() => setStyle({ ...style, badgeColor: color })}
+                        onClick={() => {
+                            const newStyle = { ...style, badgeColor: color };
+                            // When a badge is selected, text color should be auto
+                            if (color !== 'none') {
+                                newStyle.textColorMode = 'auto';
+                            }
+                            setStyle(newStyle);
+                        }}
                         className={cn(
                             "h-8 w-8 rounded-full border-2 transition-all hover:scale-110 active:scale-100",
                             style.badgeColor === color ? 'ring-2 ring-offset-2 ring-ring border-primary' : 'border-transparent'
