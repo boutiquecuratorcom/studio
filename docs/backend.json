@@ -243,9 +243,10 @@
         "templateId": {
           "type": "string",
           "enum": [
-            "MODERN_CATALOG",
-            "MINIMAL_LOOK",
-            "BOLD_STATEMENT"
+            "CLEAN_BOUTIQUE",
+            "BOLD_DROP",
+            "MINIMAL_LUXE",
+            "COMMENT_SOLD_LIVE"
           ]
         },
         "enhancedImageUrl": {

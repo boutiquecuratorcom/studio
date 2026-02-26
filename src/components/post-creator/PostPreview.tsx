@@ -1,11 +1,12 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 
 type PlatformFormat = 'IG_FEED' | 'IG_STORY' | 'FB_FEED';
-type TemplateId = 'MODERN_CATALOG' | 'MINIMAL_LOOK' | 'BOLD_STATEMENT';
+type TemplateId = 'CLEAN_BOUTIQUE' | 'BOLD_DROP' | 'MINIMAL_LUXE' | 'COMMENT_SOLD_LIVE';
+
 type BrandProfile = {
   brandName?: string;
   primaryFont?: string;
@@ -48,66 +49,72 @@ const getFontFamily = (fontName: string | undefined, defaultFont: string) => {
 const aspectRatios: Record<PlatformFormat, string> = {
   IG_FEED: 'aspect-[4/5]',
   IG_STORY: 'aspect-[9/16]',
-  FB_FEED: 'aspect-[1.91/1]',
+  FB_FEED: 'aspect-[4/5]',
 };
 
 export const PostPreview = React.forwardRef<HTMLDivElement, PostPreviewProps>(
   ({ imageUrl, platformFormat, templateId, headline, subtext, cta, brandProfile }, ref) => {
-    const primaryFont = getFontFamily(brandProfile?.primaryFont, 'Playfair Display, serif');
-    const secondaryFont = getFontFamily(brandProfile?.secondaryFont, 'Inter, sans-serif');
-    const primaryColor = brandProfile?.brandColors?.[0] || '#FFFFFF';
-    const secondaryColor = brandProfile?.brandColors?.[1] || '#FFFFFF';
-    const accentColor = brandProfile?.brandColors?.[2] || '#C56A3D';
-
-    const renderModernCatalog = () => (
-      <>
-        <div className="absolute top-8 left-8 right-8 text-left">
-          <h1
-            className="text-5xl md:text-7xl font-bold uppercase tracking-tighter"
-            style={{ fontFamily: primaryFont, color: primaryColor, textShadow: '2px 2px 4px rgba(0,0,0,0.3)' }}
-          >
-            {headline}
-          </h1>
-        </div>
-        <div className="absolute bottom-8 left-8 right-8 flex justify-between items-end">
-            <h2
-                className="text-xl md:text-2xl font-semibold"
-                style={{ fontFamily: secondaryFont, color: secondaryColor, textShadow: '1px 1px 3px rgba(0,0,0,0.5)' }}
-            >
-                {subtext}
-            </h2>
-             <div
-                className="text-lg md:text-xl font-bold p-3 uppercase"
-                style={{ fontFamily: secondaryFont, backgroundColor: accentColor, color: '#FFFFFF' }}
-            >
-                {cta}
-            </div>
-        </div>
-      </>
-    );
+    const primaryFont = getFontFamily(brandProfile?.primaryFont, "'Playfair Display', serif");
+    const secondaryFont = getFontFamily(brandProfile?.secondaryFont, "'Inter', sans-serif");
     
-    // Stubbed templates
-    const renderMinimalLook = () => (
-         <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-8 bg-black/20">
-            <h1 className="text-4xl md:text-6xl font-light uppercase tracking-widest" style={{ fontFamily: secondaryFont, color: primaryColor }}>{headline}</h1>
-            <h2 className="mt-4 text-lg md:text-xl" style={{ fontFamily: secondaryFont, color: secondaryColor }}>{subtext}</h2>
-         </div>
-    );
-    const renderBoldStatement = () => (
-        <div className="absolute inset-0 flex flex-col items-start justify-end text-left p-8">
-            <h1 className="text-6xl md:text-8xl font-extrabold" style={{ fontFamily: primaryFont, color: primaryColor, mixBlendMode: 'overlay' }}>{headline.toUpperCase()}</h1>
-            <div className="mt-4 text-lg md:text-xl font-bold p-3" style={{ fontFamily: secondaryFont, color: accentColor, backgroundColor: primaryColor }}>{cta}</div>
-        </div>
-    );
+    const primaryBrandColor = brandProfile?.brandColors?.[0] || '#212121';
+    const ctaTextColor = '#FFFFFF';
+    const headlineColor = '#FFFFFF';
+    const subtextColor = '#FFFFFF';
 
-    const renderTemplate = () => {
-        switch (templateId) {
-            case 'MODERN_CATALOG': return renderModernCatalog();
-            case 'MINIMAL_LOOK': return renderMinimalLook();
-            case 'BOLD_STATEMENT': return renderBoldStatement();
-            default: return renderModernCatalog();
-        }
-    }
+    const headlineSizeClass = useMemo(() => {
+        const len = headline.length;
+        if (templateId === 'MINIMAL_LUXE') return len > 15 ? 'text-4xl' : 'text-5xl';
+        if (len > 25) return 'text-5xl';
+        if (len > 15) return 'text-6xl';
+        if (len > 8) return 'text-7xl';
+        return 'text-8xl';
+    }, [headline, templateId]);
+    
+    const templateStyles = useMemo(() => ({
+        CLEAN_BOUTIQUE: {
+            topZone: 'justify-center text-center',
+            headline: `font-bold uppercase tracking-wider ${headlineSizeClass}`,
+            headlineStyle: { fontFamily: primaryFont, color: headlineColor, textShadow: '1px 1px 3px rgba(0,0,0,0.2)' },
+            bottomZone: 'flex-col items-center justify-center gap-4 text-center',
+            subtext: 'order-1 text-lg uppercase tracking-widest',
+            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '1px 1px 3px rgba(0,0,0,0.4)' },
+            cta: 'order-2 text-lg font-bold py-3 px-8 rounded-lg uppercase',
+            ctaStyle: { fontFamily: secondaryFont, backgroundColor: primaryBrandColor, color: ctaTextColor },
+        },
+        BOLD_DROP: {
+            topZone: 'justify-start text-left',
+            headline: `font-extrabold uppercase leading-none ${headlineSizeClass}`,
+            headlineStyle: { fontFamily: primaryFont, color: headlineColor, mixBlendMode: 'difference' as const },
+            bottomZone: 'flex-row items-end justify-between',
+            subtext: 'text-left text-xl font-semibold',
+            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '1px 1px 2px rgba(0,0,0,0.5)' },
+            cta: 'text-lg font-bold py-3 px-6 rounded-md uppercase',
+            ctaStyle: { fontFamily: secondaryFont, backgroundColor: primaryBrandColor, color: ctaTextColor },
+        },
+        MINIMAL_LUXE: {
+            topZone: 'justify-center text-center',
+            headline: `font-light uppercase tracking-[0.2em] ${headlineSizeClass}`,
+            headlineStyle: { fontFamily: secondaryFont, color: headlineColor, textShadow: '1px 1px 3px rgba(0,0,0,0.2)' },
+            bottomZone: 'flex-col items-center justify-center gap-3',
+            subtext: 'order-2 text-base tracking-wider',
+            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '1px 1px 2px rgba(0,0,0,0.4)' },
+            cta: 'order-1 text-sm font-semibold py-2 px-6 border rounded-full uppercase tracking-wider',
+            ctaStyle: { fontFamily: secondaryFont, borderColor: headlineColor, color: headlineColor },
+        },
+        COMMENT_SOLD_LIVE: {
+            topZone: 'justify-center text-center',
+            headline: `font-black uppercase leading-none ${headlineSizeClass}`,
+            headlineStyle: { fontFamily: primaryFont, color: headlineColor, textShadow: '2px 2px 8px rgba(0,0,0,0.7)' },
+            bottomZone: 'flex-col items-center justify-center gap-4 text-center',
+            subtext: 'order-2 text-2xl font-bold',
+            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' },
+            cta: 'order-1 text-2xl font-black py-4 px-12 rounded-lg uppercase shadow-2xl animate-pulse',
+            ctaStyle: { fontFamily: primaryFont, backgroundColor: primaryBrandColor, color: ctaTextColor },
+        },
+    }), [templateId, headlineSizeClass, primaryFont, secondaryFont, primaryBrandColor, headlineColor, subtextColor, ctaTextColor]);
+    
+    const styles = templateStyles[templateId];
 
     return (
       <div className="flex justify-center items-center bg-muted/20 p-4 rounded-2xl">
@@ -125,7 +132,18 @@ export const PostPreview = React.forwardRef<HTMLDivElement, PostPreviewProps>(
             className="object-cover"
             priority
           />
-          {renderTemplate()}
+          <div className="absolute inset-0 flex flex-col p-[60px]">
+            <div className={cn('flex items-center', styles.topZone)}>
+              <h1 className={cn(styles.headline)} style={styles.headlineStyle}>{headline}</h1>
+            </div>
+            
+            <div className="flex-grow" />
+            
+            <div className={cn('flex', styles.bottomZone)}>
+              <h2 className={cn(styles.subtext)} style={styles.subtextStyle}>{subtext}</h2>
+              <div className={cn(styles.cta)} style={styles.ctaStyle}>{cta}</div>
+            </div>
+          </div>
         </div>
       </div>
     );

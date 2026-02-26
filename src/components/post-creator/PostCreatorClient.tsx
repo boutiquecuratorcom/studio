@@ -18,7 +18,7 @@ import { PostPreview } from './PostPreview';
 
 // Types
 type PlatformFormat = 'IG_FEED' | 'IG_STORY' | 'FB_FEED';
-type TemplateId = 'MODERN_CATALOG' | 'MINIMAL_LOOK' | 'BOLD_STATEMENT';
+type TemplateId = 'CLEAN_BOUTIQUE' | 'BOLD_DROP' | 'MINIMAL_LUXE' | 'COMMENT_SOLD_LIVE';
 
 function LoadingState() {
   return (
@@ -136,7 +136,7 @@ export default function PostCreatorClient() {
 
   // State for post customization
   const [platformFormat, setPlatformFormat] = useState<PlatformFormat>('IG_FEED');
-  const [templateId, setTemplateId] = useState<TemplateId>('MODERN_CATALOG');
+  const [templateId, setTemplateId] = useState<TemplateId>('CLEAN_BOUTIQUE');
   const [headline, setHeadline] = useState('new arrival');
   const [subtext, setSubtext] = useState('');
   const [cta, setCta] = useState('comment sold');

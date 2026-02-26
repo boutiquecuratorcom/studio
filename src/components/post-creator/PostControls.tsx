@@ -19,7 +19,7 @@ import {
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type PlatformFormat = 'IG_FEED' | 'IG_STORY' | 'FB_FEED';
-type TemplateId = 'MODERN_CATALOG' | 'MINIMAL_LOOK' | 'BOLD_STATEMENT';
+type TemplateId = 'CLEAN_BOUTIQUE' | 'BOLD_DROP' | 'MINIMAL_LUXE' | 'COMMENT_SOLD_LIVE';
 
 interface PostControlsProps {
   platformFormat: PlatformFormat;
@@ -77,9 +77,10 @@ export function PostControls({
               <SelectValue placeholder="Select a template" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="MODERN_CATALOG">Modern Catalog</SelectItem>
-              <SelectItem value="MINIMAL_LOOK">Minimal Look</SelectItem>
-              <SelectItem value="BOLD_STATEMENT">Bold Statement</SelectItem>
+              <SelectItem value="CLEAN_BOUTIQUE">Clean Boutique</SelectItem>
+              <SelectItem value="BOLD_DROP">Bold Drop</SelectItem>
+              <SelectItem value="MINIMAL_LUXE">Minimal Luxe</SelectItem>
+              <SelectItem value="COMMENT_SOLD_LIVE">Comment-Sold Live</SelectItem>
             </SelectContent>
           </Select>
         </CardContent>
