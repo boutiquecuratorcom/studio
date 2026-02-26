@@ -2,14 +2,26 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Rules last updated: 2024-07-26
-    // Allow users to read and write their own uploads
-    match /uploads/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+    // Rules last updated: 2024-07-29
+
+    // Helper function to check ownership
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
     }
-    // Allow users to read and write their own brand assets
+
+    // Allow users to read and write their own 'uploads' folder
+    match /uploads/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Allow users to read and write their own 'brandAssets' folder
     match /brandAssets/{userId}/{allPaths=**} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if isOwner(userId);
+    }
+
+    // Allow users to read and write their own 'inventory' folder
+    match /inventory/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId);
     }
   }
 }

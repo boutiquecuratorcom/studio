@@ -22,6 +22,14 @@
           "type": "string",
           "format": "date-time",
           "description": "The timestamp when the user profile was created."
+        },
+        "inventoryCountThisMonth": {
+          "type": "number",
+          "description": "The number of inventory items the user has created in the current month."
+        },
+        "inventoryMonthKey": {
+          "type": "string",
+          "description": "The year-month key (e.g., '2024-08') for tracking monthly inventory limits."
         }
       },
       "required": ["uid", "email", "createdAt"]
@@ -79,6 +87,114 @@
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "Represents a single item in the user's inventory.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string"
+        },
+        "brand": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string"
+        },
+        "sizes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "notes": {
+          "type": "string"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "image": {
+          "type": "object",
+          "properties": {
+            "originalPath": {
+              "type": "string"
+            },
+            "originalUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "thumbPath": {
+              "type": "string"
+            },
+            "thumbUrl": {
+              "type": "string",
+              "format": "uri"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          }
+        },
+        "analysis": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "complete",
+                "failed"
+              ]
+            },
+            "colors": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "pattern": {
+              "type": "string"
+            },
+            "categoryGuess": {
+              "type": "string"
+            },
+            "tags": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "confidence": {
+              "type": "number"
+            },
+            "error": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "required": [
+        "ownerId",
+        "brand",
+        "title",
+        "type",
+        "sizes",
+        "createdAt",
+        "updatedAt",
+        "image"
+      ]
     }
   },
   "auth": {
@@ -89,16 +205,28 @@
   },
   "firestore": {
     "/users/{userId}": {
-      "schema": { "$ref": "#/entities/UserProfile" },
+      "schema": {
+        "$ref": "#/entities/UserProfile"
+      },
       "description": "Stores user profile data, keyed by user ID."
     },
     "/users/{userId}/uploads/{uploadId}": {
-      "schema": { "$ref": "#/entities/UserUpload" },
+      "schema": {
+        "$ref": "#/entities/UserUpload"
+      },
       "description": "Stores metadata for files uploaded by a user."
     },
     "/users/{userId}/brandProfile/{brandProfileId}": {
-      "schema": { "$ref": "#/entities/BrandProfile" },
+      "schema": {
+        "$ref": "#/entities/BrandProfile"
+      },
       "description": "Stores the user's brand profile. Expect a single document per user."
+    },
+    "/inventory/{itemId}": {
+      "schema": {
+        "$ref": "#/entities/InventoryItem"
+      },
+      "description": "Stores all user inventory items in a single collection."
     }
   }
 }
