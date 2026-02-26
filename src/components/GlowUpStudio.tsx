@@ -167,7 +167,7 @@ export function GlowUpStudio() {
     const files = event.target.files;
 
     if (!files || files.length === 0 || !creationType || !user || !storage || !firestore) {
-      if (step === 'upload') {
+      if (step === 'upload' && (!files || files.length === 0)) {
         setStep('selectCreationType');
         setCreationType(null);
       }
@@ -198,30 +198,45 @@ export function GlowUpStudio() {
     const existingImageUrls: string[] = [];
     const filesToUpload: File[] = [];
 
-    for (const file of Array.from(files)) {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        await new Promise<void>(resolve => {
-            reader.onload = () => {
-                const dataUrl = reader.result as string;
-                const existingImage = existingUploads?.find(upload =>
-                    upload.originalName === file.name && upload.size === file.size
-                );
+    try {
+      for (const file of Array.from(files)) {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          await new Promise<void>((resolve, reject) => {
+              reader.onload = () => {
+                  const existingImage = existingUploads?.find(upload =>
+                      upload.originalName === file.name && upload.size === file.size
+                  );
 
-                if (existingImage) {
-                    if (!originalImages.includes(existingImage.downloadURL)) {
-                        existingImageUrls.push(existingImage.downloadURL);
-                        toast({
-                            title: "Image Added From Library",
-                            description: `Used "${file.name}" from your uploads.`,
-                        });
-                    }
-                } else {
-                    filesToUpload.push(file);
-                }
-                resolve();
-            };
-        });
+                  if (existingImage) {
+                      if (!originalImages.includes(existingImage.downloadURL)) {
+                          existingImageUrls.push(existingImage.downloadURL);
+                          toast({
+                              title: "Image Added From Library",
+                              description: `Used "${file.name}" from your uploads.`,
+                          });
+                      }
+                  } else {
+                      filesToUpload.push(file);
+                  }
+                  resolve();
+              };
+              reader.onerror = (error) => {
+                console.error("FileReader error:", error);
+                toast({
+                    variant: "destructive",
+                    title: "File Read Error",
+                    description: `Could not read the file: ${file.name}.`,
+                });
+                reject(error);
+              };
+          });
+      }
+    } catch (error) {
+        if (fileInputRef.current) {
+            fileInputRef.current.value = "";
+        }
+        return;
     }
 
     const allUrlsToAdd = [...existingImageUrls];
@@ -233,6 +248,12 @@ export function GlowUpStudio() {
         const newlyUploadedUrls = await Promise.all(filesToUpload.map(async (file) => {
           const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
           const storageRef = ref(storage, storagePath);
+          
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          const dataUrl = await new Promise<string>(resolve => {
+              reader.onload = () => resolve(reader.result as string);
+          });
 
           await uploadBytes(storageRef, file);
           const downloadURL = await getDownloadURL(storageRef);
@@ -250,7 +271,7 @@ export function GlowUpStudio() {
           };
 
           await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
-          return downloadURL;
+          return dataUrl;
         }));
         
         allUrlsToAdd.push(...newlyUploadedUrls);
