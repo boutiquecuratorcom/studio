@@ -9,25 +9,30 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag, UserX, FileQuestion } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
+import { doc } from 'firebase/firestore';
 
 export default function ViewInventoryItemPage() {
   const params = useParams();
   const id = params.id as string;
+  const firestore = useFirestore();
 
   const { user, loading: userLoading } = useUser();
   const { item, loading: itemLoading, error } = useInventoryItem(id);
 
   const loading = itemLoading || userLoading;
 
-  // --- Debug Logging ---
-  console.log('--- Inventory Detail Page ---');
-  console.log(`Route Param ID:`, id);
-  console.log(`User Loading: ${userLoading}, Item Loading: ${itemLoading}`);
-  console.log(`User:`, user ? user.uid : 'null');
-  console.log(`Item:`, item ? item.id : 'null');
-  console.log(`Error:`, error);
-  console.log('---------------------------');
+  // --- Debug Logging as per requirements ---
+  console.log('--- Inventory Detail Page Debug ---');
+  console.log(`1. Route Param ID:`, id);
+  if (firestore && id) {
+    console.log(`2. Firestore Path Being Fetched:`, doc(firestore, 'inventory', id).path);
+  }
+  console.log(`3. Loading States: User=${userLoading}, Item=${itemLoading}`);
+  if (!itemLoading) {
+    console.log(`4. Document Exists Check (post-load):`, !!item);
+  }
+  console.log('---------------------------------');
 
 
   if (loading) {
@@ -85,7 +90,7 @@ export default function ViewInventoryItemPage() {
     );
   }
   
-  // 3. Final client-side authorization check as a safeguard.
+  // 3. Final client-side authorization check. We know the item exists.
   if (!user || item.ownerId !== user.uid) {
     return (
       <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
