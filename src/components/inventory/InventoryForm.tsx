@@ -21,11 +21,21 @@ import React, { useState } from 'react';
 import { createInventoryItem, updateInventoryItem, InventoryItem } from '@/lib/inventory';
 import { ImageUploader } from './ImageUploader';
 import { useUser, useFirestore, useStorage } from '@/firebase';
+import { Checkbox } from '../ui/checkbox';
+
+const allSizes = [
+    'XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 
+    'OS', 'TC', 'TC2', 'Tween', 
+    'Kids S/M', 'Kids L/XL',
+    '2', '4', '6', '8', '10', '12', '14',
+];
 
 const inventoryFormSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   type: z.string().min(2, { message: 'Type must be at least 2 characters.' }),
-  sizes: z.string().min(1, { message: 'At least one size is required.' }),
+  sizes: z.array(z.string()).refine(value => value.length > 0, {
+    message: "At least one size must be selected."
+  }),
   notes: z.string().optional(),
 });
 
@@ -50,7 +60,7 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
     defaultValues: {
       title: item?.title || '',
       type: item?.type || '',
-      sizes: item?.sizes?.join(', ') || '',
+      sizes: item?.sizes || [],
       notes: item?.notes || '',
     },
   });
@@ -71,7 +81,6 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
         let itemId: string;
         const processedData = {
             ...values,
-            sizes: values.sizes.split(',').map(s => s.trim()).filter(Boolean),
             brand: 'LuLaRoe', // Default brand
         };
         
@@ -144,22 +153,57 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
               </FormItem>
             )}
           />
-          <FormField
-            control={form.control}
-            name="sizes"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Sizes</FormLabel>
-                <FormControl>
-                  <Input placeholder="e.g., S, M, L" {...field} />
-                </FormControl>
-                <FormDescription>
-                  Enter one or more sizes, separated by commas.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+            <FormField
+                control={form.control}
+                name="sizes"
+                render={() => (
+                    <FormItem>
+                    <FormLabel>Sizes</FormLabel>
+                    <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-y-3 gap-x-2 rounded-lg border p-4">
+                        {allSizes.map((size) => (
+                            <FormField
+                                key={size}
+                                control={form.control}
+                                name="sizes"
+                                render={({ field }) => {
+                                return (
+                                    <FormItem
+                                    key={size}
+                                    className="flex flex-row items-center space-x-2 space-y-0"
+                                    >
+                                    <FormControl>
+                                        <Checkbox
+                                        checked={field.value?.includes(size)}
+                                        onCheckedChange={(checked) => {
+                                            const currentSizes = field.value || [];
+                                            if (checked) {
+                                                field.onChange([...currentSizes, size]);
+                                            } else {
+                                                field.onChange(
+                                                    currentSizes.filter(
+                                                    (value) => value !== size
+                                                    )
+                                                );
+                                            }
+                                        }}
+                                        />
+                                    </FormControl>
+                                    <FormLabel className="text-sm font-normal">
+                                        {size}
+                                    </FormLabel>
+                                    </FormItem>
+                                )
+                                }}
+                            />
+                        ))}
+                        </div>
+                    <FormDescription>
+                    Select one or more available sizes.
+                    </FormDescription>
+                    <FormMessage />
+                </FormItem>
+                )}
+            />
           <FormField
             control={form.control}
             name="notes"
