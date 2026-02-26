@@ -1,5 +1,4 @@
 
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -36,7 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useDoc, useFirestore, useStorage, useUser } from "@/firebase";
+import { useDoc, useFirestore, useStorage, useUser } from "@/firebase";
 import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { getDownloadURL, ref, uploadBytes } from "firebase/storage";
 import {
@@ -49,11 +48,11 @@ import {
   Palette,
   Sparkles,
   UploadCloud,
-  Type,
+  Save,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -135,7 +134,7 @@ export default function MyBrandPage() {
     },
   });
 
-  const { watch, reset, setValue } = form;
+  const { watch, reset, setValue, handleSubmit } = form;
   const watchedValues = watch();
 
   const completionPercent = useMemo(() => {
@@ -163,44 +162,6 @@ export default function MyBrandPage() {
     }
   }, [brandProfileData, reset]);
 
-  // Debounced auto-save
-  const debounceTimeout = useRef<NodeJS.Timeout | null>(null);
-  useEffect(() => {
-    if (dataLoading || userLoading) return;
-
-    const subscription = watch((value, { name, type }) => {
-        if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-        
-        if (type === "change" && Object.keys(value).length > 0) {
-            setIsSaving(true);
-            debounceTimeout.current = setTimeout(async () => {
-                if (!brandProfileRef) return;
-                
-                const dataToSave = Object.entries(value).reduce((acc, [key, val]) => {
-                    if (val !== undefined) {
-                        acc[key as keyof BrandProfileFormValues] = val;
-                    }
-                    return acc;
-                }, {} as Partial<BrandProfileFormValues>);
-
-                try {
-                    await setDoc(brandProfileRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
-                    toast({ title: "My Brand Saved!", description: "Your changes have been saved." });
-                } catch (error: any) {
-                    toast({ variant: "destructive", title: "Save failed", description: error.message });
-                } finally {
-                    setIsSaving(false);
-                }
-            }, 1500);
-        }
-    });
-
-    return () => {
-        subscription.unsubscribe();
-        if (debounceTimeout.current) clearTimeout(debounceTimeout.current);
-    };
-  }, [watch, brandProfileRef, toast, dataLoading, userLoading]);
-
   // --- Handlers ---
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -224,6 +185,24 @@ export default function MyBrandPage() {
       toast({ variant: "destructive", title: "Upload failed", description: error.message });
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  const onSubmit = async (data: BrandProfileFormValues) => {
+    if (!brandProfileRef) {
+      toast({ variant: "destructive", title: "Save failed", description: "Not authenticated." });
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+        await setDoc(brandProfileRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+        toast({ title: "My Brand Saved!", description: "Your changes have been saved." });
+    } catch (error: any) {
+        toast({ variant: "destructive", title: "Save failed", description: error.message });
+    } finally {
+        setIsSaving(false);
     }
   };
 
@@ -262,18 +241,12 @@ export default function MyBrandPage() {
           <p className="text-sm font-medium text-foreground">
             Brand setup {completionPercent}% complete
           </p>
-           {isSaving && (
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Saving...</span>
-            </div>
-           )}
         </div>
         <Progress value={completionPercent} className="w-full h-2" />
       </div>
 
       <Form {...form}>
-        <form className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+        <form onSubmit={handleSubmit(onSubmit)} className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <Accordion type="multiple" defaultValue={["item-1", "item-2", "item-3", "item-4"]} className="lg:col-span-2 space-y-6">
             {/* Brand Identity */}
             <AccordionItem value="item-1" className="border-none">
@@ -290,13 +263,21 @@ export default function MyBrandPage() {
                   </CardHeader>
                 </AccordionTrigger>
                 <AccordionContent asChild>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <FormField control={form.control} name="brandName" render={({ field }) => ( <FormItem><FormLabel>Brand Name</FormLabel><FormControl><Input placeholder="e.g., Stella & Grace" {...field} value={field.value || ''} /></FormControl></FormItem> )} />
-                    <FormField control={form.control} name="tagline" render={({ field }) => ( <FormItem><FormLabel>Tagline</FormLabel><FormControl><Input placeholder="e.g., Effortless style, everyday." {...field} value={field.value || ''} /></FormControl></FormItem> )} />
-                    <FormField control={form.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="e.g., Nashville, TN" {...field} value={field.value || ''} /></FormControl></FormItem> )} />
-                    <FormField control={form.control} name="websiteUrl" render={({ field }) => ( <FormItem><FormLabel>Website URL</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="instagramUrl" render={({ field }) => ( <FormItem><FormLabel>Instagram URL</FormLabel><FormControl><Input type="url" placeholder="https://instagram.com/..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
-                    <FormField control={form.control} name="facebookUrl" render={({ field }) => ( <FormItem><FormLabel>Facebook Page/Group URL</FormLabel><FormControl><Input type="url" placeholder="https://facebook.com/..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <FormField control={form.control} name="brandName" render={({ field }) => ( <FormItem><FormLabel>Brand Name</FormLabel><FormControl><Input placeholder="e.g., Stella & Grace" {...field} value={field.value || ''} /></FormControl></FormItem> )} />
+                      <FormField control={form.control} name="tagline" render={({ field }) => ( <FormItem><FormLabel>Tagline</FormLabel><FormControl><Input placeholder="e.g., Effortless style, everyday." {...field} value={field.value || ''} /></FormControl></FormItem> )} />
+                      <FormField control={form.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input placeholder="e.g., Nashville, TN" {...field} value={field.value || ''} /></FormControl></FormItem> )} />
+                      <FormField control={form.control} name="websiteUrl" render={({ field }) => ( <FormItem><FormLabel>Website URL</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                      <FormField control={form.control} name="instagramUrl" render={({ field }) => ( <FormItem><FormLabel>Instagram URL</FormLabel><FormControl><Input type="url" placeholder="https://instagram.com/..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                      <FormField control={form.control} name="facebookUrl" render={({ field }) => ( <FormItem><FormLabel>Facebook Page/Group URL</FormLabel><FormControl><Input type="url" placeholder="https://facebook.com/..." {...field} value={field.value || ''} /></FormControl><FormMessage /></FormItem> )} />
+                    </div>
+                     <div className="mt-6 flex justify-end border-t pt-6">
+                       <Button type="submit" disabled={isSaving}>
+                          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                          Save Changes
+                       </Button>
+                    </div>
                   </CardContent>
                 </AccordionContent>
               </Card>
@@ -316,11 +297,19 @@ export default function MyBrandPage() {
                   </CardHeader>
                 </AccordionTrigger>
                 <AccordionContent asChild>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                    <SelectField control={form.control} name="toneOfVoice" label="Tone of Voice" placeholder="Select a tone" options={formOptions.toneOfVoice} />
-                    <SelectField control={form.control} name="brandVibe" label="Brand Vibe" placeholder="Select a vibe" options={formOptions.brandVibe} />
-                    <SelectField control={form.control} name="targetCustomer" label="Target Customer" placeholder="Select an audience" options={formOptions.targetCustomer} />
-                    <SelectField control={form.control} name="primaryGoal" label="Primary Goal" placeholder="Select a goal" options={formOptions.primaryGoal} />
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                      <SelectField control={form.control} name="toneOfVoice" label="Tone of Voice" placeholder="Select a tone" options={formOptions.toneOfVoice} />
+                      <SelectField control={form.control} name="brandVibe" label="Brand Vibe" placeholder="Select a vibe" options={formOptions.brandVibe} />
+                      <SelectField control={form.control} name="targetCustomer" label="Target Customer" placeholder="Select an audience" options={formOptions.targetCustomer} />
+                      <SelectField control={form.control} name="primaryGoal" label="Primary Goal" placeholder="Select a goal" options={formOptions.primaryGoal} />
+                    </div>
+                    <div className="mt-6 flex justify-end border-t pt-6">
+                       <Button type="submit" disabled={isSaving}>
+                          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                          Save Changes
+                       </Button>
+                    </div>
                   </CardContent>
                 </AccordionContent>
               </Card>
@@ -407,6 +396,12 @@ export default function MyBrandPage() {
                             <FontSelectField control={form.control} name="primaryFont" label="Primary Font (Headings)" placeholder="Select a font" fonts={fontOptions} />
                             <FontSelectField control={form.control} name="secondaryFont" label="Secondary Font (Body)" placeholder="Select a font" fonts={fontOptions} />
                         </div>
+                        <div className="mt-6 flex justify-end border-t pt-6">
+                           <Button type="submit" disabled={isSaving}>
+                              {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                              Save Changes
+                           </Button>
+                        </div>
                     </CardContent>
                 </AccordionContent>
               </Card>
@@ -426,10 +421,18 @@ export default function MyBrandPage() {
                   </CardHeader>
                 </AccordionTrigger>
                 <AccordionContent asChild>
-                  <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                     <SelectField control={form.control} name="primaryPlatform" label="Primary Platform" placeholder="Select a platform" options={formOptions.primaryPlatform} />
-                     <SelectField control={form.control} name="postingFrequency" label="Posting Frequency" placeholder="Select a frequency" options={formOptions.postingFrequency} />
-                     <SelectField control={form.control} name="promoStyle" label="Promo Style" placeholder="Select a style" options={formOptions.promoStyle} />
+                  <CardContent>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                       <SelectField control={form.control} name="primaryPlatform" label="Primary Platform" placeholder="Select a platform" options={formOptions.primaryPlatform} />
+                       <SelectField control={form.control} name="postingFrequency" label="Posting Frequency" placeholder="Select a frequency" options={formOptions.postingFrequency} />
+                       <SelectField control={form.control} name="promoStyle" label="Promo Style" placeholder="Select a style" options={formOptions.promoStyle} />
+                    </div>
+                    <div className="mt-6 flex justify-end border-t pt-6">
+                       <Button type="submit" disabled={isSaving}>
+                          {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                          Save Changes
+                       </Button>
+                    </div>
                   </CardContent>
                 </AccordionContent>
               </Card>
@@ -580,7 +583,3 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   )
 }
-
-    
-
-    
