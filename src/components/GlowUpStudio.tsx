@@ -21,7 +21,6 @@ import {
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 import {
@@ -37,25 +36,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from "@/components/ui/carousel";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { PlaceHolderImages } from "@/lib/placeholder-images";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useStorage, useCollection } from "@/firebase";
-
-
-const beforeImageDefault = PlaceHolderImages.find(
-  (p) => p.id === "glow-up-before-default"
-)!;
 
 type CreationType = "single" | "multiple";
 type StyleType = "flat-lay" | "on-model";
@@ -139,7 +125,6 @@ export function GlowUpStudio() {
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const [generationMode, setGenerationMode] = React.useState<GenerationMode>(null);
   const [isInstantGlowUp, setIsInstantGlowUp] = React.useState(false);
-  const [mobileTab, setMobileTab] = React.useState<"before" | "after">("before");
   const afterImageContainerRef = React.useRef<HTMLDivElement>(null);
   
   const isEnhancing = step === "enhancing";
@@ -153,7 +138,6 @@ export function GlowUpStudio() {
     setStep("selectCreationType");
     setGenerationMode(null);
     setIsInstantGlowUp(false);
-    setMobileTab("before");
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
@@ -349,7 +333,6 @@ export function GlowUpStudio() {
     setProgress(0);
     setGenerationMode('busy');
     setIsInstantGlowUp(false);
-    setMobileTab('after');
   
     const interval = setInterval(() => {
       setProgress((prev) => (prev >= 95 ? 95 : prev + Math.floor(Math.random() * 5) + 2));
@@ -498,66 +481,37 @@ export function GlowUpStudio() {
   
   const ImageCard = ({
     title,
-    isOriginal = false,
     wrapperRef,
   }: {
     title: string;
-    isOriginal?: boolean;
     wrapperRef?: React.Ref<HTMLDivElement>;
   }) => (
     <div className="space-y-3" ref={wrapperRef}>
       <h3 className="text-center font-medium text-lg text-muted-foreground">{title}</h3>
-      <Card className={cn("relative group aspect-square w-full max-w-lg mx-auto overflow-hidden shadow-lg", isEnhancing && !isOriginal && "bg-muted/30")}>
-        {isOriginal && originalImages.length > 0 ? (
-          <Carousel className="w-full h-full">
-            <CarouselContent>
-              {originalImages.map((src, index) => (
-                <CarouselItem key={index}>
-                  <Image src={src} alt={`${title} ${index + 1}`} fill className="object-cover" />
-                </CarouselItem>
-              ))}
-            </CarouselContent>
-            {originalImages.length > 1 && (<> <CarouselPrevious className="left-4" /> <CarouselNext className="right-4" /> </>)}
-            <div className="absolute top-2 right-2 bg-black/50 text-white text-xs font-bold px-2 py-1 rounded-full">{originalImages.length} / {creationType === 'multiple' ? 3 : 1}</div>
-          </Carousel>
-        ) : !isOriginal && enhancedImage ? (
+      <Card className={cn("relative group aspect-square w-full max-w-lg mx-auto overflow-hidden shadow-lg", isEnhancing && "bg-muted/30")}>
+        {enhancedImage ? (
            <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isInstantGlowUp && "saturate-125 brightness-110 contrast-105")} data-ai-hint="dress mannequin" />
-        ) : (isOriginal && step !== 'selectCreationType') ? (
-            <div className="flex flex-col h-full items-center justify-center bg-muted/50 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:bg-muted transition-colors" onClick={triggerFileInput}>
-              <UploadCloud className="w-12 h-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground font-medium">Click to upload your image(s)</p>
-              <p className="text-muted-foreground text-sm">Up to 10MB each</p>
-            </div>
         ) : (
-          !isEnhancing && !isOriginal && (
+          !isEnhancing && (
              <div className="flex flex-col h-full items-center justify-center bg-muted/50 p-8 text-center">
               <Sparkles className="w-12 h-12 text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">Your enhanced image will appear here</p>
             </div>
           )
         )}
-        {isEnhancing && !isOriginal && (
+        {isEnhancing && (
           <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-8">
             <p className="font-medium text-lg text-primary mb-4">Creating your glow-up...</p>
             <Progress value={progress} className="w-full max-w-xs" />
             <p className="text-sm text-muted-foreground mt-2">{progress}%</p>
           </div>
         )}
-        {step !== "enhancing" && step !== 'selectCreationType' && isOriginal && originalImages.length > 0 && (
-          <div className="absolute inset-0 bg-black/60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <Button variant="secondary" onClick={triggerFileInput}>
-              <UploadCloud className="mr-2 h-4 w-4" />
-              Change/Add Images
-            </Button>
-          </div>
-        )}
-        {step === "done" && !isOriginal && enhancedImage && (
+        {step === "done" && enhancedImage && (
           <div className="absolute inset-0 bg-black/60 flex flex-col gap-4 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
             <Button variant="secondary" onClick={handleDownload}><Download className="mr-2 h-4 w-4" />Download Image</Button>
           </div>
         )}
-        {(!enhancedImage && !isEnhancing && !isOriginal) && <Skeleton className="w-full h-full" />}
-        { (isOriginal && originalImages.length === 0) && <Image src={beforeImageDefault.imageUrl} alt="placeholder" fill className="object-cover opacity-60" data-ai-hint={beforeImageDefault.imageHint} /> }
+        {(!enhancedImage && !isEnhancing) && <Skeleton className="w-full h-full" />}
       </Card>
     </div>
   );
@@ -577,9 +531,27 @@ export function GlowUpStudio() {
   const currentPresets = styleType === 'flat-lay' ? flatLayPresets : modeledPresets;
 
   const UploadedImagesPreview = () => {
-    if (originalImages.length === 0 || step === 'selectCreationType' || step === 'upload') {
-        return null;
+    if (step === 'selectCreationType') {
+      return null;
     }
+
+    if (originalImages.length === 0) {
+      return (
+        <div className="mt-8 max-w-4xl mx-auto">
+          <Card
+            className="flex flex-col h-full items-center justify-center bg-muted/50 border-2 border-dashed rounded-xl p-8 text-center cursor-pointer hover:bg-muted transition-colors"
+            onClick={triggerFileInput}
+          >
+            <UploadCloud className="w-12 h-12 text-muted-foreground/50 mb-4" />
+            <p className="text-muted-foreground font-medium">Click to upload your image(s)</p>
+            <p className="text-muted-foreground text-sm">
+              {creationType === 'multiple' ? 'Up to 3 images, 10MB each' : 'One image, up to 10MB'}
+            </p>
+          </Card>
+        </div>
+      );
+    }
+    
     return (
       <div className="mt-8 max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-3">
@@ -612,28 +584,17 @@ export function GlowUpStudio() {
   
   return (
     <Card className="w-full mx-auto p-4 sm:p-6 lg:p-8 border-none bg-transparent shadow-none">
-    <input
-  ref={fileInputRef}
-  type="file"
-  accept="image/*"
-  className="hidden"
-  multiple={creationType === "multiple"}
-  onChange={handleFileChange}
-/>
-
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        multiple={creationType === "multiple"}
+        onChange={handleFileChange}
+      />
       
-      <div className="mt-8">
-        <div className="lg:hidden">
-          <Tabs value={mobileTab} onValueChange={(v) => setMobileTab(v as any)} className="w-full">
-            <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="before">Before</TabsTrigger><TabsTrigger value="after">After</TabsTrigger></TabsList>
-            <TabsContent value="before" className="mt-6"><ImageCard title="Before" isOriginal /></TabsContent>
-            <TabsContent value="after" className="mt-6"><ImageCard title="After" wrapperRef={afterImageContainerRef} /></TabsContent>
-          </Tabs>
-        </div>
-        <div className="hidden lg:grid grid-cols-1 lg:grid-cols-2 gap-12 items-start">
-          <ImageCard title="Before" isOriginal />
-          <ImageCard title="After" wrapperRef={afterImageContainerRef} />
-        </div>
+      <div className="mt-8 flex justify-center">
+        <ImageCard title="After" wrapperRef={afterImageContainerRef} />
       </div>
 
       <UploadedImagesPreview />
@@ -712,7 +673,7 @@ export function GlowUpStudio() {
            </div>
         )}
 
-        {step === 'upload' && (
+        {step === 'upload' && originalImages.length === 0 && (
           <div className="text-center text-muted-foreground animate-pulse p-8">
             <p>Waiting for you to select your image(s)...</p>
           </div>
