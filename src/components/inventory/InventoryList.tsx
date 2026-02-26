@@ -222,10 +222,10 @@ function ItemCard({ item }: { item: InventoryItem }) {
                                 ))}
                             </div>
                         )}
-                        {item.analysis.tags && (
+                        {item.searchKeywords && item.searchKeywords.length > 0 && (
                             <div className="flex flex-wrap gap-1">
-                                {item.analysis.tags.slice(0, 3).map(tag => (
-                                    <Badge key={tag} variant="secondary" className="text-xs font-normal">{`#${tag.replace(/\s+/g, '')}`}</Badge>
+                                {item.searchKeywords.slice(0, 5).map(keyword => (
+                                    <Badge key={keyword} variant="secondary" className="text-xs font-normal">{keyword}</Badge>
                                 ))}
                             </div>
                         )}

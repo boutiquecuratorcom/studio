@@ -100,6 +100,8 @@ export const useInventoryItem = (itemId: string | null) => {
 
 // --- Data Functions ---
 
+const stopwords = new Set(['a', 'an', 'the', 'in', 'on', 'for', 'with', 'and', 'or', 'but', 'is', 'it', 'of', 'to', 'as', 'at', 'by']);
+
 /**
  * Generates an array of normalized keywords for searching an inventory item.
  */
@@ -108,29 +110,47 @@ export const generateSearchKeywords = (item: Partial<InventoryItem>): string[] =
 
   const add = (value: string | undefined | null) => {
     if (!value) return;
-    value.toLowerCase().split(/[\s,.\-&/]+/)
-      .filter(s => s.length > 1) // Ignore single characters
-      .forEach(s => keywords.add(s.replace(/[^a-z0-9]/gi, ''))); // Sanitize
+
+    const sanitizedValue = value.toLowerCase().trim();
+    if (!sanitizedValue || stopwords.has(sanitizedValue)) return;
+    
+    const words = sanitizedValue.split(/[\s,.\-&/]+/);
+    
+    // Add useful short phrases (2-4 words)
+    if (words.length > 1 && words.length <= 4) {
+        keywords.add(sanitizedValue);
+    }
+    
+    // Add individual words
+    words.forEach(word => {
+        const cleanWord = word.replace(/[^a-z0-9]/gi, ''); // Sanitize further
+        if (cleanWord.length > 1 && !stopwords.has(cleanWord)) {
+            keywords.add(cleanWord);
+        }
+    });
   };
 
   const addAll = (values: (string | undefined | null)[] | undefined) => {
     if (!values) return;
     values.forEach(add);
-  }
+  };
 
+  // Add keywords from core fields
+  add(item.brand);
   add(item.title);
   add(item.type);
   addAll(item.sizes);
   
-  if (item.analysis) {
-    add(item.analysis.patternType);
-    add(item.analysis.styleVibe);
+  // Add keywords from AI analysis if available and complete
+  if (item.analysis && item.analysis.status === 'complete') {
     add(item.analysis.clothingType);
-    addAll(item.analysis.dominantColors);
+    add(item.analysis.styleVibe);
+    add(item.analysis.patternType);
+    add(item.analysis.patternDescription);
     addAll(item.analysis.tags);
   }
 
-  return Array.from(keywords).filter(Boolean).slice(0, 50); // Cap at 50
+  return Array.from(keywords).filter(Boolean);
 };
 
 
