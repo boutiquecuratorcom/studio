@@ -27,6 +27,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RotateCcw, X } from 'lucide-react';
 import type { PlatformFormat, TemplateId, TextLayerStyle, FrameStyle } from './PostCreatorClient';
 import { cn } from '@/lib/utils';
+import { useFormField } from '../ui/form';
 
 interface PostControlsProps {
   platformFormat: PlatformFormat;
@@ -195,8 +196,8 @@ export function PostControls({
               className="mt-2"
             >
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="IG_FEED">Instagram Feed (4:5)</TabsTrigger>
-                <TabsTrigger value="FB_FEED">Facebook Feed (1:1)</TabsTrigger>
+                <TabsTrigger value="IG_FEED">IG Feed (4:5)</TabsTrigger>
+                <TabsTrigger value="FB_FEED">FB Feed (1:1)</TabsTrigger>
               </TabsList>
             </Tabs>
           </div>
