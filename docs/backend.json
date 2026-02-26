@@ -236,7 +236,6 @@
           "type": "string",
           "enum": [
             "IG_FEED",
-            "IG_STORY",
             "FB_FEED"
           ]
         },
@@ -267,6 +266,14 @@
             }
           }
         },
+        "styleConfig": {
+            "type": "object",
+            "properties": {
+                "headline": { "$ref": "#/entities/StyleOptions" },
+                "subtext": { "$ref": "#/entities/StyleOptions" },
+                "cta": { "$ref": "#/entities/StyleOptions" }
+            }
+        },
         "brandSnapshot": {
           "type": "object",
           "properties": {
@@ -292,6 +299,24 @@
         "enhancedImageUrl",
         "textFields"
       ]
+    },
+    "StyleOptions": {
+      "title": "Text Style Options",
+      "description": "Styling options for a text layer on a post.",
+      "type": "object",
+      "properties": {
+        "textColorMode": {
+          "type": "string",
+          "enum": ["auto", "light", "dark", "brandPrimary", "brandAccent"]
+        },
+        "useBadge": {
+          "type": "boolean"
+        },
+        "position": {
+          "type": "string",
+          "enum": ["top", "center", "bottom"]
+        }
+      }
     }
   },
   "auth": {

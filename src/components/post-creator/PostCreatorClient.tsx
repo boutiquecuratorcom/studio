@@ -5,7 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { collection, doc, orderBy, query, serverTimestamp, setDoc, limit } from 'firebase/firestore';
-import { Copy, Download, Loader2, Save, Sparkles, Wand2 } from 'lucide-react';
+import { Copy, Download, Loader2, Save, Sparkles, Wand2, RotateCcw } from 'lucide-react';
 import { toPng } from 'html-to-image';
 
 import { useCollection, useDoc, useFirestore, useUser } from '@/firebase';
@@ -17,8 +17,20 @@ import { PostControls } from './PostControls';
 import { PostPreview } from './PostPreview';
 
 // Types
-type PlatformFormat = 'IG_FEED' | 'IG_STORY' | 'FB_FEED';
-type TemplateId = 'CLEAN_BOUTIQUE' | 'BOLD_DROP' | 'MINIMAL_LUXE' | 'COMMENT_SOLD_LIVE';
+export type PlatformFormat = 'IG_FEED' | 'FB_FEED';
+export type TemplateId = 'CLEAN_BOUTIQUE' | 'BOLD_DROP' | 'MINIMAL_LUXE' | 'COMMENT_SOLD_LIVE';
+
+export type TextLayerStyle = {
+  textColorMode: 'auto' | 'light' | 'dark' | 'brandPrimary' | 'brandAccent';
+  useBadge: boolean;
+  position: 'top' | 'center' | 'bottom';
+};
+
+// Default Styles
+const DEFAULT_HEADLINE_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'top' };
+const DEFAULT_SUBTEXT_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'bottom' };
+const DEFAULT_CTA_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'bottom' };
+
 
 function LoadingState() {
   return (
@@ -59,7 +71,7 @@ function ImageSelector({ onImageSelect }: { onImageSelect: (url: string) => void
   }, [user, firestore]);
 
   const { data: uploads, loading } = useCollection(uploadsQuery, user ? `users/${user.uid}/uploads` : null);
-
+  
   const validUploads = useMemo(() => uploads?.filter(u => u.downloadURL), [uploads]);
 
   return (
@@ -133,15 +145,22 @@ export default function PostCreatorClient() {
 
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(true);
-
-  // State for post customization
-  const [platformFormat, setPlatformFormat] = useState<PlatformFormat>('IG_FEED');
-  const [templateId, setTemplateId] = useState<TemplateId>('CLEAN_BOUTIQUE');
-  const [headline, setHeadline] = useState('new arrival');
-  const [subtext, setSubtext] = useState('');
-  const [cta, setCta] = useState('comment sold');
   const [isSaving, setIsSaving] = useState(false);
 
+  // --- State for post customization ---
+  const [platformFormat, setPlatformFormat] = useState<PlatformFormat>('IG_FEED');
+  const [templateId, setTemplateId] = useState<TemplateId>('CLEAN_BOUTIQUE');
+
+  // Text content state
+  const [headlineText, setHeadlineText] = useState('new arrival');
+  const [subtextText, setSubtextText] = useState('');
+  const [ctaText, setCtaText] = useState('comment sold');
+
+  // Text styling state
+  const [headlineStyle, setHeadlineStyle] = useState<TextLayerStyle>(DEFAULT_HEADLINE_STYLE);
+  const [subtextStyle, setSubtextStyle] = useState<TextLayerStyle>(DEFAULT_SUBTEXT_STYLE);
+  const [ctaStyle, setCtaStyle] = useState<TextLayerStyle>(DEFAULT_CTA_STYLE);
+  
   // Check for image URL on mount from param or local storage
   useEffect(() => {
     const imgParam = searchParams.get('img');
@@ -173,13 +192,20 @@ export default function PostCreatorClient() {
   // Set default subtext once brand profile is loaded
   React.useEffect(() => {
     if (brandProfile && brandProfile.brandName) {
-      setSubtext(brandProfile.brandName);
+      setSubtextText(brandProfile.brandName);
     } else if (!brandLoading) {
-      setSubtext('boutique curator');
+      setSubtextText('boutique curator');
     }
   }, [brandProfile, brandLoading]);
 
   const previewRef = React.useRef<HTMLDivElement>(null);
+  
+  const resetStyles = () => {
+    setHeadlineStyle(DEFAULT_HEADLINE_STYLE);
+    setSubtextStyle(DEFAULT_SUBTEXT_STYLE);
+    setCtaStyle(DEFAULT_CTA_STYLE);
+    toast({ title: 'Styles Reset', description: 'Text styling has been reset to defaults.' });
+  }
 
   const handleDownload = React.useCallback(() => {
     if (previewRef.current === null) {
@@ -199,7 +225,7 @@ export default function PostCreatorClient() {
   }, [previewRef, toast]);
 
   const handleCopyCaption = () => {
-    const caption = `✨ ${headline.toUpperCase()} ✨\n\n${subtext}\n\nTo purchase, ${cta}!`;
+    const caption = `✨ ${headlineText.toUpperCase()} ✨\n\n${subtextText}\n\nTo purchase, ${ctaText}!`;
     navigator.clipboard.writeText(caption);
     toast({ title: 'Caption Copied!' });
   };
@@ -216,7 +242,8 @@ export default function PostCreatorClient() {
         platformFormat,
         templateId,
         enhancedImageUrl: selectedImageUrl,
-        textFields: { headline, subtext, cta },
+        textFields: { headline: headlineText, subtext: subtextText, cta: ctaText },
+        styleConfig: { headline: headlineStyle, subtext: subtextStyle, cta: ctaStyle },
         brandSnapshot: {
           primaryFont: brandProfile?.primaryFont || 'Playfair Display',
           secondaryFont: brandProfile?.secondaryFont || 'Inter',
@@ -268,12 +295,19 @@ export default function PostCreatorClient() {
             setPlatformFormat={setPlatformFormat}
             templateId={templateId}
             setTemplateId={setTemplateId}
-            headline={headline}
-            setHeadline={setHeadline}
-            subtext={subtext}
-            setSubtext={setSubtext}
-            cta={cta}
-            setCta={setCta}
+            headlineText={headlineText}
+            setHeadlineText={setHeadlineText}
+            subtextText={subtextText}
+            setSubtextText={setSubtextText}
+            ctaText={ctaText}
+            setCtaText={setCtaText}
+            headlineStyle={headlineStyle}
+            setHeadlineStyle={setHeadlineStyle}
+            subtextStyle={subtextStyle}
+            setSubtextStyle={setSubtextStyle}
+            ctaStyle={ctaStyle}
+            setCtaStyle={setCtaStyle}
+            onResetStyles={resetStyles}
           />
         </div>
         <div className="lg:col-span-2">
@@ -282,9 +316,9 @@ export default function PostCreatorClient() {
             imageUrl={selectedImageUrl}
             platformFormat={platformFormat}
             templateId={templateId}
-            headline={headline}
-            subtext={subtext}
-            cta={cta}
+            headline={{text: headlineText, ...headlineStyle}}
+            subtext={{text: subtextText, ...subtextStyle}}
+            cta={{text: ctaText, ...ctaStyle}}
             brandProfile={brandProfile}
           />
         </div>

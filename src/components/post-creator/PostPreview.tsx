@@ -3,9 +3,11 @@
 import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import type { PlatformFormat, TemplateId, TextLayerStyle } from './PostCreatorClient';
 
-type PlatformFormat = 'IG_FEED' | 'IG_STORY' | 'FB_FEED';
-type TemplateId = 'CLEAN_BOUTIQUE' | 'BOLD_DROP' | 'MINIMAL_LUXE' | 'COMMENT_SOLD_LIVE';
+type TextLayer = {
+    text: string;
+} & TextLayerStyle;
 
 type BrandProfile = {
   brandName?: string;
@@ -18,9 +20,9 @@ interface PostPreviewProps {
   imageUrl: string;
   platformFormat: PlatformFormat;
   templateId: TemplateId;
-  headline: string;
-  subtext: string;
-  cta: string;
+  headline: TextLayer;
+  subtext: TextLayer;
+  cta: TextLayer;
   brandProfile?: BrandProfile | null;
 }
 
@@ -48,76 +50,118 @@ const getFontFamily = (fontName: string | undefined, defaultFont: string) => {
 
 const aspectRatios: Record<PlatformFormat, string> = {
   IG_FEED: 'aspect-[4/5]',
-  IG_STORY: 'aspect-[9/16]',
-  FB_FEED: 'aspect-[4/5]',
+  FB_FEED: 'aspect-square',
 };
 
-export const PostPreview = React.forwardRef<HTMLDivElement, PostPreviewProps>(
-  ({ imageUrl, platformFormat, templateId, headline, subtext, cta, brandProfile }, ref) => {
+const getTextColor = (mode: TextLayerStyle['textColorMode'], brandPrimary: string, brandAccent: string) => {
+    switch(mode) {
+        case 'light': return '#FFFFFF';
+        case 'dark': return '#111111';
+        case 'brandPrimary': return brandPrimary;
+        case 'brandAccent': return brandAccent;
+        case 'auto':
+        default:
+            return '#FFFFFF';
+    }
+}
+
+// Simple contrast checker for badge text
+const isColorDark = (hexColor: string) => {
+    const color = hexColor.substring(1); // remove #
+    const rgb = parseInt(color, 16);
+    const r = (rgb >> 16) & 0xff;
+    const g = (rgb >> 8) & 0xff;
+    const b = (rgb >> 0) & 0xff;
+    const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return luma < 128;
+}
+
+const TextLayerComponent = ({ layer, type, brandProfile }: { layer: TextLayer, type: 'headline' | 'subtext' | 'cta', brandProfile?: BrandProfile | null}) => {
     const primaryFont = getFontFamily(brandProfile?.primaryFont, "'Playfair Display', serif");
     const secondaryFont = getFontFamily(brandProfile?.secondaryFont, "'Inter', sans-serif");
-    
-    const primaryBrandColor = brandProfile?.brandColors?.[0] || '#212121';
-    const ctaTextColor = '#FFFFFF';
-    const headlineColor = '#FFFFFF';
-    const subtextColor = '#FFFFFF';
+    const brandPrimary = brandProfile?.brandColors?.[0] || '#111111';
+    const brandAccent = brandProfile?.brandColors?.[1] || '#22c55e';
 
+    const { text, textColorMode, useBadge } = layer;
+
+    const layerStyle: React.CSSProperties = {
+        fontFamily: type === 'headline' ? primaryFont : secondaryFont,
+        textShadow: textColorMode === 'auto' ? '0 2px 8px rgba(0,0,0,0.6)' : 'none',
+    };
+    
+    let textColor = getTextColor(textColorMode, brandPrimary, brandAccent);
+    let badgeBgColor = 'transparent';
+
+    if (useBadge) {
+        switch (textColorMode) {
+            case 'light':
+                badgeBgColor = 'rgba(17, 17, 17, 0.7)'; // #111111
+                break;
+            case 'dark':
+                badgeBgColor = 'rgba(255, 255, 255, 0.8)';
+                break;
+            case 'brandPrimary':
+                badgeBgColor = brandPrimary;
+                textColor = isColorDark(brandPrimary) ? '#FFFFFF' : '#111111';
+                break;
+            case 'brandAccent':
+                badgeBgColor = brandAccent;
+                textColor = isColorDark(brandAccent) ? '#FFFFFF' : '#111111';
+                break;
+            case 'auto':
+            default:
+                badgeBgColor = 'rgba(17, 17, 17, 0.7)';
+                textColor = '#FFFFFF';
+        }
+    }
+    
+    layerStyle.color = textColor;
+    
+    const badgeStyle: React.CSSProperties = {
+        backgroundColor: badgeBgColor,
+    };
+    
     const headlineSizeClass = useMemo(() => {
-        const len = headline.length;
-        if (templateId === 'MINIMAL_LUXE') return len > 15 ? 'text-4xl' : 'text-5xl';
+        const len = text.length;
         if (len > 25) return 'text-5xl';
         if (len > 15) return 'text-6xl';
         if (len > 8) return 'text-7xl';
         return 'text-8xl';
-    }, [headline, templateId]);
+    }, [text]);
+
+    const baseClasses = 'w-full text-center transition-all duration-300';
+    let typeClasses = '';
     
-    const templateStyles = useMemo(() => ({
-        CLEAN_BOUTIQUE: {
-            topZone: 'justify-center text-center',
-            headline: `font-bold uppercase tracking-wider ${headlineSizeClass}`,
-            headlineStyle: { fontFamily: primaryFont, color: headlineColor, textShadow: '1px 1px 3px rgba(0,0,0,0.2)' },
-            bottomZone: 'flex-col items-center justify-center gap-4 text-center',
-            subtext: 'order-1 text-lg uppercase tracking-widest',
-            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '1px 1px 3px rgba(0,0,0,0.4)' },
-            cta: 'order-2 text-lg font-bold py-3 px-8 rounded-lg uppercase',
-            ctaStyle: { fontFamily: secondaryFont, backgroundColor: primaryBrandColor, color: ctaTextColor },
-        },
-        BOLD_DROP: {
-            topZone: 'justify-start text-left',
-            headline: `font-extrabold uppercase leading-none ${headlineSizeClass}`,
-            headlineStyle: { fontFamily: primaryFont, color: headlineColor, mixBlendMode: 'difference' as const },
-            bottomZone: 'flex-row items-end justify-between',
-            subtext: 'text-left text-xl font-semibold',
-            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '1px 1px 2px rgba(0,0,0,0.5)' },
-            cta: 'text-lg font-bold py-3 px-6 rounded-md uppercase',
-            ctaStyle: { fontFamily: secondaryFont, backgroundColor: primaryBrandColor, color: ctaTextColor },
-        },
-        MINIMAL_LUXE: {
-            topZone: 'justify-center text-center',
-            headline: `font-light uppercase tracking-[0.2em] ${headlineSizeClass}`,
-            headlineStyle: { fontFamily: secondaryFont, color: headlineColor, textShadow: '1px 1px 3px rgba(0,0,0,0.2)' },
-            bottomZone: 'flex-col items-center justify-center gap-3',
-            subtext: 'order-2 text-base tracking-wider',
-            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '1px 1px 2px rgba(0,0,0,0.4)' },
-            cta: 'order-1 text-sm font-semibold py-2 px-6 border rounded-full uppercase tracking-wider',
-            ctaStyle: { fontFamily: secondaryFont, borderColor: headlineColor, color: headlineColor },
-        },
-        COMMENT_SOLD_LIVE: {
-            topZone: 'justify-center text-center',
-            headline: `font-black uppercase leading-none ${headlineSizeClass}`,
-            headlineStyle: { fontFamily: primaryFont, color: headlineColor, textShadow: '2px 2px 8px rgba(0,0,0,0.7)' },
-            bottomZone: 'flex-col items-center justify-center gap-4 text-center',
-            subtext: 'order-2 text-2xl font-bold',
-            subtextStyle: { fontFamily: secondaryFont, color: subtextColor, textShadow: '2px 2px 4px rgba(0,0,0,0.5)' },
-            cta: 'order-1 text-2xl font-black py-4 px-12 rounded-lg uppercase shadow-2xl animate-pulse',
-            ctaStyle: { fontFamily: primaryFont, backgroundColor: primaryBrandColor, color: ctaTextColor },
-        },
-    }), [templateId, headlineSizeClass, primaryFont, secondaryFont, primaryBrandColor, headlineColor, subtextColor, ctaTextColor]);
-    
-    const styles = templateStyles[templateId];
+    switch(type) {
+        case 'headline':
+            typeClasses = `font-bold uppercase tracking-wider leading-tight ${headlineSizeClass}`;
+            break;
+        case 'subtext':
+            typeClasses = 'text-lg uppercase tracking-widest';
+            break;
+        case 'cta':
+            typeClasses = 'text-lg font-bold uppercase';
+            break;
+    }
 
     return (
-      <div className="flex justify-center items-center bg-muted/20 p-4 rounded-2xl">
+        <div className={cn(baseClasses, typeClasses, useBadge && 'px-6 py-3 rounded-xl')} style={{...layerStyle, ...badgeStyle}}>
+            {text}
+        </div>
+    )
+};
+
+
+export const PostPreview = React.forwardRef<HTMLDivElement, PostPreviewProps>(
+  ({ imageUrl, platformFormat, headline, subtext, cta, brandProfile }, ref) => {
+    
+    const layers = { headline, subtext, cta };
+    const topLayers = Object.entries(layers).filter(([, layer]) => layer.position === 'top');
+    const centerLayers = Object.entries(layers).filter(([, layer]) => layer.position === 'center');
+    const bottomLayers = Object.entries(layers).filter(([, layer]) => layer.position === 'bottom');
+
+    return (
+      <div className="flex justify-center items-start bg-muted/20 p-4 rounded-2xl">
         <div
           ref={ref}
           className={cn(
@@ -132,16 +176,26 @@ export const PostPreview = React.forwardRef<HTMLDivElement, PostPreviewProps>(
             className="object-cover"
             priority
           />
-          <div className="absolute inset-0 flex flex-col p-[60px]">
-            <div className={cn('flex items-center', styles.topZone)}>
-              <h1 className={cn(styles.headline)} style={styles.headlineStyle}>{headline}</h1>
+          <div className="absolute inset-0 flex flex-col justify-between p-8 md:p-10 lg:p-12">
+            {/* Top Zone */}
+            <div className="flex flex-col items-center gap-4">
+                {topLayers.map(([key, layer]) => (
+                    <TextLayerComponent key={key} layer={layer} type={key as 'headline' | 'subtext' | 'cta'} brandProfile={brandProfile} />
+                ))}
             </div>
-            
-            <div className="flex-grow" />
-            
-            <div className={cn('flex', styles.bottomZone)}>
-              <h2 className={cn(styles.subtext)} style={styles.subtextStyle}>{subtext}</h2>
-              <div className={cn(styles.cta)} style={styles.ctaStyle}>{cta}</div>
+
+            {/* Center Zone */}
+            <div className="flex flex-col items-center gap-4">
+                {centerLayers.map(([key, layer]) => (
+                    <TextLayerComponent key={key} layer={layer} type={key as 'headline' | 'subtext' | 'cta'} brandProfile={brandProfile} />
+                ))}
+            </div>
+
+            {/* Bottom Zone */}
+            <div className="flex flex-col items-center gap-4">
+                {bottomLayers.map(([key, layer]) => (
+                    <TextLayerComponent key={key} layer={layer} type={key as 'headline' | 'subtext' | 'cta'} brandProfile={brandProfile} />
+                ))}
             </div>
           </div>
         </div>
