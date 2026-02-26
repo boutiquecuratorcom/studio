@@ -23,14 +23,14 @@ export type FrameStyle = 'none' | 'classicBorder' | 'polaroid' | 'shadowCard' | 
 
 export type TextLayerStyle = {
   textColorMode: 'auto' | 'light' | 'dark' | 'brandPrimary' | 'brandAccent';
-  useBadge: boolean;
+  badgeColor: string; // Hex color or 'none'
   position: 'top' | 'center' | 'bottom';
 };
 
 // Default Styles
-const DEFAULT_HEADLINE_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'top' };
-const DEFAULT_SUBTEXT_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: false, position: 'bottom' };
-const DEFAULT_CTA_STYLE: TextLayerStyle = { textColorMode: 'auto', useBadge: true, position: 'bottom' };
+const DEFAULT_HEADLINE_STYLE: TextLayerStyle = { textColorMode: 'auto', badgeColor: 'none', position: 'top' };
+const DEFAULT_SUBTEXT_STYLE: TextLayerStyle = { textColorMode: 'auto', badgeColor: 'none', position: 'bottom' };
+const DEFAULT_CTA_STYLE: TextLayerStyle = { textColorMode: 'auto', badgeColor: '#111111', position: 'bottom' };
 
 
 function LoadingState() {
@@ -147,6 +147,7 @@ export default function PostCreatorClient() {
   const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null);
   const [isLoadingImage, setIsLoadingImage] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isInitialStyleSet, setIsInitialStyleSet] = useState(false);
 
   // --- State for post customization ---
   const [platformFormat, setPlatformFormat] = useState<PlatformFormat>('IG_FEED');
@@ -191,21 +192,32 @@ export default function PostCreatorClient() {
 
   const { data: brandProfile, loading: brandLoading } = useDoc(brandProfileRef);
 
-  // Set default subtext once brand profile is loaded
-  React.useEffect(() => {
-    if (brandProfile && brandProfile.brandName) {
-      setSubtextText(brandProfile.brandName);
-    } else if (!brandLoading) {
-      setSubtextText('boutique curator');
+  // Set default subtext and CTA badge color once brand profile is loaded
+  useEffect(() => {
+    if (!brandLoading && !isInitialStyleSet) {
+      if (brandProfile?.brandName) {
+        setSubtextText(brandProfile.brandName);
+      } else {
+        setSubtextText('boutique curator');
+      }
+
+      const primaryColor = brandProfile?.brandColors?.[0];
+      if (primaryColor) {
+        setCtaStyle(prev => ({ ...prev, badgeColor: primaryColor }));
+      }
+      setIsInitialStyleSet(true);
     }
-  }, [brandProfile, brandLoading]);
+  }, [brandProfile, brandLoading, isInitialStyleSet]);
 
   const previewRef = React.useRef<HTMLDivElement>(null);
   
   const resetStyles = () => {
     setHeadlineStyle(DEFAULT_HEADLINE_STYLE);
     setSubtextStyle(DEFAULT_SUBTEXT_STYLE);
-    setCtaStyle(DEFAULT_CTA_STYLE);
+
+    const primaryColor = brandProfile?.brandColors?.[0];
+    setCtaStyle({ ...DEFAULT_CTA_STYLE, badgeColor: primaryColor || '#111111' });
+    
     toast({ title: 'Styles Reset', description: 'Text styling has been reset to defaults.' });
   }
 
@@ -313,6 +325,7 @@ export default function PostCreatorClient() {
             ctaStyle={ctaStyle}
             setCtaStyle={setCtaStyle}
             onResetStyles={resetStyles}
+            brandColors={brandProfile?.brandColors}
           />
         </div>
         <div className="lg:col-span-2">

@@ -320,8 +320,9 @@
           "type": "string",
           "enum": ["auto", "light", "dark", "brandPrimary", "brandAccent"]
         },
-        "useBadge": {
-          "type": "boolean"
+        "badgeColor": {
+          "type": "string",
+          "description": "The hex color code for the background badge, or 'none' if disabled."
         },
         "position": {
           "type": "string",

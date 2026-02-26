@@ -56,16 +56,14 @@ const aspectRatios: Record<PlatformFormat, string> = {
 
 const isColorDark = (hexColor: string): boolean => {
   if (!hexColor || !hexColor.startsWith('#')) return false;
-  // Handle shorthand hex (e.g., #03F)
   const hex = hexColor.length === 4 ? `#${hexColor[1]}${hexColor[1]}${hexColor[2]}${hexColor[2]}${hexColor[3]}${hexColor[3]}` : hexColor;
   if (hex.length !== 7) return false;
   
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
-  // Using the luminance formula
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luma < 128;
+  return luma < 140; // Increased threshold for better contrast on mid-tones
 };
 
 
@@ -75,37 +73,24 @@ const TextLayerComponent = ({ layer, type, templateId, brandProfile }: { layer: 
     const brandPrimary = brandProfile?.brandColors?.[0] || '#111111';
     const brandAccent = brandProfile?.brandColors?.[1] || '#22c55e';
 
-    const { text, textColorMode, useBadge } = layer;
+    const { text, textColorMode, badgeColor } = layer;
 
     // --- Color & Style Resolution ---
     let resolvedTextColor: string;
     let resolvedBadgeColor: string = 'transparent';
     const badgeOpacity = 0.8;
+    const hasBadge = badgeColor !== 'none';
 
-    if (useBadge) {
-        switch (textColorMode) {
-            case 'light':
-                resolvedTextColor = '#FFFFFF';
-                resolvedBadgeColor = `rgba(17, 17, 17, ${badgeOpacity})`;
-                break;
-            case 'dark':
-                resolvedTextColor = '#111111';
-                resolvedBadgeColor = `rgba(255, 255, 255, ${badgeOpacity})`;
-                break;
-            case 'brandPrimary':
-                resolvedTextColor = isColorDark(brandPrimary) ? '#FFFFFF' : '#111111';
-                resolvedBadgeColor = brandPrimary;
-                break;
-            case 'brandAccent':
-                resolvedTextColor = isColorDark(brandAccent) ? '#FFFFFF' : '#111111';
-                resolvedBadgeColor = brandAccent;
-                break;
-            case 'auto':
-            default:
-                resolvedTextColor = '#FFFFFF';
-                resolvedBadgeColor = `rgba(17, 17, 17, ${badgeOpacity})`;
-                break;
-        }
+    if (hasBadge) {
+        resolvedTextColor = isColorDark(badgeColor) ? '#FFFFFF' : '#111111';
+        
+        // Convert hex to rgba for opacity
+        const hex = badgeColor.replace('#', '');
+        const r = parseInt(hex.substring(0, 2), 16);
+        const g = parseInt(hex.substring(2, 4), 16);
+        const b = parseInt(hex.substring(4, 6), 16);
+        resolvedBadgeColor = `rgba(${r}, ${g}, ${b}, ${badgeOpacity})`;
+
     } else {
          switch (textColorMode) {
             case 'light': resolvedTextColor = '#FFFFFF'; break;
@@ -119,7 +104,7 @@ const TextLayerComponent = ({ layer, type, templateId, brandProfile }: { layer: 
     const layerStyle: React.CSSProperties = {
         fontFamily: type === 'headline' ? primaryFont : secondaryFont,
         color: resolvedTextColor,
-        textShadow: textColorMode === 'auto' && !useBadge ? '0 2px 8px rgba(0,0,0,0.6)' : 'none',
+        textShadow: textColorMode === 'auto' && !hasBadge ? '0 2px 8px rgba(0,0,0,0.6)' : 'none',
     };
     
     const badgeStyle: React.CSSProperties = {
@@ -165,7 +150,7 @@ const TextLayerComponent = ({ layer, type, templateId, brandProfile }: { layer: 
     }
 
     return (
-        <div className={cn(baseClasses, typeClasses, useBadge && 'px-6 py-3 rounded-lg')} style={{...layerStyle, ...badgeStyle}}>
+        <div className={cn(baseClasses, typeClasses, hasBadge && 'px-6 py-3 rounded-lg')} style={{...layerStyle, ...badgeStyle}}>
             {text}
         </div>
     )

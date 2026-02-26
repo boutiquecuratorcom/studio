@@ -23,10 +23,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { RotateCcw } from 'lucide-react';
+import { RotateCcw, X } from 'lucide-react';
 import type { PlatformFormat, TemplateId, TextLayerStyle, FrameStyle } from './PostCreatorClient';
+import { FormDescription } from '../ui/form';
+import { cn } from '@/lib/utils';
 
 interface PostControlsProps {
   platformFormat: PlatformFormat;
@@ -48,6 +49,7 @@ interface PostControlsProps {
   ctaStyle: TextLayerStyle;
   setCtaStyle: (value: TextLayerStyle) => void;
   onResetStyles: () => void;
+  brandColors?: string[];
 }
 
 const TextLayerEditor = ({
@@ -55,14 +57,24 @@ const TextLayerEditor = ({
     text,
     setText,
     style,
-    setStyle
+    setStyle,
+    brandColors
 }: {
     label: string;
     text: string;
     setText: (value: string) => void;
     style: TextLayerStyle;
     setStyle: (value: TextLayerStyle) => void;
-}) => (
+    brandColors?: string[];
+}) => {
+    const badgeColorOptions = [
+        'none',
+        ...(brandColors || []).filter(c => !!c),
+        '#000000',
+        '#ffffff'
+    ];
+
+    return (
     <div className="space-y-4">
         <div className="space-y-2">
             <Label htmlFor={`${label}-text`}>Text</Label>
@@ -70,10 +82,11 @@ const TextLayerEditor = ({
         </div>
         <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-                <Label>Color</Label>
+                <Label>Text Color</Label>
                 <Select
                     value={style.textColorMode}
                     onValueChange={(v) => setStyle({ ...style, textColorMode: v as TextLayerStyle['textColorMode'] })}
+                    disabled={style.badgeColor !== 'none'}
                 >
                     <SelectTrigger><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -84,6 +97,11 @@ const TextLayerEditor = ({
                         <SelectItem value="brandAccent">Brand Accent</SelectItem>
                     </SelectContent>
                 </Select>
+                 {style.badgeColor !== 'none' && (
+                    <FormDescription className="text-xs px-1">
+                        Automatic for badge contrast.
+                    </FormDescription>
+                )}
             </div>
             <div className="space-y-2">
                 <Label>Position</Label>
@@ -100,21 +118,34 @@ const TextLayerEditor = ({
                 </Tabs>
             </div>
         </div>
-        <div className="flex items-center justify-between rounded-lg border p-3">
-             <Label htmlFor={`${label}-badge`} className="flex flex-col space-y-1">
-                <span>Background Badge</span>
-                <span className="font-normal leading-snug text-muted-foreground text-xs">
-                    Adds a backdrop for readability.
-                </span>
-            </Label>
-            <Switch
-                id={`${label}-badge`}
-                checked={style.useBadge}
-                onCheckedChange={(c) => setStyle({ ...style, useBadge: c })}
-            />
+         <div className="space-y-2">
+            <Label>Background Badge</Label>
+            <div className="flex items-center gap-2 flex-wrap rounded-lg border p-2">
+                {badgeColorOptions.map(color => (
+                    <button
+                        key={color}
+                        type="button"
+                        onClick={() => setStyle({ ...style, badgeColor: color })}
+                        className={cn(
+                            "h-8 w-8 rounded-full border-2 transition-all hover:scale-110 active:scale-100",
+                            style.badgeColor === color ? 'ring-2 ring-offset-2 ring-ring border-primary' : 'border-transparent'
+                        )}
+                        title={color}
+                    >
+                        {color === 'none' ? (
+                            <div className="h-full w-full rounded-full bg-muted flex items-center justify-center border-2 border-dashed">
+                                <X className="h-5 w-5 text-muted-foreground" />
+                            </div>
+                        ) : (
+                            <div className="h-full w-full rounded-full border" style={{ backgroundColor: color }} />
+                        )}
+                    </button>
+                ))}
+            </div>
         </div>
     </div>
-);
+    )
+};
 
 
 export function PostControls({
@@ -137,6 +168,7 @@ export function PostControls({
   ctaStyle,
   setCtaStyle,
   onResetStyles,
+  brandColors
 }: PostControlsProps) {
   return (
     <div className="space-y-6">
@@ -212,6 +244,7 @@ export function PostControls({
                   setText={setHeadlineText}
                   style={headlineStyle}
                   setStyle={setHeadlineStyle}
+                  brandColors={brandColors}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -224,6 +257,7 @@ export function PostControls({
                   setText={setSubtextText}
                   style={subtextStyle}
                   setStyle={setSubtextStyle}
+                  brandColors={brandColors}
                 />
               </AccordionContent>
             </AccordionItem>
@@ -236,6 +270,7 @@ export function PostControls({
                   setText={setCtaText}
                   style={ctaStyle}
                   setStyle={setCtaStyle}
+                  brandColors={brandColors}
                 />
               </AccordionContent>
             </AccordionItem>
