@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -106,7 +107,7 @@ const fontOptions = [
     { name: 'Dancing Script', family: "'Dancing Script', cursive" },
     { name: 'Great Vibes', family: "'Great Vibes', cursive" },
     { name: 'Pacifico', family: "'Pacifico', cursive" },
-    { name: 'Lobster', family: "'Lobster', cursive' },
+    { name: 'Lobster', family: "'Lobster', cursive" },
 ];
 
 const totalFields = Object.keys(brandProfileSchema.shape).length;
