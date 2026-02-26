@@ -9,12 +9,16 @@ import { Badge } from '@/components/ui/badge';
 import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useUser } from '@/firebase';
 
 export default function ViewInventoryItemPage() {
   const params = useParams();
   const id = params.id as string;
 
-  const { item, loading, error } = useInventoryItem(id);
+  const { user, loading: userLoading } = useUser();
+  const { item, loading: itemLoading, error } = useInventoryItem(id);
+
+  const loading = itemLoading || userLoading;
 
   if (loading) {
     return (
@@ -37,13 +41,25 @@ export default function ViewInventoryItemPage() {
     );
   }
 
-  if (error || !item) {
+  // Handle errors, not found, and unauthorized access
+  if (error || !item || !user || item.ownerId !== user.uid) {
+    let title = "Item Not Found";
+    let description = "We couldn't find the inventory item you're looking for.";
+    
+    if (error) {
+        title = "Error Loading Item";
+        description = error.message;
+    } else if (item && (!user || item.ownerId !== user.uid)) {
+        title = "Access Denied";
+        description = "You do not have permission to view this item.";
+    }
+
     return (
       <div className="flex-1 p-8 text-center flex flex-col items-center justify-center">
         <AlertTriangle className="h-16 w-16 text-destructive mb-4" />
-        <h2 className="text-2xl font-bold">Item Not Found</h2>
-        <p className="text-muted-foreground mt-2">
-          {error ? `Error: ${error.message}` : "We couldn't find the inventory item you're looking for."}
+        <h2 className="text-2xl font-bold">{title}</h2>
+        <p className="text-muted-foreground mt-2 max-w-md">
+          {description}
         </p>
         <Button asChild className="mt-6">
           <Link href="/inventory">Back to Inventory</Link>
