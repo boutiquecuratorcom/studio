@@ -6,8 +6,8 @@ import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useInventoryItems, deleteInventoryItem, updateInventoryItem, type InventoryItem } from '@/lib/inventory';
-import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, RefreshCw, Trash2, XCircle } from 'lucide-react';
+import { useInventoryItems, deleteInventoryItem, updateInventoryItem, type InventoryItem, generateSearchKeywords } from '@/lib/inventory';
+import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, RefreshCw, Trash2, XCircle, Search, Loader2 } from 'lucide-react';
 import { useFirestore, useStorage, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -30,6 +30,9 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '../ui/badge';
 import { analyzeInventoryImage } from '@/ai/flows/analyze-inventory-image-flow';
+import { Input } from '../ui/input';
+import { isAdminEmail } from '@/lib/admin';
+import { collection, getDocs, query, where, writeBatch, doc } from 'firebase/firestore';
 
 
 function InventoryAnalysis({ item }: { item: InventoryItem }) {
@@ -48,12 +51,16 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
         try {
             const analysisResult = await analyzeInventoryImage({ imageUrl: item.image.thumbUrl });
             if (isMounted) {
+                const updatedItemData = { ...item, analysis: { ...analysisResult, status: 'complete' } };
+                const searchKeywords = generateSearchKeywords(updatedItemData);
+
                 await updateInventoryItem(firestore, item.id, {
                     analysis: {
                         ...analysisResult,
                         status: 'complete',
-                        error: '', // Clear any previous error
+                        error: '',
                     },
+                    searchKeywords,
                 });
                 toast({
                     title: 'Analysis Complete',
@@ -81,9 +88,9 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
     return () => {
       isMounted = false;
     };
-  }, [item.id, item.analysis?.status, item.image.thumbUrl, item.title, user, firestore, toast]);
+  }, [item, user, firestore, toast]); // Dependency array includes the whole item
 
-  return null; // This component does not render anything itself
+  return null;
 }
 
 function ItemCard({ item }: { item: InventoryItem }) {
@@ -249,21 +256,65 @@ function ItemCard({ item }: { item: InventoryItem }) {
 
 
 export function InventoryList({ userId }: { userId: string }) {
-  const { items, loading, error } = useInventoryItems(userId);
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isBackfilling, setIsBackfilling] = useState(false);
+  const isAdmin = isAdminEmail(user?.email);
 
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <div key={i} className="space-y-2">
-            <Skeleton className="aspect-square rounded-2xl" />
-            <Skeleton className="h-5 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </div>
-        ))}
-      </div>
-    );
+  const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+        setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => {
+        clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  const { items, loading, error } = useInventoryItems(userId, debouncedSearchTerm);
+  
+  const handleBackfill = async () => {
+    if (!firestore || !user) return;
+    setIsBackfilling(true);
+    toast({ title: 'Starting backfill...', description: 'Generating search keywords for all your items.' });
+    
+    try {
+        const q = query(collection(firestore, 'inventory'), where('ownerId', '==', user.uid));
+        const querySnapshot = await getDocs(q);
+
+        const batch = writeBatch(firestore);
+        let updatedCount = 0;
+
+        querySnapshot.forEach(docSnapshot => {
+            const item = { id: docSnapshot.id, ...docSnapshot.data() } as InventoryItem;
+            // Only update if keywords are missing or seem outdated
+            if (!item.searchKeywords || item.searchKeywords.length < 3) {
+                const searchKeywords = generateSearchKeywords(item);
+                const docRef = doc(firestore, 'inventory', item.id);
+                batch.update(docRef, { searchKeywords });
+                updatedCount++;
+            }
+        });
+
+        if (updatedCount > 0) {
+            await batch.commit();
+            toast({ title: 'Backfill Complete!', description: `Updated search keywords for ${updatedCount} items.` });
+        } else {
+            toast({ title: 'All Set!', description: 'Your items already have up-to-date search keywords.' });
+        }
+
+    } catch (e: any) {
+        console.error("Backfill failed:", e);
+        toast({ variant: 'destructive', title: 'Backfill Failed', description: e.message });
+    } finally {
+        setIsBackfilling(false);
+    }
   }
+
 
   if (error) {
     return (
@@ -276,23 +327,70 @@ export function InventoryList({ userId }: { userId: string }) {
         </div>
     );
   }
-
-  if (!items || items.length === 0) {
-    return (
-        <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card">
-            <p className="text-muted-foreground">Your inventory is empty.</p>
-            <Button asChild variant="link">
-                <Link href="/inventory/add">Add your first item</Link>
-            </Button>
+  
+  const renderContent = () => {
+    if (loading) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {Array.from({ length: 10 }).map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="aspect-square rounded-2xl" />
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-1/2" />
+            </div>
+          ))}
         </div>
+      );
+    }
+  
+    if (!items || items.length === 0) {
+      if (debouncedSearchTerm) {
+        return (
+            <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card">
+                <p className="text-muted-foreground font-semibold">No results found for &quot;{debouncedSearchTerm}&quot;</p>
+                <p className="text-muted-foreground text-sm">Try a different search term.</p>
+            </div>
+        )
+      }
+      return (
+          <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card">
+              <p className="text-muted-foreground">Your inventory is empty.</p>
+              <Button asChild variant="link">
+                  <Link href="/inventory/add">Add your first item</Link>
+              </Button>
+          </div>
+      );
+    }
+  
+    return (
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+        {items.map((item) => (
+          <ItemCard key={item.id} item={item} />
+        ))}
+      </div>
     );
-}
+  }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-      {items.map((item) => (
-        <ItemCard key={item.id} item={item} />
-      ))}
-    </div>
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="relative w-full max-w-lg">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+                placeholder="Search by keyword, type, color..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+            />
+        </div>
+        {isAdmin && (
+            <Button onClick={handleBackfill} disabled={isBackfilling} variant="outline">
+                {isBackfilling ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                Backfill Keywords
+            </Button>
+        )}
+      </div>
+      {renderContent()}
+    </>
   );
 }

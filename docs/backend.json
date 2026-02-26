@@ -147,6 +147,13 @@
             }
           }
         },
+        "searchKeywords": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "A denormalized array of lowercase keywords for search."
+        },
         "analysis": {
           "type": "object",
           "properties": {
@@ -196,7 +203,7 @@
             "instagramCaptionHooks": {
               "type": "array",
               "items": { "type": "string" },
-              "description": "3 short, engaging hooks for Instagram captions."
+              "description": "3 short, trendy, emoji-heavy hooks for Instagram captions."
             },
             "error": {
               "type": "string",

@@ -12,6 +12,7 @@ import {
   runTransaction,
   type DocumentData,
   type Firestore,
+  Query,
 } from 'firebase/firestore';
 import {
   ref,
@@ -46,6 +47,7 @@ export interface InventoryItem extends DocumentData {
     status: 'pending' | 'complete' | 'failed';
     error?: string;
   };
+  searchKeywords?: string[];
   createdAt: any;
   updatedAt: any;
 }
@@ -54,26 +56,27 @@ const MONTHLY_INVENTORY_LIMIT = 100;
 
 // --- Hooks ---
 
-export const useInventoryItems = (userId: string | null) => {
+export const useInventoryItems = (userId: string | null, searchToken: string | null) => {
   const firestore = useFirestore();
 
-  // The query is simplified to avoid the need for a composite index.
   const q = useMemo(() => {
     if (!userId || !firestore) return null;
-    return query(
-      collection(firestore, 'inventory'),
-      where('ownerId', '==', userId)
-      // The orderBy clause that required an index has been removed.
-    );
-  }, [userId, firestore]);
+    let queryRef: Query<InventoryItem> = collection(firestore, 'inventory') as Query<InventoryItem>;
+    
+    queryRef = query(queryRef, where('ownerId', '==', userId));
+
+    if (searchToken && searchToken.trim().length > 0) {
+        queryRef = query(queryRef, where('searchKeywords', 'array-contains', searchToken.trim().toLowerCase()));
+    }
+    
+    return queryRef;
+  }, [userId, firestore, searchToken]);
 
   const { data, loading, error } = useCollection<InventoryItem>(q);
 
-  // Items are now sorted on the client-side after being fetched.
   const sortedItems = useMemo(() => {
     if (!data) return null;
     
-    // Sort by creation date, newest first.
     return [...data].sort((a, b) => {
         const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
         const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
@@ -96,6 +99,40 @@ export const useInventoryItem = (itemId: string | null) => {
 
 
 // --- Data Functions ---
+
+/**
+ * Generates an array of normalized keywords for searching an inventory item.
+ */
+export const generateSearchKeywords = (item: Partial<InventoryItem>): string[] => {
+  const keywords = new Set<string>();
+
+  const add = (value: string | undefined | null) => {
+    if (!value) return;
+    value.toLowerCase().split(/[\s,.\-&/]+/)
+      .filter(s => s.length > 1) // Ignore single characters
+      .forEach(s => keywords.add(s.replace(/[^a-z0-9]/gi, ''))); // Sanitize
+  };
+
+  const addAll = (values: (string | undefined | null)[] | undefined) => {
+    if (!values) return;
+    values.forEach(add);
+  }
+
+  add(item.title);
+  add(item.type);
+  addAll(item.sizes);
+  
+  if (item.analysis) {
+    add(item.analysis.patternType);
+    add(item.analysis.styleVibe);
+    add(item.analysis.clothingType);
+    addAll(item.analysis.dominantColors);
+    addAll(item.analysis.tags);
+  }
+
+  return Array.from(keywords).filter(Boolean).slice(0, 50); // Cap at 50
+};
+
 
 /**
  * Creates a new inventory item, resizes and uploads images, and updates the user's monthly count.
@@ -157,7 +194,10 @@ export const createInventoryItem = async (
     getDownloadURL(thumbStorageRef),
   ]);
 
-  // --- 6. Create the final document in Firestore ---
+  // --- 6. Generate initial keywords ---
+  const initialKeywords = generateSearchKeywords(itemData);
+
+  // --- 7. Create the final document in Firestore ---
   const finalItemData: Omit<InventoryItem, 'id'> = {
     ...itemData,
     ownerId: user.uid,
@@ -171,6 +211,7 @@ export const createInventoryItem = async (
       width: originalResult.width,
       height: originalResult.height,
     },
+    searchKeywords: initialKeywords,
     analysis: {
       status: 'pending',
     },

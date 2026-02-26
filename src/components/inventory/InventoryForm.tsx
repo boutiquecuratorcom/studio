@@ -18,7 +18,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Save } from 'lucide-react';
 import React, { useState } from 'react';
-import { createInventoryItem, updateInventoryItem, InventoryItem } from '@/lib/inventory';
+import { createInventoryItem, updateInventoryItem, InventoryItem, generateSearchKeywords } from '@/lib/inventory';
 import { ImageUploader } from './ImageUploader';
 import { useUser, useFirestore, useStorage } from '@/firebase';
 import { Checkbox } from '../ui/checkbox';
@@ -79,18 +79,22 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
     
     try {
         let itemId: string;
-        const processedData = {
-            ...values,
-            brand: 'LuLaRoe', // Default brand
-        };
         
         if (mode === 'create') {
+            const processedData = {
+                ...values,
+                brand: 'LuLaRoe', // Default brand
+            };
             itemId = await createInventoryItem(firestore, storage, user, processedData, imageFile!);
             toast({ title: 'Item Created', description: `"${values.title}" has been added to your inventory.` });
         } else {
             if (!item) throw new Error('Item not found for update.');
             itemId = item.id;
-            await updateInventoryItem(firestore, itemId, processedData);
+            
+            const mergedData = { ...item, ...values };
+            const searchKeywords = generateSearchKeywords(mergedData);
+            
+            await updateInventoryItem(firestore, itemId, { ...values, searchKeywords });
             toast({ title: 'Item Updated', description: `"${values.title}" has been successfully updated.` });
         }
         onSave(itemId);
