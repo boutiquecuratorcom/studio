@@ -84,7 +84,7 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
     return () => {
       isMounted = false;
     };
-  }, [item.id, item.analysis?.status, item.image.thumbUrl, item.title, user, firestore, toast]);
+  }, [item.id, item.analysis, item.image.thumbUrl, item.title, user, firestore, toast]);
 
   return null; // This component does not render anything itself
 }
@@ -157,8 +157,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
         </div>
         <div className="p-4 flex-grow flex flex-col">
             <div className="flex justify-between items-start gap-2 mb-2">
-                <h3 className="font-semibold leading-snug flex-grow min-w-0">{item.title}</h3>
-                {getStatusBadge()}
+                <h3 className="font-semibold leading-snug flex-grow min-w-0 break-words">{item.title}</h3>
             </div>
           <p className="text-sm text-muted-foreground mb-3 flex-grow">{item.type}</p>
           <div className="flex flex-wrap gap-2 mb-3">
@@ -166,9 +165,12 @@ function ItemCard({ item }: { item: InventoryItem }) {
               <Badge key={size} variant="outline">{size}</Badge>
             ))}
           </div>
-          <p className="text-xs text-muted-foreground/80 mt-auto pt-2">
-            Added {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'just now'}
-          </p>
+          <div className="flex justify-between items-center mt-auto pt-2">
+            <p className="text-xs text-muted-foreground/80">
+                Added {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'just now'}
+            </p>
+            {getStatusBadge()}
+          </div>
         </div>
       </Card>
 
