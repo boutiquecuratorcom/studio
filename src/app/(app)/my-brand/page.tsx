@@ -130,16 +130,23 @@ export default function MyBrandPage() {
   const form = useForm<BrandProfileFormValues>({
     resolver: zodResolver(brandProfileSchema),
     defaultValues: {
-      brandColors: ['', '', ''],
       brandName: '',
       tagline: '',
       location: '',
       websiteUrl: '',
       instagramUrl: '',
       facebookUrl: '',
+      toneOfVoice: undefined,
+      brandVibe: undefined,
+      targetCustomer: undefined,
+      primaryGoal: undefined,
       logoUrl: '',
-      primaryFont: '',
-      secondaryFont: '',
+      brandColors: ['', '', ''],
+      primaryFont: undefined,
+      secondaryFont: undefined,
+      primaryPlatform: undefined,
+      postingFrequency: undefined,
+      promoStyle: undefined,
     },
   });
 
@@ -602,5 +609,3 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   )
 }
-
-    
