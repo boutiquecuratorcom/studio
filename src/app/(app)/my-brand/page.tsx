@@ -152,7 +152,7 @@ export default function MyBrandPage() {
         if (key === 'brandColors') {
             return Array.isArray(value) && value.length > 0 && value.some(v => !!v);
         }
-        return value && (!Array.isArray(value) || value.length > 0)
+        return !!value && (!Array.isArray(value) || value.length > 0)
       }
     ).length;
     return Math.round((filledFields / totalFields) * 100);
@@ -213,7 +213,7 @@ export default function MyBrandPage() {
     try {
         const dataToSave = {
             ...data,
-            brandColors: data.brandColors?.filter(color => !!color) || []
+            brandColors: data.brandColors?.filter(color => !!color && color.match(/^#[0-9a-fA-F]{6}$/)) || []
         };
 
         await setDoc(brandProfileRef, { ...dataToSave, updatedAt: serverTimestamp() }, { merge: true });
@@ -388,7 +388,7 @@ export default function MyBrandPage() {
                                                         className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
                                                         value={field.value?.[index] || '#ffffff'}
                                                         onChange={(e) => {
-                                                            const newColors = [...(field.value || [])];
+                                                            const newColors = [...(field.value || ['', '', ''])];
                                                             newColors[index] = e.target.value;
                                                             setValue('brandColors', newColors, { shouldDirty: true, shouldValidate: true });
                                                         }}
@@ -398,7 +398,7 @@ export default function MyBrandPage() {
                                                     placeholder="e.g., #C56A3D"
                                                     value={field.value?.[index] || ''}
                                                     onChange={(e) => {
-                                                        const newColors = [...(field.value || [])];
+                                                        const newColors = [...(field.value || ['', '', ''])];
                                                         newColors[index] = e.target.value;
                                                         setValue('brandColors', newColors, { shouldDirty: true, shouldValidate: true });
                                                     }}
@@ -476,7 +476,7 @@ function SelectField({ control, name, label, placeholder, options }: any) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+          <Select onValueChange={field.onChange} value={field.value || ''}>
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
@@ -505,7 +505,7 @@ function FontSelectField({ control, name, label, placeholder, fonts }: any) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+          <Select onValueChange={field.onChange} value={field.value || ''}>
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
