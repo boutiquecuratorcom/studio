@@ -16,14 +16,17 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save, Wand2 } from 'lucide-react';
-import React, { useState } from 'react';
-import { createInventoryItem, createInventoryItemFromGlowUpForm, type InventoryItem } from '@/lib/inventory';
+import { Link2, Loader2, Save, Wand2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { createInventoryItem, createInventoryItemFromGlowUpForm, type InventoryItem, updateInventoryItem, type ClaimDetails } from '@/lib/inventory';
 import { ImageUploader } from './ImageUploader';
 import { useUser, useFirestore, useStorage } from '@/firebase';
 import { Checkbox } from '../ui/checkbox';
 import type { GlowUpPrefillData } from '@/app/(app)/inventory/add/page';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
+import { serverTimestamp } from 'firebase/firestore';
 
 const allSizes = [
     'XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 
@@ -32,6 +35,15 @@ const allSizes = [
     '2', '4', '6', '8', '10', '12', '14',
 ];
 
+const claimMethods = [
+  { value: 'none', label: 'None' },
+  { value: 'custom_url', label: 'Custom URL' },
+  { value: 'messenger', label: 'Messenger' },
+  { value: 'facebook_page', label: 'Facebook Page' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'sonlet_manual', label: 'Sonlet Link (Manual)' },
+] as const;
+
 const inventoryFormSchema = z.object({
   title: z.string().min(3, { message: 'Title must be at least 3 characters.' }),
   type: z.string().min(2, { message: 'Type must be at least 2 characters.' }),
@@ -39,7 +51,21 @@ const inventoryFormSchema = z.object({
     message: "At least one size must be selected."
   }),
   notes: z.string().optional(),
+  claim: z.object({
+    mode: z.enum(['none', 'custom_url', 'messenger', 'facebook_page', 'whatsapp', 'sonlet_manual']),
+    url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+    label: z.string().optional().or(z.literal('')),
+  }).optional(),
+}).refine(data => {
+  if (data.claim?.mode && data.claim.mode !== 'none' && !data.claim.url) {
+    return false;
+  }
+  return true;
+}, {
+  message: "A URL is required for this claim method.",
+  path: ['claim.url'],
 });
+
 
 type InventoryFormValues = z.infer<typeof inventoryFormSchema>;
 
@@ -65,8 +91,29 @@ export function InventoryForm({ mode, item, onSave, glowUpData }: InventoryFormP
       type: item?.type || '',
       sizes: item?.sizes || [],
       notes: item?.notes || '',
+      claim: item?.claim || { mode: 'none', url: '', label: '' },
     },
   });
+
+  const watchClaimMode = form.watch('claim.mode');
+
+  useEffect(() => {
+    const defaultLabels: Record<ClaimDetails['mode'], string> = {
+      'none': '',
+      'custom_url': 'Shop Now',
+      'messenger': 'Claim in Messenger',
+      'facebook_page': 'View on Facebook',
+      'whatsapp': 'Message on WhatsApp',
+      'sonlet_manual': 'Shop on Sonlet',
+    };
+    
+    const currentLabel = form.getValues('claim.label') || '';
+    const isDefaultLabel = Object.values(defaultLabels).includes(currentLabel);
+    
+    if (watchClaimMode && (currentLabel === '' || isDefaultLabel)) {
+      form.setValue('claim.label', defaultLabels[watchClaimMode], { shouldDirty: true });
+    }
+  }, [watchClaimMode, form]);
 
   const onSubmit = async (values: InventoryFormValues) => {
     if (!user || !firestore || !storage) {
@@ -79,26 +126,37 @@ export function InventoryForm({ mode, item, onSave, glowUpData }: InventoryFormP
     try {
         let itemId: string;
 
+        const claimHasChanged = JSON.stringify(item?.claim || { mode: 'none', url: '', label: '' }) !== JSON.stringify(values.claim || { mode: 'none', url: '', label: '' });
+        let dataWithTimestamp = { ...values } as any;
+
+        if (values.claim) {
+          if (claimHasChanged) {
+            dataWithTimestamp.claim.updatedAt = serverTimestamp();
+          }
+          if (values.claim.mode === 'none') {
+            dataWithTimestamp.claim.url = null;
+            dataWithTimestamp.claim.label = null;
+          }
+        }
+
+
         if (glowUpData) {
-            // New flow: creating from a completed GlowUp
-            itemId = await createInventoryItemFromGlowUpForm(firestore, user, values, glowUpData);
+            itemId = await createInventoryItemFromGlowUpForm(firestore, user, dataWithTimestamp, glowUpData);
             toast({ title: 'Item Added!', description: `"${values.title}" has been added to My Rack from your Glow-Up.` });
         } else if (mode === 'create') {
-            // Original flow: creating from a manual file upload
             if (!imageFile) {
                 toast({ variant: 'destructive', title: 'Image Required', description: 'Please upload an image for the new item.' });
                 setIsSaving(false);
                 return;
             }
-            const processedData = { ...values, brand: 'LuLaRoe' };
+            const processedData = { ...dataWithTimestamp, brand: 'LuLaRoe' };
             itemId = await createInventoryItem(firestore, storage, user, processedData, imageFile);
             toast({ title: 'Item Added', description: `"${values.title}" has been added to My Rack.` });
         } else {
-            // Update flow
             if (!item) throw new Error('Item not found for update.');
             itemId = item.id;
             
-            await updateInventoryItem(firestore, itemId, values);
+            await updateInventoryItem(firestore, itemId, dataWithTimestamp);
             toast({ title: 'Item Updated', description: `"${values.title}" has been successfully updated.` });
         }
         onSave(itemId);
@@ -109,6 +167,11 @@ export function InventoryForm({ mode, item, onSave, glowUpData }: InventoryFormP
         setIsSaving(false);
     }
   };
+
+  const urlPlaceholders: Record<string, string> = {
+    messenger: 'e.g., m.me/your-page-name',
+    whatsapp: 'e.g., wa.me/1234567890',
+  }
 
   return (
     <Form {...form}>
@@ -234,6 +297,72 @@ export function InventoryForm({ mode, item, onSave, glowUpData }: InventoryFormP
               </FormItem>
             )}
           />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Claim Destination</CardTitle>
+              <CardDescription>Set a call-to-action for this item.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <FormField
+                control={form.control}
+                name="claim.mode"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Claim Method</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a claim method" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {claimMethods.map(method => (
+                          <SelectItem key={method.value} value={method.value}>{method.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              {watchClaimMode && watchClaimMode !== 'none' && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="claim.url"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Claim URL</FormLabel>
+                        <div className="relative">
+                          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <FormControl>
+                            <Input placeholder={urlPlaceholders[watchClaimMode] || 'https://...'} {...field} value={field.value || ''} className="pl-10" />
+                          </FormControl>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="claim.label"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Button Label</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Shop Now" {...field} value={field.value || ''} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+
           <Button type="submit" size="lg" disabled={isSaving}>
             {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
             {mode === 'create' ? 'Add to My Rack' : 'Save Changes'}

@@ -10,7 +10,7 @@ import { type InventoryItem } from '@/lib/inventory';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag, UserX, FileQuestion, ServerCrash, ShieldAlert } from 'lucide-react';
+import { AlertTriangle, Bot, Cpu, FileText, Palette, Tag, UserX, FileQuestion, ServerCrash, ShieldAlert, ExternalLink, Link2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { errorEmitter } from '@/firebase/error-emitter';
@@ -240,6 +240,29 @@ export default function ViewInventoryItemPage() {
                 {item.notes && <DetailItem label="Internal Notes" value={item.notes} isBlock={true} />}
             </CardContent>
           </Card>
+
+          {item.claim && item.claim.mode !== 'none' && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2"><Link2 className="h-5 w-5" />Claim Destination</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4 text-sm">
+                <DetailItem label="Method" value={item.claim.mode.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())} />
+                {item.claim.url && (
+                  <div className="flex justify-between items-center gap-4 pt-4 border-t">
+                    <p className="text-muted-foreground font-medium flex items-center gap-2">
+                      Claim Link
+                    </p>
+                    <Button asChild size="sm">
+                      <a href={item.claim.url} target="_blank" rel="noopener noreferrer">
+                        {item.claim.label || 'Claim Now'} <ExternalLink className="ml-2 h-4 w-4" />
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>

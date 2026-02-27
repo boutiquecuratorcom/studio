@@ -230,6 +230,43 @@
               "description": "Stores an error message if the analysis failed."
             }
           }
+        },
+        "claim": {
+          "type": "object",
+          "description": "Defines the call-to-action or claim method for this specific item.",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "none",
+                "custom_url",
+                "messenger",
+                "facebook_page",
+                "whatsapp",
+                "sonlet_manual"
+              ]
+            },
+            "url": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "updatedAt": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "date-time"
+            }
+          }
         }
       },
       "required": [

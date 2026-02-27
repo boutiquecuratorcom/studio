@@ -39,6 +39,13 @@ export interface ImageDetails {
   height?: number;
 }
 
+export interface ClaimDetails {
+  mode: 'none' | 'custom_url' | 'messenger' | 'facebook_page' | 'whatsapp' | 'sonlet_manual';
+  url?: string | null;
+  label?: string | null;
+  updatedAt?: any;
+}
+
 export interface InventoryItem extends DocumentData {
   id: string;
   ownerId: string;
@@ -56,6 +63,7 @@ export interface InventoryItem extends DocumentData {
     error?: string;
   };
   searchKeywords?: string[];
+  claim?: ClaimDetails;
   createdAt: any;
   updatedAt: any;
 }
@@ -242,7 +250,7 @@ export const createInventoryItem = async (
   firestore: Firestore,
   storage: FirebaseStorage,
   user: User,
-  itemData: Omit<InventoryItem, 'id' | 'ownerId' | 'image' | 'createdAt' | 'updatedAt' | 'analysis'> & { sizes: string[] },
+  itemData: Omit<InventoryItem, 'id' | 'ownerId' | 'image' | 'createdAt' | 'updatedAt' | 'analysis'> & { sizes: string[], claim?: ClaimDetails },
   imageFile: File
 ): Promise<string> => {
     
@@ -316,6 +324,7 @@ export const createInventoryItem = async (
     analysis: {
       status: 'pending',
     },
+    claim: itemData.claim || { mode: 'none', url: null, label: null, updatedAt: null },
   };
 
   await setDoc(newItemRef, finalItemData);
@@ -330,7 +339,7 @@ export const createInventoryItem = async (
 export const createInventoryItemFromGlowUpForm = async (
   firestore: Firestore,
   user: User,
-  formData: { title: string; type: string; sizes: string[]; notes?: string },
+  formData: { title: string; type: string; sizes: string[]; notes?: string; claim?: ClaimDetails },
   glowUpData: {
     id: string;
     inputImageUrl: string;
@@ -404,6 +413,7 @@ export const createInventoryItemFromGlowUpForm = async (
     glowedAt: serverTimestamp(),
     analysis: { status: 'pending' },
     searchKeywords: generateSearchKeywords({ ...formData, brand: 'LuLaRoe' }),
+    claim: formData.claim || { mode: 'none', url: null, label: null, updatedAt: null },
   };
 
   // 6. Save doc
