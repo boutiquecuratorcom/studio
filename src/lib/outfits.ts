@@ -23,7 +23,9 @@ export interface Outfit extends DocumentData {
   id: string;
   ownerId: string;
   title: string;
-  notes: string;
+  notes: string; // Used for the main description
+  claimDestination?: 'sonlet' | 'comment_sold' | 'facebook_live' | 'messenger' | 'custom';
+  claimUrl?: string;
   linkedRackItemIds: string[];
   cover: {
     imageUrl: string | null;
@@ -111,7 +113,7 @@ export const createOutfit = async (
 export const updateOutfit = async (
   firestore: Firestore,
   outfitId: string,
-  data: Partial<{ title: string; notes: string; status: "draft" | "published" }>
+  data: Partial<Outfit>
 ) => {
   const outfitRef = doc(firestore, 'outfits', outfitId);
   await updateDoc(outfitRef, {
@@ -132,6 +134,21 @@ export const linkRackItemToOutfit = async (
         updatedAt: serverTimestamp(),
     });
 };
+
+// Function to link multiple rack items to an outfit
+export const linkMultipleRackItemsToOutfit = async (
+    firestore: Firestore,
+    outfitId: string,
+    itemIds: string[]
+) => {
+    if (itemIds.length === 0) return;
+    const outfitRef = doc(firestore, 'outfits', outfitId);
+    await updateDoc(outfitRef, {
+        linkedRackItemIds: arrayUnion(...itemIds),
+        updatedAt: serverTimestamp(),
+    });
+};
+
 
 // Function to unlink a rack item from an outfit
 export const unlinkRackItemFromOutfit = async (

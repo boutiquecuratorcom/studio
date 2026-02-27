@@ -450,7 +450,17 @@
         },
         "notes": {
           "type": "string",
-          "description": "Internal notes about the outfit."
+          "description": "A multi-line description of the outfit for storefronts and posts."
+        },
+        "claimDestination": {
+          "type": "string",
+          "enum": ["sonlet", "comment_sold", "facebook_live", "messenger", "custom"],
+          "description": "The destination for claiming the outfit."
+        },
+        "claimUrl": {
+            "type": "string",
+            "format": "uri",
+            "description": "A custom URL for the claim link if claimDestination is 'custom'."
         },
         "linkedRackItemIds": {
           "type": "array",
