@@ -4,9 +4,9 @@ import Link from "next/link";
 export default function SettingsPage() {
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
-        <header className="mb-16">
-            <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">Settings</h1>
-            <p className="text-xl text-muted-foreground mt-4 max-w-2xl">Manage your account and preferences.</p>
+        <header className="mb-12">
+            <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">Settings</h1>
+            <p className="text-lg text-muted-foreground mt-3 max-w-2xl">Manage your account and preferences.</p>
         </header>
         <Card>
             <CardHeader>

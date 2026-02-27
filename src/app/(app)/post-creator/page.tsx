@@ -23,7 +23,6 @@ function LoadingState() {
                 </div>
                  <div className="flex items-center gap-2">
                     <Skeleton className="h-10 w-24" />
-                    <Skeleton className="h-10 w-24" />
                     <Skeleton className="h-10 w-32" />
                  </div>
             </header>

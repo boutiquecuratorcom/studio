@@ -19,9 +19,9 @@ export default function EditInventoryPage() {
   if (loading) {
     return (
       <div className="flex-1 p-8 sm:p-10 lg:p-12">
-        <header className="mb-16">
-          <Skeleton className="h-14 w-80 mb-4" />
-          <Skeleton className="h-7 w-96" />
+        <header className="mb-12">
+          <Skeleton className="h-12 w-80 mb-4" />
+          <Skeleton className="h-6 w-96" />
         </header>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="md:col-span-2 space-y-6">
@@ -48,11 +48,11 @@ export default function EditInventoryPage() {
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
-      <header className="mb-16">
-        <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">
+      <header className="mb-12">
+        <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">
           Edit Rack Item
         </h1>
-        <p className="text-xl text-muted-foreground mt-4 max-w-2xl">
+        <p className="text-lg text-muted-foreground mt-3 max-w-2xl">
           Update the details for &quot;{item.title}&quot;.
         </p>
       </header>

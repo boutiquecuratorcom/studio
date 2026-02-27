@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Sparkles, Upload, Wand2, BookOpen, Settings, Briefcase, Boxes, LayoutTemplate, Megaphone } from 'lucide-react';
+import { Sparkles, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
 import {
@@ -20,14 +20,14 @@ import { isAdminEmail } from '@/lib/admin';
 
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: Home },
-  { href: '/editor', label: 'AI Editor', icon: Wand2 },
-  { href: '/post-creator', label: 'Post Creator', icon: LayoutTemplate },
-  { href: '/engagement-machine', label: 'Engagement Machine', icon: Megaphone },
-  { href: '/inventory', label: 'My Rack', icon: Boxes },
-  { href: '/uploads', label: 'My Library', icon: Upload },
-  { href: '/my-brand', label: 'My Brand', icon: Briefcase },
-  { href: '/looks', label: 'Looks', icon: BookOpen },
+  { href: '/dashboard', label: 'Dashboard' },
+  { href: '/editor', label: 'AI Editor' },
+  { href: '/post-creator', label: 'Post Creator' },
+  { href: '/engagement-machine', label: 'Engagement Machine' },
+  { href: '/inventory', label: 'My Rack' },
+  { href: '/uploads', label: 'My Library' },
+  { href: '/my-brand', label: 'My Brand' },
+  { href: '/looks', label: 'Looks' },
 ];
 
 export function Sidebar() {
@@ -49,13 +49,13 @@ export function Sidebar() {
 
   return (
     <aside className="w-64 flex-shrink-0 bg-secondary border-r flex flex-col">
-      <div className="h-24 flex items-center px-6">
-        <Sparkles className="h-7 w-7 text-primary" />
-        <h1 className="ml-3 text-xl font-headline font-semibold tracking-tight text-foreground">
+      <div className="h-24 flex items-center px-8">
+        <Sparkles className="h-6 w-6 text-primary" />
+        <h1 className="ml-3 text-lg font-headline font-semibold tracking-wide text-foreground">
           Boutique Curator
         </h1>
       </div>
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-4 space-y-2">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -63,13 +63,12 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-6 py-3 text-base transition-colors',
+                'flex items-center rounded-md px-4 py-2.5 text-base transition-colors font-medium',
                 isActive
-                  ? 'text-primary font-bold'
-                  : 'text-muted-foreground hover:text-foreground font-medium'
+                  ? 'text-foreground bg-black/5'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-black/5'
               )}
             >
-              <item.icon className="h-5 w-5" />
               {item.label}
             </Link>
           );

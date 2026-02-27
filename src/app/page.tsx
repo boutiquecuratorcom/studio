@@ -20,8 +20,8 @@ export default function RootPage() {
   if (loading || user) {
     return (
       <div className="flex flex-col gap-4 items-center justify-center min-h-screen bg-background">
-        <Sparkles className="h-10 w-10 text-primary animate-pulse" />
-        <p className="text-muted-foreground">Loading your studio...</p>
+        <Sparkles className="h-10 w-10 text-accent animate-pulse" />
+        <p className="text-muted-foreground font-headline tracking-wider">Loading your studio...</p>
       </div>
     );
   }

@@ -139,11 +139,11 @@ export function AuthForm() {
   }
 
   return (
-    <Card className="w-full max-w-md border-none sm:border shadow-none sm:shadow-lg">
+    <Card className="w-full max-w-md border-none sm:border bg-card/80 shadow-none sm:shadow-lg">
       <CardHeader className="text-center">
         <div className="flex justify-center items-center gap-3 mb-4">
-            <Sparkles className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-headline font-semibold tracking-tight text-foreground">
+            <Sparkles className="h-7 w-7 text-primary" />
+            <h1 className="text-xl font-headline font-semibold tracking-wide text-foreground">
                 Boutique Curator
             </h1>
         </div>
@@ -203,4 +203,3 @@ const AuthFormFields = ({ form }: { form: any }) => (
       />
     </>
   );
-

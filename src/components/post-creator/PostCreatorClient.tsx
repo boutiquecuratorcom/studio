@@ -37,13 +37,12 @@ const DEFAULT_CTA_STYLE: TextLayerStyle = { textColorMode: 'auto', badgeColor: '
 function LoadingState() {
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
-      <header className="mb-16 flex flex-wrap items-center justify-between gap-4">
+      <header className="mb-12 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Skeleton className="h-14 w-80 mb-4" />
-          <Skeleton className="h-7 w-96" />
+          <Skeleton className="h-12 w-80 mb-4" />
+          <Skeleton className="h-6 w-96" />
         </div>
         <div className="flex items-center gap-2">
-          <Skeleton className="h-10 w-24" />
           <Skeleton className="h-10 w-24" />
           <Skeleton className="h-10 w-32" />
         </div>
@@ -79,8 +78,8 @@ function ImageSelector({ onImageSelect }: { onImageSelect: (url: string) => void
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
       <header className="mb-16 text-center flex flex-col items-center">
-        <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">Post Creator</h1>
-        <p className="text-xl text-muted-foreground mt-4 max-w-2xl mx-auto">
+        <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">Post Creator</h1>
+        <p className="text-lg text-muted-foreground mt-3 max-w-2xl mx-auto">
           Start by selecting an image from your recent uploads, or generate a new one.
         </p>
         <Button asChild size="lg" className="mt-6 py-6 text-base">
@@ -96,12 +95,12 @@ function ImageSelector({ onImageSelect }: { onImageSelect: (url: string) => void
         {loading && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="aspect-square rounded-2xl" />
+              <Skeleton key={i} className="aspect-square rounded-lg" />
             ))}
           </div>
         )}
         {!loading && (!validUploads || validUploads.length === 0) && (
-          <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card">
+          <div className="text-center py-16 border-2 border-dashed rounded-lg bg-card">
             <p className="text-muted-foreground">No recent uploads found.</p>
           </div>
         )}
@@ -311,19 +310,19 @@ export default function PostCreatorClient() {
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
-      <header className="mb-16 flex flex-wrap items-center justify-between gap-4">
+      <header className="mb-12 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">
-            Instant Post Creator
+          <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">
+            Post Creator
           </h1>
-          <p className="text-xl text-muted-foreground mt-4 max-w-2xl">
+          <p className="text-lg text-muted-foreground mt-3 max-w-2xl">
             Customize your auto-generated post and export it for social media.
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleDownload}><Download /> Download PNG</Button>
+          <Button variant="outline" onClick={handleDownload}><Download className="h-4 w-4 mr-2" /> Download PNG</Button>
           <Button onClick={handleSaveDraft} disabled={isSaving}>
-            {isSaving ? <Loader2 className="animate-spin" /> : <Save />} Save Draft
+            {isSaving ? <Loader2 className="animate-spin h-4 w-4 mr-2" /> : <Save className="h-4 w-4 mr-2" />} Save Draft
           </Button>
         </div>
       </header>

@@ -12,11 +12,11 @@ export default function AddInventoryPage() {
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
-      <header className="mb-16">
-        <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">
+      <header className="mb-12">
+        <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">
           Add to My Rack
         </h1>
-        <p className="text-xl text-muted-foreground mt-4 max-w-2xl">
+        <p className="text-lg text-muted-foreground mt-3 max-w-2xl">
           Upload a photo and add details for the new piece.
         </p>
       </header>

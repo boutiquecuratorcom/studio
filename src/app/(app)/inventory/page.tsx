@@ -11,12 +11,12 @@ export default function InventoryPage() {
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
-      <header className="flex flex-wrap items-center justify-between gap-4 mb-16">
+      <header className="flex flex-wrap items-center justify-between gap-4 mb-12">
         <div>
-          <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">
+          <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">
             My Rack
           </h1>
-          <p className="text-xl text-muted-foreground mt-4 max-w-2xl">
+          <p className="text-lg text-muted-foreground mt-3 max-w-2xl">
             Manage your entire collection from one place.
           </p>
         </div>
