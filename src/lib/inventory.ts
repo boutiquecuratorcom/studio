@@ -328,7 +328,7 @@ export const createInventoryItemFromGlowUp = async (
     }, { merge: true });
   });
 
-  // 2. Get the original input image blob from Storage
+  // 2. Get original image blob to create a thumbnail.
   if (!glowUpData.inputImageStoragePath) {
     throw new Error("GlowUp record is missing the original image storage path.");
   }
@@ -340,29 +340,24 @@ export const createInventoryItemFromGlowUp = async (
   const newItemRef = doc(collection(firestore, 'inventory'));
   const itemId = newItemRef.id;
 
-  // 4. Resize and upload the ORIGINAL image to a new inventory-specific path
-  const [originalResult, thumbResult] = await Promise.all([
-    resizeImage(originalImageFile, 1600),
-    resizeImage(originalImageFile, 400),
-  ]);
-  const originalPath = `inventory/${user.uid}/${itemId}/original.jpeg`;
-  const thumbPath = `inventory/${user.uid}/${itemId}/thumb.jpeg`;
-  const originalStorageRef = ref(storage, originalPath);
+  // 4. Create and upload ONLY the thumbnail for the original image.
+  const thumbResult = await resizeImage(originalImageFile, 400);
+  const thumbPath = `inventory/${user.uid}/${itemId}/original_thumb.jpeg`;
   const thumbStorageRef = ref(storage, thumbPath);
-  await Promise.all([
-    uploadBytes(originalStorageRef, originalResult.blob),
-    uploadBytes(thumbStorageRef, thumbResult.blob),
-  ]);
-  const [originalUrl, thumbUrl] = await Promise.all([
-    getDownloadURL(originalStorageRef),
-    getDownloadURL(thumbStorageRef),
-  ]);
+  await uploadBytes(thumbStorageRef, thumbResult.blob);
+  const thumbUrl = await getDownloadURL(thumbStorageRef);
+
+  // 5. Construct originalImageDetails by RE-USING existing original and adding NEW thumb
   const originalImageDetails: ImageDetails = {
-    originalPath, originalUrl, thumbPath, thumbUrl,
-    width: originalResult.width, height: originalResult.height
+    originalPath: glowUpData.inputImageStoragePath,
+    originalUrl: glowUpData.inputImageUrl,
+    thumbPath: thumbPath,
+    thumbUrl: thumbUrl,
+    width: thumbResult.width,
+    height: thumbResult.height,
   };
 
-  // 5. The display image is the GlowUp output (re-using existing storage paths)
+  // 6. The display image is the GlowUp output
   const displayImage: ImageDetails = {
     originalPath: glowUpData.storagePath!,
     originalUrl: glowUpData.outputImageUrl!,
@@ -370,7 +365,7 @@ export const createInventoryItemFromGlowUp = async (
     thumbUrl: glowUpData.outputThumbUrl!,
   };
 
-  // 6. Set up initial data and keywords
+  // 7. Set up initial data and keywords
   const itemDataForKeywords = {
     title: 'New Item from Glow-Up',
     type: 'Apparel',
@@ -378,7 +373,7 @@ export const createInventoryItemFromGlowUp = async (
   };
   const searchKeywords = generateSearchKeywords(itemDataForKeywords);
 
-  // 7. Create the final inventory document
+  // 8. Create the final inventory document
   const finalItemData: Omit<InventoryItem, 'id'> = {
     ...itemDataForKeywords,
     ownerId: user.uid,
@@ -452,5 +447,3 @@ export const deleteInventoryItem = async (
 
   await Promise.all(deletionPromises);
 };
-
-    
