@@ -42,15 +42,26 @@ export const useOutfits = (userId: string | null) => {
   const firestore = useFirestore();
   const q = useMemo(() => {
     if (!userId || !firestore) return null;
+    // We only filter by ownerId to avoid needing a composite index. Sorting is handled on the client.
     return query(
       collection(firestore, 'outfits'),
-      where('ownerId', '==', userId),
-      orderBy('createdAt', 'desc')
+      where('ownerId', '==', userId)
     );
   }, [userId, firestore]);
   
-  const { data: outfits, loading, error } = useCollection<Outfit>(q, 'outfits');
-  return { outfits, loading, error };
+  const { data, loading, error } = useCollection<Outfit>(q, 'outfits');
+  
+  // Sort the outfits on the client-side after fetching
+  const sortedOutfits = useMemo(() => {
+    if (!data) return null;
+    return [...data].sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return timeB - timeA; // Newest first
+    });
+  }, [data]);
+
+  return { outfits: sortedOutfits, loading, error };
 };
 
 // Hook to get a single outfit document
