@@ -918,10 +918,8 @@ function FontSelectField({ control, name, label, placeholder, fonts }: any) {
 
 // --- Preview Panel ---
 function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
-  const getFontFamily = (fontName: string | undefined) => {
-    return (
-      fontOptions.find((f) => f.name === fontName)?.family || 'Inter, sans-serif'
-    );
+  const getFontFamily = (fontName: string | undefined, defaultFamily: string) => {
+    return fontOptions.find((f) => f.name === fontName)?.family || defaultFamily;
   };
 
   const renderValue = (
@@ -971,13 +969,13 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
           <div>
             <h3
               className="text-lg font-bold"
-              style={{ fontFamily: getFontFamily(values.primaryFont) }}
+              style={{ fontFamily: getFontFamily(values.primaryFont, 'Poppins, sans-serif') }}
             >
               {values.brandName || 'Your Brand Name'}
             </h3>
             <p
               className="text-sm text-muted-foreground"
-              style={{ fontFamily: getFontFamily(values.secondaryFont) }}
+              style={{ fontFamily: getFontFamily(values.secondaryFont, "'Cormorant Garamond', serif") }}
             >
               {values.tagline || 'Your tagline'}
             </p>
@@ -1017,7 +1015,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
               Primary Font
             </p>
             {renderValue(values.primaryFont, 'Not set', {
-              fontFamily: getFontFamily(values.primaryFont),
+              fontFamily: getFontFamily(values.primaryFont, 'Poppins, sans-serif'),
             })}
           </div>
           <div className="flex justify-between items-center gap-4">
@@ -1025,7 +1023,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
               Secondary Font
             </p>
             {renderValue(values.secondaryFont, 'Not set', {
-              fontFamily: getFontFamily(values.secondaryFont),
+              fontFamily: getFontFamily(values.secondaryFont, "'Cormorant Garamond', serif"),
             })}
           </div>
         </div>
