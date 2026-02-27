@@ -147,6 +147,25 @@
             }
           }
         },
+        "originalImageDetails": {
+            "type": "object",
+            "description": "Stores the details of the original image if it has been replaced by a Glow-Up.",
+            "properties": {
+                "originalPath": { "type": "string" },
+                "originalUrl": { "type": "string", "format": "uri" },
+                "thumbPath": { "type": "string" },
+                "thumbUrl": { "type": "string", "format": "uri" }
+            }
+        },
+        "glowUpId": {
+            "type": "string",
+            "description": "The ID of the GlowUp record associated with this item."
+        },
+        "glowedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "The timestamp when the item was last 'glowed up'."
+        },
         "searchKeywords": {
           "type": "array",
           "items": {
@@ -360,6 +379,51 @@
         }
       },
       "required": ["createdAt", "intensity", "goal", "platform", "ideas"]
+    },
+    "GlowUp": {
+      "title": "Glow-Up Record",
+      "description": "Represents a record of an AI image enhancement.",
+      "type": "object",
+      "properties": {
+        "sourceType": {
+          "type": "string",
+          "enum": ["rackItem", "directUpload"]
+        },
+        "sourceId": {
+          "type": "string",
+          "description": "The ID of the source document (e.g., rackItemId)."
+        },
+        "inputImageUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "outputImageUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "outputThumbUrl": {
+          "type": "string",
+          "format": "uri"
+        },
+        "storagePath": {
+          "type": "string"
+        },
+        "thumbStoragePath": {
+          "type": "string"
+        },
+        "stylePreset": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["processing", "completed", "failed"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["sourceType", "sourceId", "inputImageUrl", "createdAt", "status"]
     }
   },
   "auth": {
@@ -404,6 +468,12 @@
         "$ref": "#/entities/EngagementDrop"
       },
       "description": "Stores a user's daily generated engagement ideas. The {dropId} should be in YYYY-MM-DD format."
+    },
+    "/users/{userId}/glowUps/{glowUpId}": {
+      "schema": {
+        "$ref": "#/entities/GlowUp"
+      },
+      "description": "Stores a record of each AI image enhancement."
     }
   }
 }

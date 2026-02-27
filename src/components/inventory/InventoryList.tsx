@@ -7,7 +7,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInventoryItems, deleteInventoryItem, updateInventoryItem, type InventoryItem, generateSearchKeywords } from '@/lib/inventory';
-import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, RefreshCw, Trash2, XCircle, Search, Loader2, Eye } from 'lucide-react';
+import { AlertTriangle, BadgeCheck, Bot, Cpu, Edit, MoreVertical, RefreshCw, Trash2, XCircle, Search, Loader2, Eye, Wand2 } from 'lucide-react';
 import { useFirestore, useStorage, useUser } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import {
@@ -183,6 +183,12 @@ function ItemCard({ item }: { item: InventoryItem }) {
                     <span>Edit Item</span>
                   </Link>
                 </DropdownMenuItem>
+                 <DropdownMenuItem asChild>
+                  <Link href={`/editor?source=rackItem&id=${item.id}`} className="flex items-center cursor-pointer">
+                    <Wand2 className="mr-2 h-4 w-4" />
+                    <span>{item.glowUpId ? 'Re-Glow It Up' : 'Glow It Up'}</span>
+                  </Link>
+                </DropdownMenuItem>
                 {item.analysis?.status === 'failed' && (
                     <>
                         <DropdownMenuSeparator />
@@ -231,10 +237,15 @@ function ItemCard({ item }: { item: InventoryItem }) {
                         )}
                     </div>
                 )}
-                <div className="border-t pt-2">
+                <div className="border-t pt-2 flex justify-between items-center">
                     <p className="text-xs text-muted-foreground/80">
                         Added {item.createdAt ? formatDistanceToNow(item.createdAt.toDate(), { addSuffix: true }) : 'just now'}
                     </p>
+                    {item.glowUpId && (
+                        <Badge variant="outline" className="text-xs font-medium border-accent/50 text-accent-foreground">
+                            Enhanced
+                        </Badge>
+                    )}
                 </div>
             </div>
         </div>

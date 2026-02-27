@@ -20,8 +20,8 @@ import {
   Send,
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp, query } from "firebase/firestore";
-import { useRouter } from 'next/navigation';
+import { collection, addDoc, serverTimestamp, query, doc, updateDoc, getDoc } from "firebase/firestore";
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
   enhanceImage,
@@ -38,10 +38,11 @@ import {
 } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useStorage, useCollection } from "@/firebase";
+import { useInventoryItem, type InventoryItem } from "@/lib/inventory";
+import { resizeImage } from "@/lib/image-utils";
 
 type CreationType = "single" | "multiple";
 type StyleType = "flat-lay" | "on-model";
@@ -70,7 +71,6 @@ const flatLayPresets: Record<LookPreset, { label: string; description: string }>
   "styled-boutique": { label: "Styled Boutique", description: "Warm, soft shadows, 1 premium accessory" },
   "facebook-sales-post": { label: "Facebook Sales Post", description: "Dynamic & playful, up to 2 accessories" },
   "luxury-editorial": { label: "Luxury Editorial", description: "Artistic, dramatic lighting, premium feel" },
-  // Placeholders for modeled presets
   'minimal-studio-model': { label: '', description: '' },
   'warm-lifestyle-model': { label: '', description: '' },
   'casual-outdoor-model': { label: '', description: '' },
@@ -80,7 +80,6 @@ const modeledPresets: Record<LookPreset, { label: string; description: string }>
   "minimal-studio-model": { label: "Minimal Studio Model", description: "Clean studio background" },
   "warm-lifestyle-model": { label: "Warm Lifestyle Model", description: "Indoor boutique setting" },
   "casual-outdoor-model": { label: "Casual Outdoor Model", description: "Natural light outdoor look" },
-  // Placeholders for flat lay presets
   'clean-catalog': { label: '', description: '' },
   'styled-boutique': { label: '', description: '' },
   'facebook-sales-post': { label: '', description: '' },
@@ -103,8 +102,10 @@ export function GlowUpStudio() {
   const { user } = useUser();
   const firestore = useFirestore();
   const storage = useStorage();
+  
+  const searchParams = useSearchParams();
   const router = useRouter();
-
+  
   const uploadsCollectionPath = React.useMemo(() => (user ? `users/${user.uid}/uploads` : null), [user]);
   const uploadsQuery = React.useMemo(() => {
     if (uploadsCollectionPath && firestore) {
@@ -115,20 +116,55 @@ export function GlowUpStudio() {
   const { data: existingUploads } = useCollection(uploadsQuery, uploadsCollectionPath);
 
 
+  // --- Main State ---
   const [originalImages, setOriginalImages] = React.useState<string[]>([]);
   const [enhancedImage, setEnhancedImage] = React.useState<string | null>(null);
   const [progress, setProgress] = React.useState(0);
   const [step, setStep] = React.useState<Step>("selectCreationType");
+  const [isSaving, setIsSaving] = React.useState(false);
+
+  // --- Workflow State ---
   const [creationType, setCreationType] = React.useState<CreationType | null>(null);
   const [styleType, setStyleType] = React.useState<StyleType | null>(null);
   const [lookPreset, setLookPreset] = React.useState<LookPreset | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  
+  // --- Generation State ---
   const [generationMode, setGenerationMode] = React.useState<GenerationMode>(null);
   const [isInstantGlowUp, setIsInstantGlowUp] = React.useState(false);
+  
+  // --- Rack Item Integration State ---
+  const [source, setSource] = React.useState<string | null>(null);
+  const [rackItemId, setRackItemId] = React.useState<string | null>(null);
+  const { item: sourceItem } = useInventoryItem(rackItemId);
+
+
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const afterImageContainerRef = React.useRef<HTMLDivElement>(null);
   
   const isEnhancing = step === "enhancing";
 
+  // --- Effects for Rack Item Integration ---
+  React.useEffect(() => {
+    const sourceParam = searchParams.get('source');
+    const idParam = searchParams.get('id');
+
+    if (sourceParam === 'rackItem' && idParam) {
+      setSource(sourceParam);
+      setRackItemId(idParam);
+    }
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    if (sourceItem && rackItemId && source === 'rackItem') {
+      setOriginalImages([sourceItem.image.originalUrl]);
+      setCreationType("single");
+      setStep("selectStyleType");
+      setEnhancedImage(null);
+    }
+  }, [sourceItem, rackItemId, source]);
+
+
+  // --- Core Functions ---
   const resetWorkflow = () => {
     setOriginalImages([]);
     setEnhancedImage(null);
@@ -138,9 +174,16 @@ export function GlowUpStudio() {
     setStep("selectCreationType");
     setGenerationMode(null);
     setIsInstantGlowUp(false);
+    
+    // Reset rack item context
+    setSource(null);
+    setRackItemId(null);
+    
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+    // Clear URL params without reloading
+    router.replace('/editor');
   };
 
   const triggerFileInput = () => {
@@ -182,7 +225,6 @@ export function GlowUpStudio() {
     const filesToProcess = Array.from(files);
     const allUrlsToAdd: string[] = [];
 
-    // Check for existing uploads first
     const filesToUpload: File[] = [];
     for (const file of filesToProcess) {
         const existingImage = existingUploads?.find(upload => upload.originalName === file.name && upload.size === file.size);
@@ -194,19 +236,16 @@ export function GlowUpStudio() {
         }
     }
     
-    // Read and upload new files
     if (filesToUpload.length > 0) {
         toast({ title: 'Uploading new image(s)...', description: 'Your new files are being securely saved.' });
         try {
             const uploadedUrls = await Promise.all(
                 filesToUpload.map(async (file) => {
-                    // Upload to storage
                     const storagePath = `uploads/${user.uid}/${Date.now()}-${file.name}`;
                     const storageRef = ref(storage, storagePath);
                     await uploadBytes(storageRef, file);
                     const downloadURL = await getDownloadURL(storageRef);
 
-                    // Save metadata to Firestore
                     await addDoc(collection(firestore, `users/${user.uid}/uploads`), {
                         uid: user.uid,
                         email: user.email,
@@ -219,7 +258,6 @@ export function GlowUpStudio() {
                         isEnhanced: false,
                     });
                     
-                    // Return the data URL for immediate preview
                     return new Promise<string>((resolve, reject) => {
                         const reader = new FileReader();
                         reader.onload = () => resolve(reader.result as string);
@@ -232,7 +270,7 @@ export function GlowUpStudio() {
                 })
             );
             allUrlsToAdd.push(...uploadedUrls);
-            toast({ title: 'Upload complete!', description: 'You can now style your new image(s).' });
+            toast({ title: 'Upload complete!', description: 'You can now style your new new image(s).' });
         } catch (error: any) {
             console.error("Error handling files:", error);
             toast({ variant: "destructive", title: "Upload failed", description: error.message || "There was an error saving your files. Please try again." });
@@ -269,14 +307,7 @@ export function GlowUpStudio() {
   const handleSelectCreationType = (type: CreationType) => {
     setCreationType(type);
     setStep("upload");
-
-    //must be inside the user's click event (no setTimeout), or some browsers block it.
-  
-    // MUST fire immediately inside user click
-    if (fileInputRef.current) {
-      fileInputRef.current.value = ""; //alows re-selecting same file
-      fileInputRef.current.click();
-    }
+    triggerFileInput();
   };
   
   const handleSelectStyleType = (type: StyleType) => {
@@ -301,7 +332,7 @@ export function GlowUpStudio() {
       await uploadBytes(storageRef, blob);
       const downloadURL = await getDownloadURL(storageRef);
   
-      const uploadDoc = {
+      await addDoc(collection(firestore, `users/${user.uid}/uploads`), {
         uid: user.uid,
         email: user.email,
         storagePath,
@@ -311,9 +342,7 @@ export function GlowUpStudio() {
         size: blob.size,
         createdAt: serverTimestamp(),
         isEnhanced: true,
-      };
-  
-      await addDoc(collection(firestore, `users/${user.uid}/uploads`), uploadDoc);
+      });
     } catch (error) {
       console.error('Error saving enhanced image:', error);
       toast({
@@ -354,27 +383,24 @@ export function GlowUpStudio() {
         setEnhancedImage(fallbackUrl);
         localStorage.setItem('lastEnhancedImageURL', fallbackUrl);
 
-        if (creationType === 'multiple') {
-          toast({
-            title: "Instant Mode can't create true outfits yet.",
-            description: "Tap 'Try AI Again' for our AI Studio Mode to combine items.",
-          });
-        } else {
-          toast({
-            title: 'AI Studio is busy',
-            description: 'Using Instant Glow-Up for now. You can try again later.',
-          });
-        }
+        toast({
+          title: 'AI Studio is busy',
+          description: 'Using Instant Glow-Up for now. You can try again later.',
+        });
       } else {
         setGenerationMode('ai');
         setIsInstantGlowUp(false);
         setEnhancedImage(result.enhancedImageDataUri);
         localStorage.setItem('lastEnhancedImageURL', result.enhancedImageDataUri);
 
-        // Save the image and update toast on success
-        setProgress(98);
-        await saveEnhancedImage(result.enhancedImageDataUri);
-        toast({ title: "Glow-up complete!", description: "Your new image has been saved to your library." });
+        // For non-rack-item flows, save to general uploads
+        if (source !== 'rackItem') {
+            setProgress(98);
+            await saveEnhancedImage(result.enhancedImageDataUri);
+            toast({ title: "Glow-up complete!", description: "Your new image has been saved to your library." });
+        } else {
+            toast({ title: "Glow-up complete!", description: "Your new image is ready to be saved to your rack." });
+        }
       }
       
       clearInterval(interval);
@@ -383,7 +409,6 @@ export function GlowUpStudio() {
       setTimeout(() => {
         afterImageContainerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }, 100);
-
 
     } catch (error) {
       clearInterval(interval);
@@ -398,6 +423,91 @@ export function GlowUpStudio() {
       });
     }
   };
+  
+  const handleReplaceRackImage = async () => {
+    if (!enhancedImage || !rackItemId || !user || !firestore || !storage || !styleType || !lookPreset) return;
+    
+    setIsSaving(true);
+    toast({ title: "Updating your rack...", description: "Please wait while we save the new image." });
+    
+    try {
+        // 1. Create GlowUp Doc
+        const glowUpRef = doc(collection(firestore, `users/${user.uid}/glowUps`));
+        await setDoc(glowUpRef, {
+            sourceType: 'rackItem',
+            sourceId: rackItemId,
+            inputImageUrl: sourceItem?.image.originalUrl,
+            status: 'processing',
+            createdAt: serverTimestamp(),
+            stylePreset: `${styleType}/${lookPreset}`
+        });
+
+        // 2. Prepare images for upload
+        const blob = dataURIToBlob(enhancedImage);
+        const file = new File([blob], `glow-up-${glowUpRef.id}.png`, { type: 'image/png' });
+        const thumbResult = await resizeImage(file, 400);
+
+        // 3. Upload images
+        const storagePath = `glowUps/${user.uid}/${glowUpRef.id}/original.png`;
+        const thumbStoragePath = `glowUps/${user.uid}/${glowUpRef.id}/thumb.png`;
+        const storageRef = ref(storage, storagePath);
+        const thumbStorageRef = ref(storage, thumbStoragePath);
+
+        await Promise.all([
+            uploadBytes(storageRef, blob),
+            uploadBytes(thumbStorageRef, thumbResult.blob),
+        ]);
+        
+        const [outputImageUrl, outputThumbUrl] = await Promise.all([
+            getDownloadURL(storageRef),
+            getDownloadURL(thumbStorageRef),
+        ]);
+
+        // 4. Update GlowUp Doc with URLs
+        await updateDoc(glowUpRef, {
+            status: 'completed',
+            outputImageUrl,
+            outputThumbUrl,
+            storagePath,
+            thumbStoragePath,
+        });
+        
+        // 5. Update Rack Item
+        const rackItemRef = doc(firestore, 'inventory', rackItemId);
+        const rackItemSnap = await getDoc(rackItemRef);
+        const currentData = rackItemSnap.data() as InventoryItem;
+
+        const updateData: Partial<InventoryItem> & { updatedAt: any } = {
+            image: { // New glow-up image becomes the main image
+                originalPath: storagePath,
+                originalUrl: outputImageUrl,
+                thumbPath: thumbStoragePath,
+                thumbUrl: outputThumbUrl,
+                width: thumbResult.width, // We might not know original glowup size
+                height: thumbResult.height,
+            },
+            glowUpId: glowUpRef.id,
+            glowedAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+        };
+
+        // Preserve the original image if this is the first glow-up
+        if (!currentData.originalImageDetails) {
+            updateData.originalImageDetails = currentData.image;
+        }
+
+        await updateDoc(rackItemRef, updateData);
+
+        toast({ title: "My Rack Updated!", description: "The new image has been saved." });
+        router.push('/inventory');
+
+    } catch (error: any) {
+        console.error("Failed to replace rack image:", error);
+        toast({ variant: 'destructive', title: "Update Failed", description: error.message });
+    } finally {
+        setIsSaving(false);
+    }
+  }
 
   const handleDownload = async () => {
     if (!enhancedImage) return;
@@ -428,6 +538,8 @@ export function GlowUpStudio() {
       router.push('/post-creator');
     }
   };
+  
+  // --- Render Functions & Components ---
   
   const GenerationStatusBadge = () => {
     if (!generationMode || (step !== 'enhancing' && step !== 'done')) return null;
@@ -531,7 +643,7 @@ export function GlowUpStudio() {
   const currentPresets = styleType === 'flat-lay' ? flatLayPresets : modeledPresets;
 
   const UploadedImagesPreview = () => {
-    if (step === 'selectCreationType') {
+    if (step === 'selectCreationType' || source === 'rackItem') {
       return null;
     }
 
@@ -602,6 +714,8 @@ export function GlowUpStudio() {
       <div className="mt-10 flex flex-col items-center max-w-3xl mx-auto">
         <div className="text-center mb-6">
             <h2 className="text-2xl font-headline font-semibold">{
+                source === 'rackItem' && step === 'selectStyleType' ? '1. Select Style Type' :
+                source === 'rackItem' && step === 'selectLookPreset' ? '2. Select Look & Feel' :
                 step === 'selectCreationType' ? '1. Select Creation Type' :
                 step === 'upload' ? '1. Select Creation Type' :
                 step === 'selectStyleType' ? '2. Select Style Type' :
@@ -611,7 +725,7 @@ export function GlowUpStudio() {
             <p className="text-muted-foreground">{getCardDescription()}</p>
         </div>
         
-        {step === "selectCreationType" && (
+        {step === "selectCreationType" && source !== 'rackItem' && (
           <div className="flex flex-col sm:flex-row gap-4 w-full">
             <ChoiceButton onClick={() => handleSelectCreationType("single")} icon={<Shirt className="h-6 w-6" />} label="Single Item" description="Enhance one main product." isSelected={creationType === "single"} />
             <ChoiceButton onClick={() => handleSelectCreationType("multiple")} icon={<Users className="h-6 w-6" />} label="Multiple Items" description="Style a complete outfit." isSelected={creationType === "multiple"} />
@@ -642,16 +756,25 @@ export function GlowUpStudio() {
           </div>
         )}
 
-        {(step === 'selectLookPreset' || step === 'done' || step === 'enhancing') && (
-          <div className="mt-8 flex flex-col items-center gap-4">
-             <GenerationStatusBadge />
+        <div className="mt-8 flex flex-col items-center gap-4">
+            <GenerationStatusBadge />
             {step === 'selectLookPreset' && lookPreset && (
-              <Button type="submit" size="lg" className="font-semibold text-lg py-7 px-8 rounded-full" disabled={isEnhancing} onClick={handleEnhance}>
+            <Button type="submit" size="lg" className="font-semibold text-lg py-7 px-8 rounded-full" disabled={isEnhancing} onClick={handleEnhance}>
                 {isEnhancing ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Wand2 className="mr-3 h-6 w-6" />}
-                 {isEnhancing ? "Generating..." : "Generate Glow-Up"}
-              </Button>
+                {isEnhancing ? "Generating..." : "Generate Glow-Up"}
+            </Button>
             )}
-            {step === 'done' && (
+            {step === 'done' && source === 'rackItem' ? (
+                <div className="flex flex-wrap justify-center gap-4">
+                    <Button onClick={handleReplaceRackImage} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full" disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Save className="mr-3 h-6 w-6" />}
+                        Replace Rack Image
+                    </Button>
+                    <Button size="lg" variant="outline" onClick={() => router.push('/inventory')} className="font-semibold text-lg py-7 px-8 rounded-full">
+                        Keep Original
+                    </Button>
+                </div>
+            ) : step === 'done' && (
               <div className="flex flex-wrap justify-center gap-4">
                 {generationMode === 'instant' && (
                   <Button onClick={handleEnhance} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
@@ -670,10 +793,9 @@ export function GlowUpStudio() {
                 </Button>
               </div>
             )}
-           </div>
-        )}
+        </div>
 
-        {step === 'upload' && originalImages.length === 0 && (
+        {step === 'upload' && originalImages.length === 0 && source !== 'rackItem' && (
           <div className="text-center text-muted-foreground animate-pulse p-8">
             <p>Waiting for you to select your image(s)...</p>
           </div>

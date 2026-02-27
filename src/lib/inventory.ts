@@ -43,6 +43,14 @@ export interface InventoryItem extends DocumentData {
     width?: number;
     height?: number;
   };
+  originalImageDetails?: {
+    originalPath: string;
+    originalUrl: string;
+    thumbPath: string;
+    thumbUrl: string;
+  };
+  glowUpId?: string;
+  glowedAt?: any;
   analysis?: AnalyzeInventoryImageOutput & {
     status: 'pending' | 'complete' | 'failed';
     error?: string;
