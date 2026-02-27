@@ -24,7 +24,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 const outfitFormSchema = z.object({
   title: z.string().min(1, { message: 'Title is required.' }),
   notes: z.string().optional(),
-  status: z.enum(['draft', 'ready']).optional(),
+  status: z.enum(['draft', 'published']).optional(),
 });
 
 type OutfitFormValues = z.infer<typeof outfitFormSchema>;
@@ -120,7 +120,7 @@ export function OutfitForm({ mode, outfit, onSave }: OutfitFormProps) {
                         </FormControl>
                         <SelectContent>
                             <SelectItem value="draft">Draft</SelectItem>
-                            <SelectItem value="ready">Ready</SelectItem>
+                            <SelectItem value="published">Published</SelectItem>
                         </SelectContent>
                     </Select>
                     <FormMessage />

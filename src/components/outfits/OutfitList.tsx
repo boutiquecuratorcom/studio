@@ -88,7 +88,7 @@ function OutfitCard({ outfit }: { outfit: Outfit }) {
             </div>
         </CardContent>
         <CardFooter>
-            <Badge variant={outfit.status === 'ready' ? 'default' : 'secondary'}>{outfit.status}</Badge>
+            <Badge variant={outfit.status === 'published' ? 'default' : 'secondary'}>{outfit.status}</Badge>
         </CardFooter>
       </Card>
 

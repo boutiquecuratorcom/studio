@@ -457,7 +457,7 @@
           "items": {
             "type": "string"
           },
-          "description": "An array of inventory item IDs linked to this outfit."
+          "description": "An array of inventory item IDs linked to this outfit. Prevents duplicates."
         },
         "cover": {
           "type": "object",
@@ -505,7 +505,7 @@
           "type": "string",
           "enum": [
             "draft",
-            "ready"
+            "published"
           ]
         },
         "createdAt": {

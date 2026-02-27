@@ -7,7 +7,7 @@ export default function CreateOutfitPage() {
   const router = useRouter();
 
   const handleSuccess = (outfitId: string) => {
-    router.push('/outfits');
+    router.push(`/outfits/view/${outfitId}`);
   };
 
   return (
@@ -17,7 +17,7 @@ export default function CreateOutfitPage() {
           Create New Outfit
         </h1>
         <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
-          Give your new look a title and some notes.
+          Give your new look a title and some notes to get started.
         </p>
       </header>
       <OutfitForm mode="create" onSave={handleSuccess} />

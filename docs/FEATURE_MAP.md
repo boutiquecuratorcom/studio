@@ -148,7 +148,7 @@ These routes exist but contain no functional logic. They are stubs for future fe
 
 ### 10. Outfits
 
-A feature for creating, viewing, and managing styled outfits.
+A feature for creating, viewing, and managing styled outfits from a user's inventory.
 
 | Property | Value |
 | --- | --- |
@@ -157,7 +157,7 @@ A feature for creating, viewing, and managing styled outfits.
 | **Main Component(s)** | `src/app/(app)/outfits/**/*.tsx`, `src/components/outfits/OutfitList.tsx`, `src/components/outfits/OutfitForm.tsx` |
 | **Firestore Collections**| `outfits/{outfitId}` |
 | **Storage Paths** | None (at this time) |
-| **Dependencies** | Firebase Authentication |
-| **Notes** | A full CRUD interface for outfits. Currently only supports title, notes, and status. Linking items and cover images are placeholders for future implementation. |
+| **Dependencies** | Firebase Authentication, My Rack |
+| **Notes** | A full CRUD interface for outfits. Creating an outfit navigates to the detail page. Users can upload photos of new items, which are then added to "My Rack" and automatically linked to the outfit. |
 
 ---

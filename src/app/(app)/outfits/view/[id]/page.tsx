@@ -1,12 +1,12 @@
 'use client';
 
-import { useParams, useRouter } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import { useOutfit } from '@/lib/outfits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, ServerCrash, FileQuestion, UserX, Layers } from 'lucide-react';
+import { AlertTriangle, ServerCrash, FileQuestion, UserX, Layers, UploadCloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
@@ -87,7 +87,7 @@ export default function ViewOutfitPage() {
             <CardContent className="space-y-4">
                 <div>
                     <p className="text-sm font-medium text-muted-foreground">Status</p>
-                    <Badge variant={outfit.status === 'ready' ? 'default' : 'secondary'}>{outfit.status}</Badge>
+                    <Badge variant={outfit.status === 'published' ? 'default' : 'secondary'}>{outfit.status}</Badge>
                 </div>
                 {outfit.notes && (
                     <div>
@@ -100,15 +100,29 @@ export default function ViewOutfitPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Layers className="h-5 w-5" />
-                Linked Rack Items
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                    <Layers className="h-5 w-5" />
+                    Linked Rack Items
+                </div>
+                <Button asChild variant="outline">
+                    <Link href={`/inventory/add?source=outfit&outfitId=${outfit.id}`}>
+                        <UploadCloud className="mr-2 h-4 w-4" />
+                        Upload New Item
+                    </Link>
+                </Button>
               </CardTitle>
               <CardDescription>Items that make up this outfit.</CardDescription>
             </CardHeader>
             <CardContent>
                 {outfit.linkedRackItemIds.length > 0 ? (
-                     <p>Linked items will be shown here.</p>
+                     <div className="space-y-2">
+                        <p className="text-sm text-muted-foreground">This outfit contains {outfit.linkedRackItemIds.length} item(s).</p>
+                        {/* Placeholder for item cards */}
+                        <ul className="list-disc list-inside text-xs font-mono text-muted-foreground">
+                            {outfit.linkedRackItemIds.map(itemId => <li key={itemId}>{itemId}</li>)}
+                        </ul>
+                     </div>
                 ) : (
                     <p className="text-sm text-muted-foreground">No items have been linked to this outfit yet.</p>
                 )}

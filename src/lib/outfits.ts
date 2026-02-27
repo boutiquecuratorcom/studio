@@ -9,6 +9,7 @@ import {
   updateDoc,
   deleteDoc,
   serverTimestamp,
+  arrayUnion,
   type DocumentData,
   type Firestore,
 } from 'firebase/firestore';
@@ -32,7 +33,7 @@ export interface Outfit extends DocumentData {
     type: "rack" | "upload" | "mixed";
     inputUploadIds: string[];
   };
-  status: "draft" | "ready";
+  status: "draft" | "published";
   createdAt: any;
   updatedAt: any;
 }
@@ -109,13 +110,26 @@ export const createOutfit = async (
 export const updateOutfit = async (
   firestore: Firestore,
   outfitId: string,
-  data: Partial<{ title: string; notes: string; status: "draft" | "ready" }>
+  data: Partial<{ title: string; notes: string; status: "draft" | "published" }>
 ) => {
   const outfitRef = doc(firestore, 'outfits', outfitId);
   await updateDoc(outfitRef, {
     ...data,
     updatedAt: serverTimestamp(),
   });
+};
+
+// Function to link a rack item to an outfit
+export const linkRackItemToOutfit = async (
+    firestore: Firestore,
+    outfitId: string,
+    itemId: string
+) => {
+    const outfitRef = doc(firestore, 'outfits', outfitId);
+    await updateDoc(outfitRef, {
+        linkedRackItemIds: arrayUnion(itemId),
+        updatedAt: serverTimestamp(),
+    });
 };
 
 // Function to delete an outfit
