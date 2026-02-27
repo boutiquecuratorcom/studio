@@ -393,6 +393,10 @@
           "type": "string",
           "description": "The ID of the source document (e.g., rackItemId)."
         },
+        "linkedRackItemId": {
+            "type": ["string", "null"],
+            "description": "If this GlowUp has been assigned to a rack item, this is its ID."
+        },
         "inputImageUrl": {
           "type": "string",
           "format": "uri"
