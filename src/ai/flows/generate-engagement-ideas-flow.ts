@@ -13,7 +13,7 @@ import { z } from 'zod';
 
 // --- Input Schemas ---
 
-const BrandProfileSchema = z.object({
+export const BrandProfileSchema = z.object({
   brandName: z.string().optional(),
   tagline: z.string().optional(),
   toneOfVoice: z.string().optional(),

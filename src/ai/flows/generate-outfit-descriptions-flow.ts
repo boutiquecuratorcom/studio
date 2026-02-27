@@ -5,7 +5,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { BrandProfile } from './generate-engagement-ideas-flow';
+import { BrandProfileSchema, type BrandProfile } from './generate-engagement-ideas-flow';
 
 // --- Input Schemas ---
 
@@ -23,7 +23,7 @@ export type SimplifiedItem = z.infer<typeof SimplifiedItemSchema>;
 
 const GenerateOutfitDescriptionsInputSchema = z.object({
   items: z.array(SimplifiedItemSchema).min(2),
-  brandProfile: BrandProfile.optional(),
+  brandProfile: BrandProfileSchema.optional(),
 });
 export type GenerateOutfitDescriptionsInput = z.infer<typeof GenerateOutfitDescriptionsInputSchema>;
 
