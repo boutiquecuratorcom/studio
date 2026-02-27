@@ -21,7 +21,7 @@ import {
   Send,
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp, query, doc, updateDoc, getDoc, FirestoreError } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, doc, updateDoc, getDoc, FirestoreError, setDoc } from "firebase/firestore";
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
@@ -883,7 +883,3 @@ export function GlowUpStudio() {
     </Card>
   );
 }
-
-    
-
-    
