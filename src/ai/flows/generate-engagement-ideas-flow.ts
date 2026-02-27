@@ -10,21 +10,9 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
+import { BrandProfileSchema, type BrandProfile } from './schemas';
 
 // --- Input Schemas ---
-
-export const BrandProfileSchema = z.object({
-  brandName: z.string().optional(),
-  tagline: z.string().optional(),
-  toneOfVoice: z.string().optional(),
-  brandVibe: z.string().optional(),
-  targetCustomer: z.string().optional(),
-  primaryGoal: z.string().optional(),
-  primaryPlatform: z.string().optional(),
-  promoStyle: z.string().optional(),
-});
-export type BrandProfile = z.infer<typeof BrandProfileSchema>;
-
 
 const EngagementSettingsSchema = z.object({
   intensity: z.enum(['Safe', 'Bold', 'Viral']),

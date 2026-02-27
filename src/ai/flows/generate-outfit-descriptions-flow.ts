@@ -5,7 +5,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'zod';
-import { BrandProfileSchema, type BrandProfile } from './generate-engagement-ideas-flow';
+import { BrandProfileSchema, type BrandProfile } from './schemas';
 
 // --- Input Schemas ---
 
