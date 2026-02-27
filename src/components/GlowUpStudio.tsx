@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -20,7 +21,7 @@ import {
   Send,
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
-import { collection, addDoc, serverTimestamp, query, doc, updateDoc, getDoc } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, doc, updateDoc, getDoc, FirestoreError } from "firebase/firestore";
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
@@ -41,8 +42,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useStorage, useCollection } from "@/firebase";
-import { useInventoryItem, type InventoryItem } from "@/lib/inventory";
+import { type InventoryItem } from "@/lib/inventory";
 import { resizeImage } from "@/lib/image-utils";
+import { FirestorePermissionError } from "@/firebase/errors";
+import { errorEmitter } from "@/firebase/error-emitter";
 
 type CreationType = "single" | "multiple";
 type StyleType = "flat-lay" | "on-model";
@@ -99,7 +102,7 @@ const dataURIToBlob = (dataURI: string) => {
 
 export function GlowUpStudio() {
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
   const storage = useStorage();
   
@@ -134,9 +137,9 @@ export function GlowUpStudio() {
   
   // --- Rack Item Integration State ---
   const [source, setSource] = React.useState<string | null>(null);
-  const [rackItemId, setRackItemId] = React.useState<string | null>(null);
-  const { item: sourceItem, loading: sourceItemLoading, error: sourceItemError } = useInventoryItem(rackItemId);
-
+  const [sourceItem, setSourceItem] = React.useState<InventoryItem | null>(null);
+  const [sourceItemLoading, setSourceItemLoading] = React.useState(true);
+  const [sourceItemError, setSourceItemError] = React.useState<FirestoreError | null>(null);
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const afterImageContainerRef = React.useRef<HTMLDivElement>(null);
@@ -155,7 +158,10 @@ export function GlowUpStudio() {
     
     // Reset rack item context
     setSource(null);
-    setRackItemId(null);
+    setSourceItem(null);
+    setSourceItemLoading(true);
+    setSourceItemError(null);
+
     
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -169,17 +175,59 @@ export function GlowUpStudio() {
     const sourceParam = searchParams.get('source');
     const idParam = searchParams.get('id');
 
+    // This effect will only run when dependencies change, including user loading state
     if (sourceParam === 'rackItem' && idParam) {
       setSource(sourceParam);
-      setRackItemId(idParam);
       setCreationType("single");
       setStep("upload"); // Use 'upload' as an intermediate "loading" state
+
+      const fetchItem = async () => {
+        // Wait for dependencies
+        if (!firestore || !idParam || userLoading) {
+          return;
+        }
+
+        setSourceItemLoading(true);
+        setSourceItemError(null);
+
+        try {
+          const decodedId = decodeURIComponent(idParam);
+          const itemRef = doc(firestore, 'inventory', decodedId);
+          const docSnap = await getDoc(itemRef);
+
+          if (docSnap.exists()) {
+            const data = { id: docSnap.id, ...docSnap.data() } as InventoryItem;
+             // Security check: ensure the item belongs to the current user
+            if (data.ownerId === user?.uid) {
+              setSourceItem(data);
+            } else {
+              throw new FirestoreError('permission-denied', 'You do not have permission to access this item.');
+            }
+          } else {
+            setSourceItem(null);
+          }
+        } catch (e: any) {
+          setSourceItemError(e);
+          if (e.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+              path: `inventory/${idParam}`,
+              operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+          }
+        } finally {
+          setSourceItemLoading(false);
+        }
+      };
+
+      fetchItem();
+    } else {
+      setSourceItemLoading(false);
     }
-  }, [searchParams]);
+  }, [searchParams, firestore, user, userLoading]);
 
   React.useEffect(() => {
-    // This effect handles the transition once the source item is loaded or fails to load.
-    // It watches for the loading to be `false`.
+    // This separate effect handles the UI transition once loading is complete
     if (source === 'rackItem' && !sourceItemLoading) {
       if (sourceItem) {
         // Success case: Item loaded.
@@ -440,7 +488,7 @@ export function GlowUpStudio() {
   };
   
   const handleReplaceRackImage = async () => {
-    if (!enhancedImage || !rackItemId || !user || !firestore || !storage || !styleType || !lookPreset) return;
+    if (!enhancedImage || !sourceItem || !user || !firestore || !storage || !styleType || !lookPreset) return;
     
     setIsSaving(true);
     toast({ title: "Updating your rack...", description: "Please wait while we save the new image." });
@@ -450,7 +498,7 @@ export function GlowUpStudio() {
         const glowUpRef = doc(collection(firestore, `users/${user.uid}/glowUps`));
         await setDoc(glowUpRef, {
             sourceType: 'rackItem',
-            sourceId: rackItemId,
+            sourceId: sourceItem.id,
             inputImageUrl: sourceItem?.image.originalUrl,
             status: 'processing',
             createdAt: serverTimestamp(),
@@ -488,7 +536,7 @@ export function GlowUpStudio() {
         });
         
         // 5. Update Rack Item
-        const rackItemRef = doc(firestore, 'inventory', rackItemId);
+        const rackItemRef = doc(firestore, 'inventory', sourceItem.id);
         const rackItemSnap = await getDoc(rackItemRef);
         const currentData = rackItemSnap.data() as InventoryItem;
 
@@ -835,5 +883,7 @@ export function GlowUpStudio() {
     </Card>
   );
 }
+
+    
 
     
