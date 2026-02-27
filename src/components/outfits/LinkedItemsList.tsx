@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useInventoryItemsByIds, type InventoryItem } from '@/lib/inventory';
-import { AlertTriangle, Trash2, XCircle } from 'lucide-react';
+import { AlertTriangle, Trash2, XCircle, Link as LinkIcon, Link2Off } from 'lucide-react';
 import { useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -22,6 +22,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { Badge } from '../ui/badge';
 
 const LinkedItemCard = ({ item, outfitId }: { item: InventoryItem; outfitId: string }) => {
   const firestore = useFirestore();
@@ -36,6 +37,8 @@ const LinkedItemCard = ({ item, outfitId }: { item: InventoryItem; outfitId: str
       toast({ variant: 'destructive', title: 'Unlink Failed', description: error.message });
     }
   };
+  
+  const hasClaim = item.claim && item.claim.mode !== 'none' && item.claim.url;
 
   return (
     <Card className="overflow-hidden transition-shadow hover:shadow-md w-full">
@@ -50,6 +53,19 @@ const LinkedItemCard = ({ item, outfitId }: { item: InventoryItem; outfitId: str
             <p className="font-semibold leading-snug break-words hover:underline">{item.title}</p>
           </Link>
           <p className="text-sm text-muted-foreground">{item.type}</p>
+          <div className="mt-2 flex items-center gap-2">
+            {hasClaim ? (
+                <Badge variant="secondary" className="text-xs">
+                    <LinkIcon className="h-3 w-3 mr-1.5" />
+                    Claim Set
+                </Badge>
+            ) : (
+                 <Badge variant="destructive" className="text-xs opacity-80">
+                    <Link2Off className="h-3 w-3 mr-1.5" />
+                    No Claim Link
+                </Badge>
+            )}
+          </div>
         </div>
         <AlertDialog>
           <AlertDialogTrigger asChild>

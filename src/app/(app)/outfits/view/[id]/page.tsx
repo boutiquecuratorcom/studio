@@ -6,7 +6,7 @@ import { useInventoryItemsByIds, useOutfit } from '@/lib/outfits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, ServerCrash, FileQuestion, UserX, Layers, UploadCloud, ExternalLink } from 'lucide-react';
+import { ServerCrash, FileQuestion, UserX, Layers, ExternalLink, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
@@ -164,10 +164,22 @@ export default function ViewOutfitPage() {
                     <p className="text-sm font-medium text-muted-foreground">Status</p>
                     <Badge variant={outfit.status === 'published' ? 'default' : 'secondary'}>{outfit.status}</Badge>
                 </div>
-                {outfit.notes && (
+                {outfit.storefrontDescription && (
                     <div>
-                        <p className="text-sm font-medium text-muted-foreground">Notes</p>
-                        <p className="text-foreground whitespace-pre-wrap">{outfit.notes}</p>
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                           Storefront Description
+                           {outfit.descriptionLastGeneratedAt && <Sparkles className="h-4 w-4 text-accent" />}
+                        </p>
+                        <p className="text-foreground whitespace-pre-wrap">{outfit.storefrontDescription}</p>
+                    </div>
+                )}
+                 {outfit.socialCaption && (
+                    <div>
+                        <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                            Social Media Caption
+                            {outfit.descriptionLastGeneratedAt && <Sparkles className="h-4 w-4 text-accent" />}
+                        </p>
+                        <p className="text-foreground whitespace-pre-wrap">{outfit.socialCaption}</p>
                     </div>
                 )}
             </CardContent>
@@ -178,16 +190,9 @@ export default function ViewOutfitPage() {
               <CardTitle className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                     <Layers className="h-5 w-5" />
-                    Linked Rack Items
+                    Linked Rack Items ({outfit.linkedRackItemIds.length})
                 </div>
-                <Button asChild variant="outline">
-                    <Link href={`/inventory/add?source=outfit&outfitId=${outfit.id}`}>
-                        <UploadCloud className="mr-2 h-4 w-4" />
-                        Upload New Item
-                    </Link>
-                </Button>
               </CardTitle>
-              <CardDescription>Items that make up this outfit.</CardDescription>
             </CardHeader>
             <CardContent>
                 {outfit.linkedRackItemIds.length > 0 ? (
@@ -219,5 +224,3 @@ export default function ViewOutfitPage() {
     </div>
   );
 }
-
-    

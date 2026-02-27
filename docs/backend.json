@@ -477,35 +477,20 @@
       "description": "Represents a collection of rack items, potentially with a cover image.",
       "type": "object",
       "properties": {
-        "ownerId": {
-          "type": "string",
-          "description": "The user ID of the outfit's owner."
-        },
-        "title": {
-          "type": "string",
-          "description": "The title of the outfit."
-        },
-        "notes": {
-          "type": "string",
-          "description": "A multi-line description of the outfit for storefronts and posts."
-        },
+        "ownerId": { "type": "string" },
+        "title": { "type": "string" },
+        "internalNotes": { "type": "string" },
+        "storefrontDescription": { "type": "string" },
+        "socialCaption": { "type": "string" },
+        "descriptionLastGeneratedAt": { "type": "string", "format": "date-time" },
         "outfitClaim": {
           "type": "object",
-          "description": "Defines the claim strategy for the entire outfit.",
           "properties": {
-            "mode": {
-              "type": "string",
-              "enum": ["individual", "outfit"],
-              "description": "Determines if claims are handled per-item or for the whole outfit."
-            },
+            "mode": { "type": "string", "enum": ["individual", "outfit"] },
             "claim": {
               "type": "object",
-              "description": "The claim details used if mode is 'outfit'.",
               "properties": {
-                "mode": {
-                  "type": "string",
-                  "enum": ["none", "custom_url", "messenger", "facebook_page", "whatsapp", "sonlet_manual"]
-                },
+                "mode": { "type": "string", "enum": ["none", "custom_url", "messenger", "facebook_page", "whatsapp", "sonlet_manual"] },
                 "url": { "type": ["string", "null"], "format": "uri" },
                 "label": { "type": ["string", "null"] },
                 "updatedAt": { "type": ["string", "null"], "format": "date-time" }
@@ -515,75 +500,24 @@
         },
         "linkedRackItemIds": {
           "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "An array of inventory item IDs linked to this outfit. Prevents duplicates."
+          "items": { "type": "string" }
         },
         "cover": {
           "type": "object",
           "properties": {
-            "imageUrl": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "thumbUrl": {
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "glowUpId": {
-              "type": [
-                "string",
-                "null"
-              ]
-            }
+            "imageUrl": { "type": ["string", "null"] },
+            "thumbUrl": { "type": ["string", "null"] },
+            "storagePath": { "type": ["string", "null"] },
+            "thumbStoragePath": { "type": ["string", "null"] },
+            "source": { "type": "string", "enum": ["ai", "manual"] },
+            "glowUpId": { "type": ["string", "null"] }
           }
         },
-        "source": {
-          "type": "object",
-          "properties": {
-            "type": {
-              "type": "string",
-              "enum": [
-                "rack",
-                "upload",
-                "mixed"
-              ]
-            },
-            "inputUploadIds": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        },
-        "status": {
-          "type": "string",
-          "enum": [
-            "draft",
-            "published"
-          ]
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time"
-        },
-        "updatedAt": {
-          "type": "string",
-          "format": "date-time"
-        }
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
       },
-      "required": [
-        "ownerId",
-        "title",
-        "createdAt",
-        "updatedAt"
-      ]
+      "required": ["ownerId", "title", "createdAt", "updatedAt"]
     }
   },
   "auth": {
@@ -643,5 +577,3 @@
     }
   }
 }
-
-    

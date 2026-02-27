@@ -23,7 +23,7 @@ import { useRouter } from 'next/navigation';
 
 const outfitCreateSchema = z.object({
   title: z.string().min(1, { message: 'Title is required.' }),
-  notes: z.string().optional(),
+  internalNotes: z.string().optional(),
 });
 
 type OutfitCreateFormValues = z.infer<typeof outfitCreateSchema>;
@@ -39,7 +39,7 @@ export default function CreateOutfitPage() {
     resolver: zodResolver(outfitCreateSchema),
     defaultValues: {
       title: '',
-      notes: '',
+      internalNotes: '',
     },
   });
 
@@ -51,7 +51,7 @@ export default function CreateOutfitPage() {
 
     setIsSaving(true);
     try {
-        const newOutfitId = await createOutfit(firestore, user, { title: values.title, notes: values.notes || '' });
+        const newOutfitId = await createOutfit(firestore, user, { title: values.title, internalNotes: values.internalNotes || '' });
         toast({ title: 'Outfit Created!', description: `"${values.title}" has been created.` });
         router.push(`/outfits/edit/${newOutfitId}`);
     } catch (error: any) {
@@ -68,7 +68,7 @@ export default function CreateOutfitPage() {
           Create New Outfit
         </h1>
         <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
-          Give your new look a title and some notes to get started. You&apos;ll add items next.
+          Give your new look a title and some internal notes to get started. You&apos;ll add items and other details next.
         </p>
       </header>
        <Form {...form}>
@@ -88,12 +88,12 @@ export default function CreateOutfitPage() {
             />
             <FormField
             control={form.control}
-            name="notes"
+            name="internalNotes"
             render={({ field }) => (
                 <FormItem>
-                <FormLabel>Description (Optional)</FormLabel>
+                <FormLabel>Internal Notes (Optional)</FormLabel>
                 <FormControl>
-                    <Textarea placeholder="A short description of this outfit..." {...field} />
+                    <Textarea placeholder="Private notes about this outfit..." {...field} />
                 </FormControl>
                 <FormMessage />
                 </FormItem>

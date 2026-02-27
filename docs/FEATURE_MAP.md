@@ -154,10 +154,10 @@ A feature for creating, viewing, and managing styled outfits from a user's inven
 | --- | --- |
 | **Feature Name** | Outfits |
 | **Entry Route(s)** | `/outfits`, `/outfits/create`, `/outfits/view/[id]`, `/outfits/edit/[id]` |
-| **Main Component(s)** | `src/app/(app)/outfits/**/*.tsx`, `src/components/outfits/OutfitList.tsx`, `src/components/outfits/OutfitForm.tsx` |
+| **Main Component(s)** | `src/app/(app)/outfits/**/*.tsx`, `src/components/outfits/OutfitList.tsx`, `src/components/outfits/LinkedItemsList.tsx`, `src/components/outfits/AddItemsFromRackModal.tsx` |
 | **Firestore Collections**| `outfits/{outfitId}` |
-| **Storage Paths** | None (at this time) |
+| **Storage Paths** | `outfits/{outfitId}` (for cover images) |
 | **Dependencies** | Firebase Authentication, My Rack |
-| **Notes** | A full CRUD interface for outfits. Creating an outfit navigates to the detail page. Users can upload photos of new items, which are then added to "My Rack" and automatically linked to the outfit. |
+| **Notes** | Full CRUD interface for outfits. Supports linking existing rack items or creating new ones. Includes AI generation for descriptions and cover images if outfit has 2+ items. |
 
 ---

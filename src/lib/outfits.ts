@@ -31,22 +31,25 @@ export interface Outfit extends DocumentData {
   id: string;
   ownerId: string;
   title: string;
-  notes: string;
+  internalNotes?: string;
+  storefrontDescription?: string;
+  socialCaption?: string;
+  descriptionLastGeneratedAt?: any;
   outfitClaim?: OutfitClaim;
   linkedRackItemIds: string[];
-  cover: {
+  cover?: {
     imageUrl: string | null;
     thumbUrl: string | null;
+    storagePath: string | null;
+    thumbStoragePath: string | null;
+    source: 'ai' | 'manual';
     glowUpId: string | null;
-  };
-  source: {
-    type: "rack" | "upload" | "mixed";
-    inputUploadIds: string[];
   };
   status: "draft" | "published";
   createdAt: any;
   updatedAt: any;
 }
+
 
 export * from './inventory';
 
@@ -93,13 +96,13 @@ export const useOutfit = (outfitId: string | null) => {
 export const createOutfit = async (
   firestore: Firestore,
   user: User,
-  data: { title: string, notes: string }
+  data: { title: string, internalNotes: string }
 ): Promise<string> => {
   const newOutfitRef = doc(collection(firestore, 'outfits'));
   const outfitData: Omit<Outfit, 'id'> = {
     ownerId: user.uid,
     title: data.title,
-    notes: data.notes,
+    internalNotes: data.internalNotes,
     linkedRackItemIds: [],
     outfitClaim: {
         mode: 'individual',
@@ -109,15 +112,6 @@ export const createOutfit = async (
             label: null,
             updatedAt: null,
         }
-    },
-    cover: {
-      imageUrl: null,
-      thumbUrl: null,
-      glowUpId: null,
-    },
-    source: {
-        type: 'mixed',
-        inputUploadIds: [],
     },
     status: 'draft',
     createdAt: serverTimestamp(),
@@ -189,5 +183,3 @@ export const deleteOutfit = async (
 ) => {
   await deleteDoc(doc(firestore, 'outfits', outfitId));
 };
-
-    

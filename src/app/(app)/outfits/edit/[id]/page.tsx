@@ -30,8 +30,8 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useOutfit, updateOutfit, type Outfit, type OutfitClaim, type InventoryItem, useInventoryItemsByIds } from '@/lib/outfits';
-import { useUser, useFirestore, useStorage } from '@/firebase';
+import { useOutfit, updateOutfit, type Outfit, type OutfitClaim, useInventoryItemsByIds } from '@/lib/outfits';
+import { useUser, useFirestore, useStorage, useDoc } from '@/firebase';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -43,9 +43,11 @@ import {
   Save,
   UploadCloud,
   Wand2,
+  Sparkles,
+  Info
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { LinkedItemsList } from '@/components/outfits/LinkedItemsList';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -55,6 +57,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { serverTimestamp } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
+import { generateOutfitDescriptions } from '@/ai/flows/generate-outfit-descriptions-flow';
+import { SimplifiedItem } from '@/ai/flows/generate-outfit-descriptions-flow';
+import { enhanceImage, EnhanceImageInput } from '@/ai/flows/enhance-image-flow';
+import { resizeImage } from '@/lib/image-utils';
 
 const claimMethods = [
   { value: 'none', label: 'None' },
@@ -67,7 +73,9 @@ const claimMethods = [
 
 const outfitFormSchema = z.object({
   title: z.string().min(1, { message: 'Title is required.' }),
-  notes: z.string().optional(),
+  internalNotes: z.string().optional(),
+  storefrontDescription: z.string().optional(),
+  socialCaption: z.string().optional(),
   status: z.enum(['draft', 'published']),
   outfitClaim: z.object({
     mode: z.enum(['individual', 'outfit']),
@@ -91,11 +99,18 @@ export default function EditOutfitPage() {
   const { toast } = useToast();
   
   const { data: outfit, loading, error } = useOutfit(id);
-  const { items: linkedItems } = useInventoryItemsByIds(outfit?.linkedRackItemIds || []);
-
+  const { items: linkedItems, loading: itemsLoading } = useInventoryItemsByIds(outfit?.linkedRackItemIds || []);
+  
+  const brandProfileRef = useMemo(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, `users/${user.uid}/brandProfile/main`);
+  }, [user, firestore]);
+  const { data: brandProfile } = useDoc(brandProfileRef);
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
+  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
@@ -113,7 +128,9 @@ export default function EditOutfitPage() {
     resolver: zodResolver(outfitFormSchema),
     defaultValues: {
       title: '',
-      notes: '',
+      internalNotes: '',
+      storefrontDescription: '',
+      socialCaption: '',
       status: 'draft',
       outfitClaim: defaultOutfitClaim,
     },
@@ -127,7 +144,9 @@ export default function EditOutfitPage() {
     if (outfit) {
       reset({
         title: outfit.title || '',
-        notes: outfit.notes || '',
+        internalNotes: outfit.internalNotes || '',
+        storefrontDescription: outfit.storefrontDescription || '',
+        socialCaption: outfit.socialCaption || '',
         status: outfit.status || 'draft',
         outfitClaim: outfit.outfitClaim || defaultOutfitClaim,
       });
@@ -176,7 +195,6 @@ export default function EditOutfitPage() {
     setIsSaving(true);
     let dataToUpdate: Partial<Outfit> & { 'outfitClaim.claim.updatedAt'?: any } = { ...values };
 
-    // Handle claim timestamp
     const claimHasChanged = JSON.stringify(outfit.outfitClaim?.claim || {}) !== JSON.stringify(values.outfitClaim.claim);
     if (claimHasChanged) {
         dataToUpdate['outfitClaim.claim.updatedAt'] = serverTimestamp();
@@ -191,9 +209,12 @@ export default function EditOutfitPage() {
         const downloadURL = await getDownloadURL(storageRef);
         
         dataToUpdate.cover = {
-            ...(outfit.cover || {}),
             imageUrl: downloadURL,
             thumbUrl: downloadURL, 
+            storagePath: coverPath,
+            thumbStoragePath: coverPath,
+            source: 'manual',
+            glowUpId: null,
         };
         setIsUploading(false);
       }
@@ -208,6 +229,115 @@ export default function EditOutfitPage() {
     }
   };
   
+    const handleGenerateDescriptions = async () => {
+        if (!linkedItems || linkedItems.length < 2) {
+            toast({ variant: 'destructive', title: 'Not enough items', description: 'Add at least 2 items to generate descriptions.'});
+            return;
+        }
+        setIsGeneratingDesc(true);
+        try {
+            const simplifiedItems: SimplifiedItem[] = linkedItems.map(item => ({
+                title: item.title,
+                type: item.type,
+                analysis: item.analysis ? {
+                    dominantColors: item.analysis.dominantColors,
+                    patternType: item.analysis.patternType,
+                    styleVibe: item.analysis.styleVibe,
+                    tags: item.analysis.tags,
+                } : undefined,
+            }));
+
+            const plainBrandProfile = brandProfile ? JSON.parse(JSON.stringify(brandProfile)) : undefined;
+
+            const result = await generateOutfitDescriptions({
+                items: simplifiedItems,
+                brandProfile: plainBrandProfile,
+            });
+
+            setValue('storefrontDescription', result.storefrontDescription, { shouldDirty: true });
+            setValue('socialCaption', result.socialCaption, { shouldDirty: true });
+
+            await updateOutfit(firestore, id, {
+                storefrontDescription: result.storefrontDescription,
+                socialCaption: result.socialCaption,
+                descriptionLastGeneratedAt: serverTimestamp(),
+            });
+
+            toast({ title: 'AI Descriptions Generated!', description: 'Your marketing copy is ready.' });
+        } catch (error: any) {
+            console.error('Failed to generate descriptions:', error);
+            toast({ variant: 'destructive', title: 'Generation Failed', description: error.message });
+        } finally {
+            setIsGeneratingDesc(false);
+        }
+    };
+    
+    const handleGenerateCover = async () => {
+        if (!storage || !firestore || !user || !outfit || !linkedItems || linkedItems.length < 2) {
+            toast({ variant: 'destructive', title: 'Not Ready', description: 'Add at least 2 items with images to generate a cover.'});
+            return;
+        }
+        setIsGeneratingCover(true);
+        try {
+            const imageUris = linkedItems.map(item => item.originalImageDetails?.originalUrl || item.image.originalUrl).filter(Boolean);
+            if (imageUris.length < 2) {
+                throw new Error("Not enough valid original images found on linked items.");
+            }
+
+            const input: EnhanceImageInput = {
+                imageDataUris: imageUris,
+                creationType: 'multiple',
+                styleType: 'flat-lay',
+                lookPreset: 'styled-boutique',
+            };
+            const result = await enhanceImage(input);
+
+            if (result.isFallback || !result.enhancedImageDataUri) {
+                throw new Error("AI studio is busy or failed to generate an image.");
+            }
+
+            const dataUri = result.enhancedImageDataUri;
+            const blob = await (await fetch(dataUri)).blob();
+            const thumbResult = await resizeImage(new File([blob], 'cover.png'), 400);
+
+            const coverPath = `outfits/${outfit.id}/cover-${Date.now()}.png`;
+            const thumbPath = `outfits/${outfit.id}/thumb-${Date.now()}.png`;
+            
+            const coverRef = ref(storage, coverPath);
+            const thumbRef = ref(storage, thumbPath);
+
+            await Promise.all([
+                uploadBytes(coverRef, blob),
+                uploadBytes(thumbRef, thumbResult.blob)
+            ]);
+
+            const [imageUrl, thumbUrl] = await Promise.all([
+                getDownloadURL(coverRef),
+                getDownloadURL(thumbRef)
+            ]);
+            
+            const coverData = {
+                imageUrl,
+                thumbUrl,
+                storagePath: coverPath,
+                thumbStoragePath: thumbPath,
+                source: 'ai' as const,
+                glowUpId: null, // This is an outfit cover, not a single-item glowup
+            };
+
+            await updateOutfit(firestore, outfit.id, { cover: coverData });
+            setCoverImagePreview(imageUrl);
+
+            toast({ title: 'AI Cover Generated!', description: 'Your new outfit cover image has been saved.' });
+        } catch (error: any) {
+             console.error('Failed to generate cover:', error);
+            toast({ variant: 'destructive', title: 'Cover Generation Failed', description: error.message });
+        } finally {
+            setIsGeneratingCover(false);
+        }
+    };
+
+
     const urlPlaceholders: Record<string, string> = {
         messenger: 'e.g., m.me/your-page-name',
         whatsapp: 'e.g., wa.me/1234567890',
@@ -246,6 +376,8 @@ export default function EditOutfitPage() {
     );
   }
 
+  const canGenerate = linkedItems && linkedItems.length >= 2;
+
   return (
     <>
     <AddItemsFromRackModal
@@ -266,54 +398,25 @@ export default function EditOutfitPage() {
                 Outfit Editor
               </h1>
             </div>
-            <Button type="submit" size="lg" disabled={isSaving || isUploading}>
-              {isSaving || isUploading ? (
+            <Button type="submit" size="lg" disabled={isSaving || isUploading || isGeneratingCover || isGeneratingDesc}>
+              {isSaving || isUploading || isGeneratingCover || isGeneratingDesc ? (
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
               ) : (
                 <Save className="mr-2 h-5 w-5" />
               )}
-              {isUploading ? 'Uploading Image...' : isSaving ? 'Saving...' : 'Save Outfit'}
+              {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : isGeneratingCover ? 'Generating...' : isGeneratingDesc ? 'Generating...' : 'Save Outfit'}
             </Button>
           </header>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-            <div className="md:col-span-2 space-y-6">
-              <Card>
-                <CardHeader><CardTitle>Outfit Details</CardTitle></CardHeader>
-                <CardContent className="space-y-6">
-                  <FormField
-                    control={control} name="title"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Outfit Title</FormLabel>
-                        <FormControl>
-                          <Input placeholder="e.g., Spring Floral Casual Set" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={control} name="notes"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Description</FormLabel>
-                        <FormControl>
-                          <Textarea placeholder="A description for your storefront, social media posts, etc." {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </CardContent>
-              </Card>
-
-              <Card>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+            <div className="lg:col-span-2 space-y-6">
+              
+               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2"><Layers className="h-5 w-5" /> Linked Items</CardTitle>
                     <div className="flex items-center gap-2">
-                      <Button asChild variant="outline">
+                      <Button asChild variant="outline" type="button">
                           <Link href={`/inventory/add?source=outfit&outfitId=${outfit.id}`}>
                               <UploadCloud className="mr-2 h-4 w-4" />
                               Upload New Item
@@ -438,10 +541,95 @@ export default function EditOutfitPage() {
                 </CardContent>
               </Card>
 
-            </div>
-            <div className="md:col-span-1 space-y-6 sticky top-12">
               <Card>
-                <CardHeader><CardTitle>Outfit Image</CardTitle></CardHeader>
+                 <CardHeader>
+                    <div className="flex items-start justify-between gap-4">
+                        <div>
+                            <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent" /> AI Marketing Kit</CardTitle>
+                            <CardDescription>Generate descriptions for your storefront and social media.</CardDescription>
+                        </div>
+                         <Button type="button" onClick={handleGenerateDescriptions} disabled={!canGenerate || isGeneratingDesc || itemsLoading}>
+                            {isGeneratingDesc ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                            {isGeneratingDesc ? 'Generating...' : outfit?.descriptionLastGeneratedAt ? 'Re-generate' : 'Generate'}
+                        </Button>
+                    </div>
+                </CardHeader>
+                 <CardContent className="space-y-6">
+                    {!canGenerate ? (
+                        <Alert className="bg-muted/50">
+                            <Info className="h-4 w-4" />
+                            <AlertTitle>Add More Items</AlertTitle>
+                            <AlertDescription>
+                                You need at least 2 linked items in this outfit to generate AI descriptions.
+                            </AlertDescription>
+                        </Alert>
+                    ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                             <FormField
+                                control={control} name="storefrontDescription"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Storefront Description</FormLabel>
+                                    <FormControl>
+                                    <Textarea placeholder="A compelling, product-focused description for an e-commerce storefront..." {...field} rows={6} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={control} name="socialCaption"
+                                render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Social Media Caption</FormLabel>
+                                    <FormControl>
+                                    <Textarea placeholder="A short, punchy, and engaging caption for social media..." {...field} rows={6} />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                                )}
+                            />
+                        </div>
+                    )}
+                 </CardContent>
+              </Card>
+              
+               <Card>
+                <CardHeader><CardTitle>Outfit Details</CardTitle></CardHeader>
+                <CardContent className="space-y-6">
+                  <FormField
+                    control={control} name="title"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Outfit Title</FormLabel>
+                        <FormControl>
+                          <Input placeholder="e.g., Spring Floral Casual Set" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={control} name="internalNotes"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Internal Notes</FormLabel>
+                        <FormControl>
+                          <Textarea placeholder="Private notes about this outfit..." {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </CardContent>
+              </Card>
+
+            </div>
+            <div className="lg:col-span-1 space-y-6 sticky top-12">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Outfit Cover Image</CardTitle>
+                </CardHeader>
                 <CardContent className="space-y-4">
                     <div className="aspect-square w-full relative bg-muted rounded-lg flex items-center justify-center">
                         {coverImagePreview ? (
@@ -449,16 +637,26 @@ export default function EditOutfitPage() {
                         ) : (
                             <ImageIcon className="h-12 w-12 text-muted-foreground" />
                         )}
+                         {isGeneratingCover && (
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4">
+                                <Loader2 className="h-8 w-8 animate-spin mb-2" />
+                                <p className="font-medium">Generating AI Cover...</p>
+                            </div>
+                        )}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <Button type="button" variant="outline" onClick={() => document.getElementById('cover-upload')?.click()}>
                             <UploadCloud className="mr-2 h-4 w-4" /> Upload
                         </Button>
                         <input type="file" id="cover-upload" accept="image/*" className="hidden" onChange={handleCoverImageSelect} />
-                        <Button type="button" variant="outline" disabled>
-                            <Wand2 className="mr-2 h-4 w-4" /> Regenerate
+                        <Button type="button" variant="outline" onClick={handleGenerateCover} disabled={!canGenerate || isGeneratingCover}>
+                            {isGeneratingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
+                             AI Generate
                         </Button>
                     </div>
+                     {!canGenerate && (
+                        <p className="text-xs text-center text-muted-foreground">Add 2+ items to enable AI generation.</p>
+                     )}
                 </CardContent>
               </Card>
 
@@ -476,8 +674,7 @@ export default function EditOutfitPage() {
                                     <SelectItem value="published">Published</SelectItem>
                                 </SelectContent>
                             </Select>
-                             <p className="text-xs text-muted-foreground pt-2">"Published" outfits may appear on public-facing pages in the future.</p>
-                            <FormMessage />
+                             <FormMessage />
                         </FormItem>
                         )}
                     />
@@ -491,5 +688,3 @@ export default function EditOutfitPage() {
     </>
   );
 }
-
-    
