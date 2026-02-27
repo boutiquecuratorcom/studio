@@ -143,3 +143,21 @@ These routes exist but contain no functional logic. They are stubs for future fe
 | **Main Component(s)** | `src/app/(app)/profile/page.tsx`, `src/app/(app)/settings/page.tsx`, `src/app/(app)/looks/page.tsx` |
 | **Dependencies** | None |
 | **Notes** | These pages currently display a "Coming Soon" message. |
+
+---
+
+### 10. Outfits
+
+A feature for creating, viewing, and managing styled outfits.
+
+| Property | Value |
+| --- | --- |
+| **Feature Name** | Outfits |
+| **Entry Route(s)** | `/outfits`, `/outfits/create`, `/outfits/view/[id]`, `/outfits/edit/[id]` |
+| **Main Component(s)** | `src/app/(app)/outfits/**/*.tsx`, `src/components/outfits/OutfitList.tsx`, `src/components/outfits/OutfitForm.tsx` |
+| **Firestore Collections**| `outfits/{outfitId}` |
+| **Storage Paths** | None (at this time) |
+| **Dependencies** | Firebase Authentication |
+| **Notes** | A full CRUD interface for outfits. Currently only supports title, notes, and status. Linking items and cover images are placeholders for future implementation. |
+
+---

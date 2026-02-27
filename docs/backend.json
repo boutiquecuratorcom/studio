@@ -434,6 +434,95 @@
         }
       },
       "required": ["sourceType", "sourceId", "inputImageUrl", "createdAt", "status"]
+    },
+    "Outfit": {
+      "title": "Outfit",
+      "description": "Represents a collection of rack items, potentially with a cover image.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The user ID of the outfit's owner."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the outfit."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Internal notes about the outfit."
+        },
+        "linkedRackItemIds": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "An array of inventory item IDs linked to this outfit."
+        },
+        "cover": {
+          "type": "object",
+          "properties": {
+            "imageUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "thumbUrl": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "glowUpId": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        },
+        "source": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": [
+                "rack",
+                "upload",
+                "mixed"
+              ]
+            },
+            "inputUploadIds": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "draft",
+            "ready"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "ownerId",
+        "title",
+        "createdAt",
+        "updatedAt"
+      ]
     }
   },
   "auth": {
@@ -484,8 +573,12 @@
         "$ref": "#/entities/GlowUp"
       },
       "description": "Stores a record of each AI image enhancement."
+    },
+    "/outfits/{outfitId}": {
+      "schema": {
+        "$ref": "#/entities/Outfit"
+      },
+      "description": "Stores user-created outfits."
     }
   }
 }
-
-    

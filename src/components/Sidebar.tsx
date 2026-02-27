@@ -38,6 +38,7 @@ const navItems = [
     { href: '/post-creator', label: 'Post Creator', icon: PenSquare },
     { href: '/engagement-machine', label: 'Engagement', icon: MessageCircle },
     { href: '/my-brand', label: 'My Brand', icon: Heart },
+    { href: '/outfits', label: 'Outfits', icon: Briefcase },
     { href: '/uploads', label: 'Library', icon: Library },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];

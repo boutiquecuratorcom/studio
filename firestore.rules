@@ -34,5 +34,17 @@ service cloud.firestore {
       // Allow users to update or delete an item if they are the owner of the existing item.
       allow update, delete: if isOwner(resource.data.ownerId);
     }
+
+    // Rules for the 'outfits' collection
+    match /outfits/{outfitId} {
+      // Allow get/update/delete if the user is the owner
+      allow get, update, delete: if isOwner(resource.data.ownerId);
+
+      // Allow a user to list their own outfits (client query must filter by ownerId)
+      allow list: if request.auth != null;
+      
+      // Allow a user to create an outfit if the ownerId matches their own
+      allow create: if isOwner(request.resource.data.ownerId);
+    }
   }
 }
