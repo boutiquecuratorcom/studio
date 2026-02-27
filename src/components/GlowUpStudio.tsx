@@ -135,7 +135,7 @@ export function GlowUpStudio() {
   // --- Rack Item Integration State ---
   const [source, setSource] = React.useState<string | null>(null);
   const [rackItemId, setRackItemId] = React.useState<string | null>(null);
-  const { item: sourceItem, loading: sourceItemLoading } = useInventoryItem(rackItemId);
+  const { item: sourceItem, loading: sourceItemLoading, error: sourceItemError } = useInventoryItem(rackItemId);
 
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -143,30 +143,7 @@ export function GlowUpStudio() {
   
   const isEnhancing = step === "enhancing";
 
-  // --- Effects for Rack Item Integration ---
-  React.useEffect(() => {
-    const sourceParam = searchParams.get('source');
-    const idParam = searchParams.get('id');
-
-    if (sourceParam === 'rackItem' && idParam) {
-      setSource(sourceParam);
-      setRackItemId(idParam);
-      setCreationType("single");
-      setStep("upload"); // Use 'upload' as an intermediate "loading" state
-    }
-  }, [searchParams]);
-
-  React.useEffect(() => {
-    if (sourceItem && rackItemId && source === 'rackItem') {
-      setOriginalImages([sourceItem.image.originalUrl]);
-      setEnhancedImage(null);
-      setStep("selectStyleType");
-    }
-  }, [sourceItem, rackItemId, source]);
-
-
-  // --- Core Functions ---
-  const resetWorkflow = () => {
+  const resetWorkflow = React.useCallback(() => {
     setOriginalImages([]);
     setEnhancedImage(null);
     setCreationType(null);
@@ -185,7 +162,44 @@ export function GlowUpStudio() {
     }
     // Clear URL params without reloading
     router.replace('/editor');
-  };
+  }, [router]);
+
+  // --- Effects for Rack Item Integration ---
+  React.useEffect(() => {
+    const sourceParam = searchParams.get('source');
+    const idParam = searchParams.get('id');
+
+    if (sourceParam === 'rackItem' && idParam) {
+      setSource(sourceParam);
+      setRackItemId(idParam);
+      setCreationType("single");
+      setStep("upload"); // Use 'upload' as an intermediate "loading" state
+    }
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    // This effect handles the transition once the source item is loaded or fails to load.
+    // It watches for the loading to be `false`.
+    if (source === 'rackItem' && !sourceItemLoading) {
+      if (sourceItem) {
+        // Success case: Item loaded.
+        setOriginalImages([sourceItem.image.originalUrl]);
+        setEnhancedImage(null);
+        setStep("selectStyleType");
+      } else {
+        // Failure case: Item not found or there was an error.
+        toast({
+          variant: "destructive",
+          title: "Failed to load rack item",
+          description: sourceItemError?.message || "The selected item could not be found. Please try again.",
+        });
+        resetWorkflow(); // Go back to the start.
+      }
+    }
+  }, [sourceItem, sourceItemLoading, sourceItemError, source, resetWorkflow, toast]);
+
+
+  // --- Core Functions ---
 
   const triggerFileInput = () => {
     if (fileInputRef.current) {
@@ -701,6 +715,16 @@ export function GlowUpStudio() {
     );
   };
   
+    if (step === 'upload' && source === 'rackItem') {
+        return (
+            <div className="mt-10 flex flex-col items-center max-w-3xl mx-auto text-center p-8">
+                <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-6" />
+                <h2 className="text-3xl font-headline font-semibold text-foreground">Loading Your Item</h2>
+                <p className="text-muted-foreground mt-2">Please wait while we fetch the details from your rack.</p>
+            </div>
+        );
+    }
+
   return (
     <Card className="w-full mx-auto p-4 sm:p-6 lg:p-8 border-none bg-transparent shadow-none">
       <input
@@ -724,7 +748,7 @@ export function GlowUpStudio() {
                 source === 'rackItem' && step === 'selectStyleType' ? '1. Select Style Type' :
                 source === 'rackItem' && step === 'selectLookPreset' ? '2. Select Look & Feel' :
                 step === 'selectCreationType' ? '1. Select Creation Type' :
-                step === 'upload' ? '1. Select Creation Type' :
+                step === 'upload' ? '1. Upload Your Image(s)' :
                 step === 'selectStyleType' ? '2. Select Style Type' :
                 step === 'selectLookPreset' ? '3. Select Look & Feel' :
                 'Image Generation'
@@ -732,7 +756,7 @@ export function GlowUpStudio() {
             <p className="text-muted-foreground">{getCardDescription()}</p>
         </div>
         
-        {step === "selectCreationType" && source !== 'rackItem' && (
+        {step === "selectCreationType" && (
           <div className="flex flex-col sm:flex-row gap-4 w-full">
             <ChoiceButton onClick={() => handleSelectCreationType("single")} icon={<Shirt className="h-6 w-6" />} label="Single Item" description="Enhance one main product." isSelected={creationType === "single"} />
             <ChoiceButton onClick={() => handleSelectCreationType("multiple")} icon={<Users className="h-6 w-6" />} label="Multiple Items" description="Style a complete outfit." isSelected={creationType === "multiple"} />
@@ -811,3 +835,5 @@ export function GlowUpStudio() {
     </Card>
   );
 }
+
+    
