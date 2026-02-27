@@ -20,6 +20,7 @@ import {
   getDownloadURL,
   deleteObject,
   type FirebaseStorage,
+  getBlob,
 } from 'firebase/storage';
 import type { User } from 'firebase/auth';
 import { useCollection, useDoc, useFirestore } from '@/firebase';
@@ -63,6 +64,7 @@ export interface GlowUp extends DocumentData {
     sourceId: string;
     linkedRackItemId?: string | null;
     inputImageUrl: string;
+    inputImageStoragePath?: string;
     outputImageUrl?: string;
     outputThumbUrl?: string;
     storagePath?: string;
@@ -326,10 +328,12 @@ export const createInventoryItemFromGlowUp = async (
     }, { merge: true });
   });
 
-  // 2. Download the original input image from the GlowUp record
-  const originalImageResponse = await fetch(glowUpData.inputImageUrl);
-  if (!originalImageResponse.ok) throw new Error("Failed to download original image for processing.");
-  const originalImageBlob = await originalImageResponse.blob();
+  // 2. Get the original input image blob from Storage
+  if (!glowUpData.inputImageStoragePath) {
+    throw new Error("GlowUp record is missing the original image storage path.");
+  }
+  const originalImageRef = ref(storage, glowUpData.inputImageStoragePath);
+  const originalImageBlob = await getBlob(originalImageRef);
   const originalImageFile = new File([originalImageBlob], "original.jpg", { type: originalImageBlob.type });
 
   // 3. Create a new inventory doc ref

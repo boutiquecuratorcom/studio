@@ -70,6 +70,7 @@ type GenerationMode = 'ai' | 'instant' | 'busy' | null;
 interface OriginalImage {
   id: string; // Firestore doc ID of the upload.
   url: string; // public downloadURL
+  storagePath: string; // Storage path
   name: string;
   size: number;
 }
@@ -208,9 +209,11 @@ export function GlowUpStudio() {
           if (data.ownerId === user?.uid) {
             setSourceItem(data);
             const imageUrl = data.originalImageDetails?.originalUrl || data.image.originalUrl;
+            const imagePath = data.originalImageDetails?.originalPath || data.image.originalPath;
             setOriginalImages([{ 
               id: data.id, 
-              url: imageUrl, 
+              url: imageUrl,
+              storagePath: imagePath, 
               name: data.title,
               size: 0 // Size is not critical here
             }]);
@@ -306,6 +309,7 @@ export function GlowUpStudio() {
         existingImagesToAdd.push({
           id: existingImage.id,
           url: existingImage.downloadURL,
+          storagePath: existingImage.storagePath,
           name: existingImage.originalName,
           size: existingImage.size,
         });
@@ -342,6 +346,7 @@ export function GlowUpStudio() {
                     return {
                       id: uploadDocRef.id,
                       url: downloadURL,
+                      storagePath,
                       name: file.name,
                       size: file.size,
                     };
@@ -504,10 +509,15 @@ export function GlowUpStudio() {
             ? (sourceItem?.originalImageDetails?.originalUrl || sourceItem?.image.originalUrl)
             : originalImage.url;
         
+        const inputStoragePath = isFromRack
+            ? (sourceItem?.originalImageDetails?.originalPath || sourceItem?.image.originalPath)
+            : originalImage.storagePath;
+
         await setDoc(glowUpRef, {
             sourceType: isFromRack ? 'rackItem' : 'upload',
             sourceId: originalImage.id,
             inputImageUrl: inputUrl,
+            inputImageStoragePath: inputStoragePath,
             outputImageUrl,
             outputThumbUrl,
             storagePath,
@@ -576,10 +586,13 @@ export function GlowUpStudio() {
         ]);
 
         const inputUrl = sourceItem.originalImageDetails?.originalUrl || sourceItem.image.originalUrl;
+        const inputStoragePath = sourceItem.originalImageDetails?.originalPath || sourceItem.image.originalPath;
+        
         await setDoc(glowUpRef, {
             sourceType: 'rackItem',
             sourceId: sourceItem.id,
             inputImageUrl: inputUrl,
+            inputImageStoragePath: inputStoragePath,
             outputImageUrl,
             outputThumbUrl,
             storagePath,

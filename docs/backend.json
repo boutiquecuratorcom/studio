@@ -403,6 +403,10 @@
           "type": "string",
           "format": "uri"
         },
+        "inputImageStoragePath": {
+          "type": "string",
+          "description": "The Firebase Storage path for the input image."
+        },
         "outputImageUrl": {
           "type": "string",
           "format": "uri"
