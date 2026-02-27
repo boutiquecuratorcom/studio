@@ -133,7 +133,8 @@ export const useInventoryItem = (itemId: string | null) => {
   const firestore = useFirestore();
   const docRef = useMemo(() => {
     if (!itemId || !firestore) return null;
-    return doc(firestore, 'inventory', itemId) as any;
+    const decodedItemId = decodeURIComponent(itemId);
+    return doc(firestore, 'inventory', decodedItemId) as any;
   }, [itemId, firestore]);
   
   return useDoc<InventoryItem>(docRef);
