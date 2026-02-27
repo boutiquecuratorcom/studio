@@ -1,3 +1,4 @@
+'use client';
 import {
   collection,
   query,
@@ -301,71 +302,74 @@ export const createInventoryItem = async (
 };
 
 /**
- * Creates a new inventory item from an existing GlowUp record.
+ * Creates a new inventory item from an existing GlowUp record. This function does not perform any storage operations.
  */
 export const createInventoryItemFromGlowUp = async (
   firestore: Firestore,
-  storage: FirebaseStorage,
   user: User,
   glowUpData: GlowUp,
   glowUpId: string
 ): Promise<string> => {
   // 1. Transaction to check monthly usage
   const userDocRef = doc(firestore, `users/${user.uid}`);
-  const currentMonthKey = new Date().toISOString().slice(0, 7);
+  const currentMonthKey = new Date().toISOString().slice(0, 7); // YYYY-MM
 
   await runTransaction(firestore, async (transaction) => {
     const userDoc = await transaction.get(userDocRef);
-    if (!userDoc.exists()) throw new Error("User profile not found.");
+    if (!userDoc.exists()) throw new Error('User profile not found.');
     const userData = userDoc.data();
-    const count = userData.inventoryMonthKey === currentMonthKey ? userData.inventoryCountThisMonth || 0 : 0;
+    const count =
+      userData.inventoryMonthKey === currentMonthKey
+        ? userData.inventoryCountThisMonth || 0
+        : 0;
     if (count >= MONTHLY_INVENTORY_LIMIT) {
-      throw new Error(`You have reached your monthly limit of ${MONTHLY_INVENTORY_LIMIT} new items.`);
+      throw new Error(
+        `You have reached your monthly limit of ${MONTHLY_INVENTORY_LIMIT} new items.`
+      );
     }
-    transaction.set(userDocRef, {
-      inventoryMonthKey: currentMonthKey,
-      inventoryCountThisMonth: count + 1,
-    }, { merge: true });
+    transaction.set(
+      userDocRef,
+      {
+        inventoryMonthKey: currentMonthKey,
+        inventoryCountThisMonth: count + 1,
+      },
+      { merge: true }
+    );
   });
 
-  // 2. Get original image blob to create a thumbnail.
-  if (!glowUpData.inputImageStoragePath) {
-    throw new Error("GlowUp record is missing the original image storage path.");
-  }
-  const originalImageRef = ref(storage, glowUpData.inputImageStoragePath);
-  const originalImageBlob = await getBlob(originalImageRef);
-  const originalImageFile = new File([originalImageBlob], "original.jpg", { type: originalImageBlob.type });
-
-  // 3. Create a new inventory doc ref
+  // 2. Create a new inventory doc ref
   const newItemRef = doc(collection(firestore, 'inventory'));
   const itemId = newItemRef.id;
 
-  // 4. Create and upload ONLY the thumbnail for the original image.
-  const thumbResult = await resizeImage(originalImageFile, 400);
-  const thumbPath = `inventory/${user.uid}/${itemId}/original_thumb.jpeg`;
-  const thumbStorageRef = ref(storage, thumbPath);
-  await uploadBytes(thumbStorageRef, thumbResult.blob);
-  const thumbUrl = await getDownloadURL(thumbStorageRef);
-
-  // 5. Construct originalImageDetails by RE-USING existing original and adding NEW thumb
+  // 3. Construct originalImageDetails from the GlowUp's input image.
+  // We re-use the main image URL for the thumbnail URL as a fallback, since one wasn't generated on original upload.
+  if (!glowUpData.inputImageUrl || !glowUpData.inputImageStoragePath) {
+    throw new Error('GlowUp record is missing original image source information.');
+  }
   const originalImageDetails: ImageDetails = {
     originalPath: glowUpData.inputImageStoragePath,
     originalUrl: glowUpData.inputImageUrl,
-    thumbPath: thumbPath,
-    thumbUrl: thumbUrl,
-    width: thumbResult.width,
-    height: thumbResult.height,
+    thumbPath: glowUpData.inputImageStoragePath, // Fallback to main path
+    thumbUrl: glowUpData.inputImageUrl,        // Fallback to main URL
   };
 
-  // 6. The display image is the GlowUp output
+  // 4. The display image is the GlowUp output.
+  if (
+    !glowUpData.outputImageUrl ||
+    !glowUpData.storagePath ||
+    !glowUpData.outputThumbUrl ||
+    !glowUpData.thumbStoragePath
+  ) {
+    throw new Error('GlowUp record is missing output image information.');
+  }
   const displayImage: ImageDetails = {
-    originalPath: glowUpData.storagePath!,
-    originalUrl: glowUpData.outputImageUrl!,
-    thumbPath: glowUpData.thumbStoragePath!,
-    thumbUrl: glowUpData.outputThumbUrl!,
+    originalPath: glowUpData.storagePath,
+    originalUrl: glowUpData.outputImageUrl,
+    thumbPath: glowUpData.thumbStoragePath,
+    thumbUrl: glowUpData.outputThumbUrl,
   };
 
-  // 7. Set up initial data and keywords
+  // 5. Set up initial data and keywords
   const itemDataForKeywords = {
     title: 'New Item from Glow-Up',
     type: 'Apparel',
@@ -373,11 +377,11 @@ export const createInventoryItemFromGlowUp = async (
   };
   const searchKeywords = generateSearchKeywords(itemDataForKeywords);
 
-  // 8. Create the final inventory document
+  // 6. Create the final inventory document
   const finalItemData: Omit<InventoryItem, 'id'> = {
     ...itemDataForKeywords,
     ownerId: user.uid,
-    sizes: ['OS'],
+    sizes: ['OS'], // Default size
     notes: `Created from Glow-Up: ${glowUpId}`,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),

@@ -639,7 +639,7 @@ export function GlowUpStudio() {
   }
 
   const handleAddToRack = async () => {
-    if (!newGlowUpId || !user || !firestore || !storage) return;
+    if (!newGlowUpId || !user || !firestore) return;
 
     setIsSaving(true);
     toast({ title: "Adding to My Rack...", description: "Please wait while we create your new inventory item." });
@@ -651,7 +651,7 @@ export function GlowUpStudio() {
 
         const glowUpData = glowUpSnap.data() as GlowUp;
 
-        const newItemId = await createInventoryItemFromGlowUp(firestore, storage, user, glowUpData, newGlowUpId);
+        const newItemId = await createInventoryItemFromGlowUp(firestore, user, glowUpData, newGlowUpId);
 
         await updateDoc(glowUpRef, { linkedRackItemId: newItemId });
 
@@ -982,5 +982,3 @@ export function GlowUpStudio() {
     </Card>
   );
 }
-
-    
