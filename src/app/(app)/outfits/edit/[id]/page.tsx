@@ -14,6 +14,7 @@ import {
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -55,7 +56,7 @@ import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { AddItemsFromRackModal } from '@/components/outfits/AddItemsFromRackModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { serverTimestamp } from 'firebase/firestore';
+import { serverTimestamp, doc } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
 import { generateOutfitDescriptions } from '@/ai/flows/generate-outfit-descriptions-flow';
 import { SimplifiedItem } from '@/ai/flows/generate-outfit-descriptions-flow';
