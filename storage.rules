@@ -30,8 +30,8 @@ service firebase.storage {
     }
     
     // Allow users to write to their own outfit cover image folder
-    match /outfits/{outfitId}/{allPaths=**} {
-      allow read, write: if request.auth != null && get(/databases/$(database)/documents/outfits/$(outfitId)).data.ownerId == request.auth.uid;
+    match /outfits/{userId}/{outfitId}/{allPaths=**} {
+      allow read, write: if isOwner(userId);
     }
   }
 }

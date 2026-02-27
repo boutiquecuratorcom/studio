@@ -204,16 +204,29 @@ export default function EditOutfitPage() {
     try {
       if (coverImageFile) {
         setIsUploading(true);
-        const coverPath = `outfits/${outfit.id}/cover-${Date.now()}`;
-        const storageRef = ref(storage, coverPath);
-        await uploadBytes(storageRef, coverImageFile);
-        const downloadURL = await getDownloadURL(storageRef);
+        const thumbResult = await resizeImage(coverImageFile, 400);
+
+        const coverPath = `outfits/${user.uid}/${outfit.id}/cover-${Date.now()}`;
+        const thumbPath = `outfits/${user.uid}/${outfit.id}/thumb-${Date.now()}`;
+        
+        const coverStorageRef = ref(storage, coverPath);
+        const thumbStorageRef = ref(storage, thumbPath);
+
+        await Promise.all([
+            uploadBytes(coverStorageRef, coverImageFile),
+            uploadBytes(thumbStorageRef, thumbResult.blob)
+        ]);
+
+        const [imageUrl, thumbUrl] = await Promise.all([
+            getDownloadURL(coverStorageRef),
+            getDownloadURL(thumbStorageRef)
+        ]);
         
         dataToUpdate.cover = {
-            imageUrl: downloadURL,
-            thumbUrl: downloadURL, 
+            imageUrl: imageUrl,
+            thumbUrl: thumbUrl, 
             storagePath: coverPath,
-            thumbStoragePath: coverPath,
+            thumbStoragePath: thumbPath,
             source: 'manual',
             glowUpId: null,
         };
@@ -301,8 +314,8 @@ export default function EditOutfitPage() {
             const blob = await (await fetch(dataUri)).blob();
             const thumbResult = await resizeImage(new File([blob], 'cover.png'), 400);
 
-            const coverPath = `outfits/${outfit.id}/cover-${Date.now()}.png`;
-            const thumbPath = `outfits/${outfit.id}/thumb-${Date.now()}.png`;
+            const coverPath = `outfits/${user.uid}/${outfit.id}/cover-${Date.now()}.png`;
+            const thumbPath = `outfits/${user.uid}/${outfit.id}/thumb-${Date.now()}.png`;
             
             const coverRef = ref(storage, coverPath);
             const thumbRef = ref(storage, thumbPath);
