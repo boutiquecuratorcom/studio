@@ -14,6 +14,7 @@ import {
   type DocumentData,
   type Firestore,
   Query,
+  documentId,
 } from 'firebase/firestore';
 import {
   ref,
@@ -154,6 +155,27 @@ export const useInventoryItem = (itemId: string | null) => {
   }, [itemId, firestore]);
   
   return useDoc<InventoryItem>(docRef);
+};
+
+export const useInventoryItemsByIds = (itemIds: string[] | null) => {
+  const firestore = useFirestore();
+
+  const q = useMemo(() => {
+    if (!firestore || !itemIds || itemIds.length === 0) return null;
+    
+    // Firestore 'in' queries are limited to 30 items.
+    const limitedIds = itemIds.slice(0, 30);
+    if (limitedIds.length === 0) return null;
+    
+    return query(
+      collection(firestore, 'inventory') as Query<InventoryItem>,
+      where(documentId(), 'in', limitedIds)
+    );
+  }, [firestore, itemIds]);
+
+  const { data, loading, error } = useCollection<InventoryItem>(q, 'inventory_by_ids');
+
+  return { items: data, loading, error };
 };
 
 
@@ -303,12 +325,13 @@ export const createInventoryItem = async (
 
 /**
  * Creates a new inventory item from form data after a GlowUp has been created.
+ * This version does NOT re-upload images, it only references existing URLs.
  */
 export const createInventoryItemFromGlowUpForm = async (
   firestore: Firestore,
   user: User,
   formData: { title: string; type: string; sizes: string[]; notes?: string },
-  glowUp: {
+  glowUpData: {
     id: string;
     inputImageUrl: string;
     inputImageStoragePath: string;
@@ -349,26 +372,20 @@ export const createInventoryItemFromGlowUpForm = async (
   const newItemRef = doc(collection(firestore, 'inventory'));
   const itemId = newItemRef.id;
 
-  // 3. Construct originalImageDetails
-  if (!glowUp.inputImageUrl || !glowUp.inputImageStoragePath) {
-    throw new Error('GlowUp data is missing original image source information.');
-  }
+  // 3. Construct originalImageDetails from the GlowUp's input
   const originalImageDetails: ImageDetails = {
-    originalPath: glowUp.inputImageStoragePath,
-    originalUrl: glowUp.inputImageUrl,
-    thumbPath: glowUp.inputImageStoragePath,
-    thumbUrl: glowUp.inputImageUrl,
+    originalPath: glowUpData.inputImageStoragePath,
+    originalUrl: glowUpData.inputImageUrl,
+    thumbPath: glowUpData.inputImageStoragePath, // For original, thumb is same as original
+    thumbUrl: glowUpData.inputImageUrl,
   };
   
-  // 4. Construct display image
-  if (!glowUp.outputImageUrl || !glowUp.storagePath || !glowUp.outputThumbUrl || !glowUp.thumbStoragePath) {
-    throw new Error('GlowUp data is missing output image information.');
-  }
+  // 4. Construct display image from the GlowUp's output
   const displayImage: ImageDetails = {
-    originalPath: glowUp.storagePath,
-    originalUrl: glowUp.outputImageUrl,
-    thumbPath: glowUp.thumbStoragePath,
-    thumbUrl: glowUp.outputThumbUrl,
+    originalPath: glowUpData.storagePath,
+    originalUrl: glowUpData.outputImageUrl,
+    thumbPath: glowUpData.thumbStoragePath,
+    thumbUrl: glowUpData.outputThumbUrl,
   };
 
   // 5. Build full item data
@@ -381,9 +398,9 @@ export const createInventoryItemFromGlowUpForm = async (
     ownerId: user.uid,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
-    image: displayImage,
-    originalImageDetails: originalImageDetails,
-    glowUpId: glowUp.id,
+    image: displayImage, // This is the styled/GlowUp image
+    originalImageDetails: originalImageDetails, // This is the original photo
+    glowUpId: glowUpData.id,
     glowedAt: serverTimestamp(),
     analysis: { status: 'pending' },
     searchKeywords: generateSearchKeywords({ ...formData, brand: 'LuLaRoe' }),
@@ -393,7 +410,7 @@ export const createInventoryItemFromGlowUpForm = async (
   await setDoc(newItemRef, finalItemData);
 
   // 7. Update GlowUp with linked ID
-  const glowUpRef = doc(firestore, `users/${user.uid}/glowUps`, glowUp.id);
+  const glowUpRef = doc(firestore, `users/${user.uid}/glowUps`, glowUpData.id);
   await updateDoc(glowUpRef, { linkedRackItemId: itemId });
 
   return itemId;
@@ -434,7 +451,7 @@ export const deleteInventoryItem = async (
     if (item.originalImageDetails.originalPath) {
       deletionPromises.push(deleteObject(ref(storage, item.originalImageDetails.originalPath)));
     }
-    if (item.originalImageDetails.thumbPath) {
+    if (item.originalImageDetails.thumbPath && item.originalImageDetails.thumbPath !== item.originalImageDetails.originalPath) {
       deletionPromises.push(deleteObject(ref(storage, item.originalImageDetails.thumbPath)));
     }
   } else {
@@ -442,7 +459,7 @@ export const deleteInventoryItem = async (
     if (item.image?.originalPath) {
       deletionPromises.push(deleteObject(ref(storage, item.image.originalPath)));
     }
-    if (item.image?.thumbPath) {
+    if (item.image?.thumbPath && item.image.thumbPath !== item.image.originalPath) {
       deletionPromises.push(deleteObject(ref(storage, item.image.thumbPath)));
     }
   }

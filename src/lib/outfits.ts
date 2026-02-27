@@ -12,6 +12,7 @@ import {
   arrayUnion,
   type DocumentData,
   type Firestore,
+  arrayRemove,
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { useCollection, useDoc, useFirestore } from '@/firebase';
@@ -131,6 +132,20 @@ export const linkRackItemToOutfit = async (
         updatedAt: serverTimestamp(),
     });
 };
+
+// Function to unlink a rack item from an outfit
+export const unlinkRackItemFromOutfit = async (
+    firestore: Firestore,
+    outfitId: string,
+    itemId: string
+) => {
+    const outfitRef = doc(firestore, 'outfits', outfitId);
+    await updateDoc(outfitRef, {
+        linkedRackItemIds: arrayRemove(itemId),
+        updatedAt: serverTimestamp(),
+    });
+};
+
 
 // Function to delete an outfit
 export const deleteOutfit = async (

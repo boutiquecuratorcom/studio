@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
 import { format } from 'date-fns';
+import { LinkedItemsList } from '@/components/outfits/LinkedItemsList';
 
 export default function ViewOutfitPage() {
   const params = useParams();
@@ -116,13 +117,7 @@ export default function ViewOutfitPage() {
             </CardHeader>
             <CardContent>
                 {outfit.linkedRackItemIds.length > 0 ? (
-                     <div className="space-y-2">
-                        <p className="text-sm text-muted-foreground">This outfit contains {outfit.linkedRackItemIds.length} item(s).</p>
-                        {/* Placeholder for item cards */}
-                        <ul className="list-disc list-inside text-xs font-mono text-muted-foreground">
-                            {outfit.linkedRackItemIds.map(itemId => <li key={itemId}>{itemId}</li>)}
-                        </ul>
-                     </div>
+                    <LinkedItemsList outfitId={outfit.id} linkedItemIds={outfit.linkedRackItemIds} />
                 ) : (
                     <p className="text-sm text-muted-foreground">No items have been linked to this outfit yet.</p>
                 )}
