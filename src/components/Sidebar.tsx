@@ -34,11 +34,11 @@ import { isAdminEmail } from '@/lib/admin';
 const navItems = [
     { href: '/dashboard', label: 'Studio', icon: Home },
     { href: '/inventory', label: 'My Rack', icon: LayoutGrid },
+    { href: '/outfits', label: 'Outfits', icon: Briefcase },
     { href: '/editor', label: 'Glow-Up Studio', icon: Wand2 },
     { href: '/post-creator', label: 'Post Creator', icon: PenSquare },
     { href: '/engagement-machine', label: 'Engagement', icon: MessageCircle },
     { href: '/my-brand', label: 'My Brand', icon: Heart },
-    { href: '/outfits', label: 'Outfits', icon: Briefcase },
     { href: '/uploads', label: 'Library', icon: Library },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
