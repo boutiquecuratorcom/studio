@@ -124,6 +124,7 @@
         },
         "image": {
           "type": "object",
+          "description": "The display image for the item. Can be the original photo or a Glow-Up.",
           "properties": {
             "originalPath": {
               "type": "string"
@@ -149,7 +150,7 @@
         },
         "originalImageDetails": {
             "type": "object",
-            "description": "Stores the details of the original image if it has been replaced by a Glow-Up.",
+            "description": "Stores the details of the original product photo, used for analysis.",
             "properties": {
                 "originalPath": { "type": "string" },
                 "originalUrl": { "type": "string", "format": "uri" },
@@ -387,11 +388,12 @@
       "properties": {
         "sourceType": {
           "type": "string",
-          "enum": ["rackItem", "directUpload"]
+          "enum": ["rackItem", "upload"],
+          "description": "The source of the image, either from 'My Rack' or a direct 'upload'."
         },
         "sourceId": {
           "type": "string",
-          "description": "The ID of the source document (e.g., rackItemId)."
+          "description": "The ID of the source document (e.g., rackItemId or uploadId)."
         },
         "linkedRackItemId": {
             "type": ["string", "null"],
@@ -481,3 +483,5 @@
     }
   }
 }
+
+    

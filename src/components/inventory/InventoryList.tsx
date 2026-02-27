@@ -49,7 +49,10 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
         }
 
         try {
-            const analysisResult = await analyzeInventoryImage({ imageUrl: item.image.thumbUrl });
+            // IMPORTANT: Always use the original image for analysis.
+            const imageUrlForAnalysis = item.originalImageDetails?.thumbUrl || item.image.thumbUrl;
+
+            const analysisResult = await analyzeInventoryImage({ imageUrl: imageUrlForAnalysis });
             if (isMounted) {
                 const updatedItemData = { ...item, analysis: { ...analysisResult, status: 'complete' } };
                 const searchKeywords = generateSearchKeywords(updatedItemData);
@@ -256,7 +259,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete &quot;{item.title}&quot; from your rack and all of its images. This action cannot be undone.
+              This will permanently delete &quot;{item.title}&quot; from your rack and its original image files. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -411,3 +414,5 @@ export function InventoryList({ userId }: { userId: string }) {
     </>
   );
 }
+
+    

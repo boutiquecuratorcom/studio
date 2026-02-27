@@ -19,6 +19,7 @@ import {
   X,
   Save,
   Send,
+  PlusSquare,
 } from "lucide-react";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { collection, addDoc, serverTimestamp, query, doc, updateDoc, getDoc, FirestoreError, setDoc, where, limit, getDocs } from "firebase/firestore";
@@ -39,7 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useStorage, useCollection } from "@/firebase";
-import { type InventoryItem } from "@/lib/inventory";
+import { type InventoryItem, type GlowUp, createInventoryItemFromGlowUp } from "@/lib/inventory";
 import { resizeImage } from "@/lib/image-utils";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -129,6 +130,7 @@ export function GlowUpStudio() {
   const [progress, setProgress] = React.useState(0);
   const [step, setStep] = React.useState<Step>("selectCreationType");
   const [isSaving, setIsSaving] = React.useState(false);
+  const [newGlowUpId, setNewGlowUpId] = React.useState<string | null>(null);
 
   // --- Workflow State ---
   const [creationType, setCreationType] = React.useState<CreationType | null>(null);
@@ -164,7 +166,7 @@ export function GlowUpStudio() {
     setSourceItem(null);
     setSourceItemLoading(true);
     setSourceItemError(null);
-
+    setNewGlowUpId(null);
     
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -181,58 +183,62 @@ export function GlowUpStudio() {
       setSource(sourceParam);
       setCreationType("single");
       setStep("upload"); // Use 'upload' as an intermediate "loading" state
-
-      const fetchItem = async () => {
-        if (!firestore || !idParam || userLoading || !user) {
-          return;
-        }
-
-        setSourceItemLoading(true);
-        setSourceItemError(null);
-
-        try {
-          const decodedId = decodeURIComponent(idParam);
-          const itemRef = doc(firestore, 'inventory', decodedId);
-          const docSnap = await getDoc(itemRef);
-
-          if (docSnap.exists()) {
-            const data = { id: docSnap.id, ...docSnap.data() } as InventoryItem;
-            if (data.ownerId === user?.uid) {
-              setSourceItem(data);
-              setOriginalImages([{ 
-                id: data.id, 
-                url: data.image.originalUrl, 
-                name: data.title,
-                size: 0 // Size is not critical here
-              }]);
-            } else {
-              throw new FirestoreError('permission-denied', 'You do not have permission to access this item.');
-            }
-          } else {
-            setSourceItem(null);
-            throw new FirestoreError('not-found', 'The requested item does not exist.');
-          }
-        } catch (e: any) {
-          setSourceItemError(e);
-          if (e.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-              path: `inventory/${idParam}`,
-              operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-          }
-        } finally {
-          setSourceItemLoading(false);
-        }
-      };
-
-      if(!userLoading) {
-        fetchItem();
-      }
     } else {
       setSourceItemLoading(false);
     }
-  }, [searchParams, firestore, user, userLoading]);
+  }, [searchParams]);
+
+  React.useEffect(() => {
+    const fetchItem = async () => {
+      const idParam = searchParams.get('id');
+      if (source !== 'rackItem' || !idParam || userLoading || !user || !firestore) {
+        return;
+      }
+  
+      setSourceItemLoading(true);
+      setSourceItemError(null);
+  
+      try {
+        const decodedId = decodeURIComponent(idParam);
+        const itemRef = doc(firestore, 'inventory', decodedId);
+        const docSnap = await getDoc(itemRef);
+  
+        if (docSnap.exists()) {
+          const data = { id: docSnap.id, ...docSnap.data() } as InventoryItem;
+          if (data.ownerId === user?.uid) {
+            setSourceItem(data);
+            const imageUrl = data.originalImageDetails?.originalUrl || data.image.originalUrl;
+            setOriginalImages([{ 
+              id: data.id, 
+              url: imageUrl, 
+              name: data.title,
+              size: 0 // Size is not critical here
+            }]);
+          } else {
+            throw new FirestoreError('permission-denied', 'You do not have permission to access this item.');
+          }
+        } else {
+          setSourceItem(null);
+          throw new FirestoreError('not-found', 'The requested item does not exist.');
+        }
+      } catch (e: any) {
+        setSourceItemError(e);
+        if (e.code === 'permission-denied') {
+          const permissionError = new FirestorePermissionError({
+            path: `inventory/${idParam}`,
+            operation: 'get',
+          });
+          errorEmitter.emit('permission-error', permissionError);
+        }
+      } finally {
+        setSourceItemLoading(false);
+      }
+    };
+  
+    if (source === 'rackItem' && !userLoading) {
+      fetchItem();
+    }
+  }, [source, searchParams, firestore, user, userLoading]);
 
   React.useEffect(() => {
     if (source === 'rackItem' && !sourceItemLoading) {
@@ -467,52 +473,57 @@ export function GlowUpStudio() {
         localStorage.setItem('lastEnhancedImageURL', result.enhancedImageDataUri);
         setProgress(98);
 
-        if (source !== 'rackItem') {
-            await saveEnhancedImageAsUpload(result.enhancedImageDataUri);
-            
-            const originalImage = originalImages[0];
-            if (!originalImage || !originalImage.id) {
-              throw new Error("Could not find the ID of the original uploaded image to create GlowUp record.");
-            }
-
-            const glowUpRef = doc(collection(firestore, `users/${user.uid}/glowUps`));
-            const blob = dataURIToBlob(result.enhancedImageDataUri);
-            const file = new File([blob], `glow-up-${glowUpRef.id}.png`, { type: 'image/png' });
-            const thumbResult = await resizeImage(file, 400);
-
-            const storagePath = `glowUps/${user.uid}/${glowUpRef.id}/original.png`;
-            const thumbStoragePath = `glowUps/${user.uid}/${glowUpRef.id}/thumb.png`;
-            const storageRef_glowup = ref(storage, storagePath);
-            const thumbStorageRef_glowup = ref(storage, thumbStoragePath);
-
-            await Promise.all([
-                uploadBytes(storageRef_glowup, blob),
-                uploadBytes(thumbStorageRef_glowup, thumbResult.blob),
-            ]);
-
-            const [outputImageUrl, outputThumbUrl] = await Promise.all([
-                getDownloadURL(storageRef_glowup),
-                getDownloadURL(thumbStorageRef_glowup),
-            ]);
-            
-            await setDoc(glowUpRef, {
-                sourceType: 'directUpload',
-                sourceId: originalImage.id,
-                inputImageUrl: originalImage.url,
-                outputImageUrl,
-                outputThumbUrl,
-                storagePath,
-                thumbStoragePath,
-                stylePreset: `${styleType}/${lookPreset}`,
-                status: 'completed',
-                createdAt: serverTimestamp(),
-                linkedRackItemId: null,
-            });
-
-            toast({ title: "Glow-up complete!", description: "Your new image has been saved to your library." });
-        } else {
-            toast({ title: "Glow-up complete!", description: "Your new image is ready to be saved to your rack." });
+        // This is a universal action: every successful enhancement creates a GlowUp record.
+        const originalImage = originalImages[0];
+        if (!originalImage || !originalImage.id) {
+            throw new Error("Could not find the ID of the original source image to create GlowUp record.");
         }
+
+        const glowUpRef = doc(collection(firestore, `users/${user.uid}/glowUps`));
+        const blob = dataURIToBlob(result.enhancedImageDataUri);
+        const file = new File([blob], `glow-up-${glowUpRef.id}.png`, { type: 'image/png' });
+        const thumbResult = await resizeImage(file, 400);
+
+        const storagePath = `glowUps/${user.uid}/${glowUpRef.id}/original.png`;
+        const thumbStoragePath = `glowUps/${user.uid}/${glowUpRef.id}/thumb.png`;
+        const storageRef_glowup = ref(storage, storagePath);
+        const thumbStorageRef_glowup = ref(storage, thumbStoragePath);
+
+        await Promise.all([
+            uploadBytes(storageRef_glowup, blob),
+            uploadBytes(thumbStorageRef_glowup, thumbResult.blob),
+        ]);
+
+        const [outputImageUrl, outputThumbUrl] = await Promise.all([
+            getDownloadURL(storageRef_glowup),
+            getDownloadURL(thumbStorageRef_glowup),
+        ]);
+
+        const isFromRack = source === 'rackItem';
+        const inputUrl = isFromRack 
+            ? (sourceItem?.originalImageDetails?.originalUrl || sourceItem?.image.originalUrl)
+            : originalImage.url;
+        
+        await setDoc(glowUpRef, {
+            sourceType: isFromRack ? 'rackItem' : 'upload',
+            sourceId: originalImage.id,
+            inputImageUrl: inputUrl,
+            outputImageUrl,
+            outputThumbUrl,
+            storagePath,
+            thumbStoragePath,
+            stylePreset: `${styleType}/${lookPreset}`,
+            status: 'completed',
+            createdAt: serverTimestamp(),
+            linkedRackItemId: isFromRack ? originalImage.id : null,
+        });
+
+        if (!isFromRack) {
+          setNewGlowUpId(glowUpRef.id);
+        }
+
+        await saveEnhancedImageAsUpload(result.enhancedImageDataUri);
+        toast({ title: "Glow-up complete!", description: isFromRack ? "Your new image is ready." : "Your new image has been saved to your library." });
       }
       
       clearInterval(interval);
@@ -544,15 +555,7 @@ export function GlowUpStudio() {
     
     try {
         const glowUpRef = doc(collection(firestore, `users/${user.uid}/glowUps`));
-        await setDoc(glowUpRef, {
-            sourceType: 'rackItem',
-            sourceId: sourceItem.id,
-            inputImageUrl: sourceItem?.image.originalUrl,
-            status: 'processing',
-            createdAt: serverTimestamp(),
-            stylePreset: `${styleType}/${lookPreset}`
-        });
-
+        
         const blob = dataURIToBlob(enhancedImage);
         const file = new File([blob], `glow-up-${glowUpRef.id}.png`, { type: 'image/png' });
         const thumbResult = await resizeImage(file, 400);
@@ -572,12 +575,19 @@ export function GlowUpStudio() {
             getDownloadURL(thumbStorageRef_glowup),
         ]);
 
-        await updateDoc(glowUpRef, {
-            status: 'completed',
+        const inputUrl = sourceItem.originalImageDetails?.originalUrl || sourceItem.image.originalUrl;
+        await setDoc(glowUpRef, {
+            sourceType: 'rackItem',
+            sourceId: sourceItem.id,
+            inputImageUrl: inputUrl,
             outputImageUrl,
             outputThumbUrl,
             storagePath,
             thumbStoragePath,
+            stylePreset: `${styleType}/${lookPreset}`,
+            status: 'completed',
+            createdAt: serverTimestamp(),
+            linkedRackItemId: sourceItem.id
         });
         
         const rackItemRef = doc(firestore, 'inventory', sourceItem.id);
@@ -614,6 +624,34 @@ export function GlowUpStudio() {
         setIsSaving(false);
     }
   }
+
+  const handleAddToRack = async () => {
+    if (!newGlowUpId || !user || !firestore || !storage) return;
+
+    setIsSaving(true);
+    toast({ title: "Adding to My Rack...", description: "Please wait while we create your new inventory item." });
+    
+    try {
+        const glowUpRef = doc(firestore, `users/${user.uid}/glowUps`, newGlowUpId);
+        const glowUpSnap = await getDoc(glowUpRef);
+        if (!glowUpSnap.exists()) throw new Error("GlowUp record not found.");
+
+        const glowUpData = glowUpSnap.data() as GlowUp;
+
+        const newItemId = await createInventoryItemFromGlowUp(firestore, storage, user, glowUpData, newGlowUpId);
+
+        await updateDoc(glowUpRef, { linkedRackItemId: newItemId });
+
+        toast({ title: "Item Added to My Rack!", description: "You can now edit the details of your new item." });
+        router.push('/inventory');
+
+    } catch (error: any) {
+        console.error("Failed to add to rack:", error);
+        toast({ variant: 'destructive', title: "Failed to Add Item", description: error.message });
+    } finally {
+        setIsSaving(false);
+    }
+  };
 
   const handleDownload = async () => {
     if (!enhancedImage) return;
@@ -806,7 +844,7 @@ export function GlowUpStudio() {
     );
   };
   
-    if (step === 'upload' && source === 'rackItem') {
+    if (step === 'upload' && source === 'rackItem' && sourceItemLoading) {
         return (
             <div className="mt-10 flex flex-col items-center max-w-3xl mx-auto text-center p-8">
                 <Loader2 className="h-12 w-12 animate-spin text-muted-foreground mb-6" />
@@ -827,9 +865,11 @@ export function GlowUpStudio() {
         onChange={handleFileChange}
       />
       
-      <div className="mt-8 w-full max-w-lg mx-auto">
-        <ImageCard title="After" wrapperRef={afterImageContainerRef} />
-      </div>
+      { originalImages.length > 0 && 
+        <div className="mt-8 w-full max-w-lg mx-auto">
+            <ImageCard title="After" wrapperRef={afterImageContainerRef} />
+        </div>
+      }
 
       <UploadedImagesPreview />
       
@@ -886,8 +926,10 @@ export function GlowUpStudio() {
                 {isEnhancing ? "Generating..." : "Generate Glow-Up"}
             </Button>
             )}
-            {step === 'done' && source === 'rackItem' ? (
-                <div className="flex flex-wrap justify-center gap-4">
+            {step === 'done' && (
+              <div className="flex flex-wrap justify-center gap-4">
+                {source === 'rackItem' ? (
+                  <>
                     <Button onClick={handleReplaceRackImage} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full" disabled={isSaving}>
                         {isSaving ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <Save className="mr-3 h-6 w-6" />}
                         Replace Rack Image
@@ -895,23 +937,24 @@ export function GlowUpStudio() {
                     <Button size="lg" variant="outline" onClick={() => router.push('/inventory')} className="font-semibold text-lg py-7 px-8 rounded-full">
                         Keep Original
                     </Button>
-                </div>
-            ) : step === 'done' && (
-              <div className="flex flex-wrap justify-center gap-4">
-                {generationMode === 'instant' && (
-                  <Button onClick={handleEnhance} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
-                      <Sparkles className="mr-3 h-6 w-6" />
-                      Try AI Studio Again
-                  </Button>
-                )}
-                {enhancedImage && (
-                    <Button onClick={handleCreatePost} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full">
-                        <Send className="mr-3 h-6 w-6" />
-                        Create Post
+                  </>
+                ) : (
+                  <>
+                    <Button onClick={handleAddToRack} size="lg" className="font-semibold text-lg py-7 px-8 rounded-full" disabled={isSaving}>
+                        {isSaving ? <Loader2 className="mr-3 h-6 w-6 animate-spin" /> : <PlusSquare className="mr-3 h-6 w-6" />}
+                        Add to My Rack
                     </Button>
+                    {generationMode === 'instant' && (
+                      <Button onClick={handleEnhance} size="lg" variant="outline" className="font-semibold text-lg py-7 px-8 rounded-full">
+                          <Sparkles className="mr-3 h-6 w-6" />
+                          Try AI Studio Again
+                      </Button>
+                    )}
+                  </>
                 )}
+                
                 <Button size="lg" variant="outline" onClick={resetWorkflow} className="font-semibold text-lg py-7 px-8 rounded-full">
-                  Create Another Image
+                  Create Another
                 </Button>
               </div>
             )}
@@ -926,3 +969,5 @@ export function GlowUpStudio() {
     </Card>
   );
 }
+
+    

@@ -27,6 +27,15 @@ import { useMemo } from 'react';
 import { resizeImage } from './image-utils';
 import type { AnalyzeInventoryImageOutput } from '@/ai/flows/analyze-inventory-image-flow';
 
+export interface ImageDetails {
+  originalPath: string;
+  originalUrl: string;
+  thumbPath: string;
+  thumbUrl: string;
+  width?: number;
+  height?: number;
+}
+
 export interface InventoryItem extends DocumentData {
   id: string;
   ownerId: string;
@@ -35,20 +44,8 @@ export interface InventoryItem extends DocumentData {
   type: string;
   sizes: string[];
   notes?: string;
-  image: {
-    originalPath: string;
-    originalUrl: string;
-    thumbPath: string;
-    thumbUrl: string;
-    width?: number;
-    height?: number;
-  };
-  originalImageDetails?: {
-    originalPath: string;
-    originalUrl: string;
-    thumbPath: string;
-    thumbUrl: string;
-  };
+  image: ImageDetails;
+  originalImageDetails?: ImageDetails;
   glowUpId?: string;
   glowedAt?: any;
   analysis?: AnalyzeInventoryImageOutput & {
@@ -59,6 +56,22 @@ export interface InventoryItem extends DocumentData {
   createdAt: any;
   updatedAt: any;
 }
+
+export interface GlowUp extends DocumentData {
+    id: string;
+    sourceType: "rackItem" | "upload";
+    sourceId: string;
+    linkedRackItemId?: string | null;
+    inputImageUrl: string;
+    outputImageUrl?: string;
+    outputThumbUrl?: string;
+    storagePath?: string;
+    thumbStoragePath?: string;
+    stylePreset: string;
+    status: "processing" | "completed" | "failed";
+    createdAt: any;
+}
+
 
 const MONTHLY_INVENTORY_LIMIT = 100;
 
@@ -198,7 +211,7 @@ export const generateSearchKeywords = (item: Partial<InventoryItem>): string[] =
 
 
 /**
- * Creates a new inventory item, resizes and uploads images, and updates the user's monthly count.
+ * Creates a new inventory item from a file upload, resizes and uploads images, and updates the user's monthly count.
  */
 export const createInventoryItem = async (
   firestore: Firestore,
@@ -286,6 +299,104 @@ export const createInventoryItem = async (
 };
 
 /**
+ * Creates a new inventory item from an existing GlowUp record.
+ */
+export const createInventoryItemFromGlowUp = async (
+  firestore: Firestore,
+  storage: FirebaseStorage,
+  user: User,
+  glowUpData: GlowUp,
+  glowUpId: string
+): Promise<string> => {
+  // 1. Transaction to check monthly usage
+  const userDocRef = doc(firestore, `users/${user.uid}`);
+  const currentMonthKey = new Date().toISOString().slice(0, 7);
+
+  await runTransaction(firestore, async (transaction) => {
+    const userDoc = await transaction.get(userDocRef);
+    if (!userDoc.exists()) throw new Error("User profile not found.");
+    const userData = userDoc.data();
+    const count = userData.inventoryMonthKey === currentMonthKey ? userData.inventoryCountThisMonth || 0 : 0;
+    if (count >= MONTHLY_INVENTORY_LIMIT) {
+      throw new Error(`You have reached your monthly limit of ${MONTHLY_INVENTORY_LIMIT} new items.`);
+    }
+    transaction.set(userDocRef, {
+      inventoryMonthKey: currentMonthKey,
+      inventoryCountThisMonth: count + 1,
+    }, { merge: true });
+  });
+
+  // 2. Download the original input image from the GlowUp record
+  const originalImageResponse = await fetch(glowUpData.inputImageUrl);
+  if (!originalImageResponse.ok) throw new Error("Failed to download original image for processing.");
+  const originalImageBlob = await originalImageResponse.blob();
+  const originalImageFile = new File([originalImageBlob], "original.jpg", { type: originalImageBlob.type });
+
+  // 3. Create a new inventory doc ref
+  const newItemRef = doc(collection(firestore, 'inventory'));
+  const itemId = newItemRef.id;
+
+  // 4. Resize and upload the ORIGINAL image to a new inventory-specific path
+  const [originalResult, thumbResult] = await Promise.all([
+    resizeImage(originalImageFile, 1600),
+    resizeImage(originalImageFile, 400),
+  ]);
+  const originalPath = `inventory/${user.uid}/${itemId}/original.jpeg`;
+  const thumbPath = `inventory/${user.uid}/${itemId}/thumb.jpeg`;
+  const originalStorageRef = ref(storage, originalPath);
+  const thumbStorageRef = ref(storage, thumbPath);
+  await Promise.all([
+    uploadBytes(originalStorageRef, originalResult.blob),
+    uploadBytes(thumbStorageRef, thumbResult.blob),
+  ]);
+  const [originalUrl, thumbUrl] = await Promise.all([
+    getDownloadURL(originalStorageRef),
+    getDownloadURL(thumbStorageRef),
+  ]);
+  const originalImageDetails: ImageDetails = {
+    originalPath, originalUrl, thumbPath, thumbUrl,
+    width: originalResult.width, height: originalResult.height
+  };
+
+  // 5. The display image is the GlowUp output (re-using existing storage paths)
+  const displayImage: ImageDetails = {
+    originalPath: glowUpData.storagePath!,
+    originalUrl: glowUpData.outputImageUrl!,
+    thumbPath: glowUpData.thumbStoragePath!,
+    thumbUrl: glowUpData.outputThumbUrl!,
+  };
+
+  // 6. Set up initial data and keywords
+  const itemDataForKeywords = {
+    title: 'New Item from Glow-Up',
+    type: 'Apparel',
+    brand: 'LuLaRoe', // Default brand
+  };
+  const searchKeywords = generateSearchKeywords(itemDataForKeywords);
+
+  // 7. Create the final inventory document
+  const finalItemData: Omit<InventoryItem, 'id'> = {
+    ...itemDataForKeywords,
+    ownerId: user.uid,
+    sizes: ['OS'],
+    notes: `Created from Glow-Up: ${glowUpId}`,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+    image: displayImage,
+    originalImageDetails: originalImageDetails,
+    glowUpId: glowUpId,
+    glowedAt: serverTimestamp(),
+    analysis: { status: 'pending' },
+    searchKeywords,
+  };
+
+  await setDoc(newItemRef, finalItemData);
+
+  return itemId;
+};
+
+
+/**
  * Updates an existing inventory item in Firestore.
  */
 export const updateInventoryItem = async (
@@ -310,17 +421,32 @@ export const deleteInventoryItem = async (
 ) => {
   if (!item) throw new Error('Item data is required for deletion.');
   
-  // References to the images in Storage
-  const originalImageRef = ref(storage, item.image.originalPath);
-  const thumbImageRef = ref(storage, item.image.thumbPath);
-  
-  // Reference to the Firestore document
-  const itemDocRef = doc(firestore, 'inventory', item.id);
-  
-  // Delete all in parallel
-  await Promise.all([
-    deleteObject(originalImageRef),
-    deleteObject(thumbImageRef),
-    deleteDoc(itemDocRef)
-  ]);
+  const deletionPromises: Promise<any>[] = [];
+
+  // Delete ONLY the images that are specific to this inventory item.
+  // If originalImageDetails exists, those are the inventory-specific images.
+  // The `item.image` would be pointing to a shared GlowUp asset, which we should not delete.
+  if (item.originalImageDetails) {
+    if (item.originalImageDetails.originalPath) {
+      deletionPromises.push(deleteObject(ref(storage, item.originalImageDetails.originalPath)));
+    }
+    if (item.originalImageDetails.thumbPath) {
+      deletionPromises.push(deleteObject(ref(storage, item.originalImageDetails.thumbPath)));
+    }
+  } else {
+    // If there are no originalImageDetails, it means `item.image` contains the original images.
+    if (item.image?.originalPath) {
+      deletionPromises.push(deleteObject(ref(storage, item.image.originalPath)));
+    }
+    if (item.image?.thumbPath) {
+      deletionPromises.push(deleteObject(ref(storage, item.image.thumbPath)));
+    }
+  }
+
+  // Delete the Firestore document
+  deletionPromises.push(deleteDoc(doc(firestore, 'inventory', item.id)));
+
+  await Promise.all(deletionPromises);
 };
+
+    

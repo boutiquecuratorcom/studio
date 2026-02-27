@@ -204,12 +204,30 @@ export default function ViewInventoryItemPage() {
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-6">
           <Card className="overflow-hidden sticky top-12">
-            <div className="relative aspect-square w-full">
-              <Image src={item.image.originalUrl} alt={item.title} fill className="object-cover" />
-            </div>
+             <CardHeader>
+                <CardTitle>Display Image</CardTitle>
+             </CardHeader>
+            <CardContent>
+                <div className="relative aspect-square w-full">
+                <Image src={item.image.originalUrl} alt={item.title} fill className="object-cover rounded-lg" />
+                </div>
+            </CardContent>
           </Card>
+          {item.originalImageDetails && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Original Image</CardTitle>
+                    <CardDescription>This image is used for AI analysis.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                     <div className="relative aspect-square w-full">
+                        <Image src={item.originalImageDetails.originalUrl} alt={`Original of ${item.title}`} fill className="object-cover rounded-lg" />
+                    </div>
+                </CardContent>
+            </Card>
+          )}
         </div>
         <div className="lg:col-span-2 space-y-6">
           <Card>
@@ -278,3 +296,5 @@ function DetailItem({ label, value, icon: Icon, isBlock = false }: { label: stri
     </div>
   );
 }
+
+    
