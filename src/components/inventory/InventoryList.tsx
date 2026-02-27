@@ -103,7 +103,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
     if (!firestore || !storage) return;
     try {
       await deleteInventoryItem(firestore, storage, item);
-      toast({ title: 'Item Deleted', description: `"${item.title}" has been removed from your inventory.` });
+      toast({ title: 'Item Deleted', description: `"${item.title}" has been removed from My Rack.` });
     } catch (error: any) {
       toast({ variant: 'destructive', title: 'Delete Failed', description: error.message });
     }
@@ -245,7 +245,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the item &quot;{item.title}&quot; and all of its images. This action cannot be undone.
+              This will permanently delete &quot;{item.title}&quot; from your rack and all of its images. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -327,7 +327,7 @@ export function InventoryList({ userId }: { userId: string }) {
         <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card text-destructive flex flex-col items-center gap-4">
             <AlertTriangle className="h-10 w-10" />
             <div>
-                <p className="font-semibold">Error loading inventory.</p>
+                <p className="font-semibold">Error loading My Rack.</p>
                 <p className="text-sm">{error.message}</p>
             </div>
         </div>
@@ -360,9 +360,9 @@ export function InventoryList({ userId }: { userId: string }) {
       }
       return (
           <div className="text-center py-16 border-2 border-dashed rounded-xl bg-card">
-              <p className="text-muted-foreground">Your inventory is empty.</p>
+              <p className="text-muted-foreground">Your rack is empty.</p>
               <Button asChild variant="link">
-                  <Link href="/inventory/add">Add your first item</Link>
+                  <Link href="/inventory/add">Start by adding your first piece.</Link>
               </Button>
           </div>
       );

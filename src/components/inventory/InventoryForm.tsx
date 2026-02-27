@@ -86,7 +86,7 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
                 brand: 'LuLaRoe', // Default brand
             };
             itemId = await createInventoryItem(firestore, storage, user, processedData, imageFile!);
-            toast({ title: 'Item Created', description: `"${values.title}" has been added to your inventory.` });
+            toast({ title: 'Item Added', description: `"${values.title}" has been added to My Rack.` });
         } else {
             if (!item) throw new Error('Item not found for update.');
             itemId = item.id;
@@ -223,7 +223,7 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
           />
           <Button type="submit" size="lg" disabled={isSaving}>
             {isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
-            {mode === 'create' ? 'Save New Item' : 'Save Changes'}
+            {mode === 'create' ? 'Add to My Rack' : 'Save Changes'}
           </Button>
         </div>
       </form>

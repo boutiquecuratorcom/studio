@@ -24,7 +24,7 @@ const navItems = [
   { href: '/editor', label: 'AI Editor', icon: Wand2 },
   { href: '/post-creator', label: 'Post Creator', icon: LayoutTemplate },
   { href: '/engagement-machine', label: 'Engagement Machine', icon: Megaphone },
-  { href: '/inventory', label: 'Inventory', icon: Boxes },
+  { href: '/inventory', label: 'My Rack', icon: Boxes },
   { href: '/uploads', label: 'My Library', icon: Upload },
   { href: '/my-brand', label: 'My Brand', icon: Briefcase },
   { href: '/looks', label: 'Looks', icon: BookOpen },

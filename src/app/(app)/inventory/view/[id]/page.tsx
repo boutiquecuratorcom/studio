@@ -104,7 +104,7 @@ export default function ViewInventoryItemPage() {
             <p className="text-muted-foreground mt-2 max-w-md">{description}</p>
             {rawError && <Card className="mt-4 p-4 bg-destructive/10 w-full max-w-lg text-left"><pre className="text-xs text-destructive whitespace-pre-wrap">{rawError}</pre></Card>}
             <Button asChild className="mt-6">
-                <Link href="/inventory">Back to Inventory</Link>
+                <Link href="/inventory">Back to My Rack</Link>
             </Button>
         </div>
     </div>
@@ -122,8 +122,8 @@ export default function ViewInventoryItemPage() {
   if (!item) {
      return renderErrorState(
         <FileQuestion className="h-16 w-16 text-muted-foreground mb-4" />,
-        "Document Truly Not Found",
-        `No document exists at the path: inventory/${decodeURIComponent(id)}`
+        "Item Not Found",
+        `The item you are looking for could not be found on your rack.`
     );
   }
   
@@ -223,7 +223,7 @@ export default function ViewInventoryItemPage() {
         <div className="lg:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Item Details</CardTitle>
+              <CardTitle>Rack Item Details</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4 text-sm">
                 <DetailItem label="Brand" value={item.brand} />

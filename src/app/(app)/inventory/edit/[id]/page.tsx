@@ -40,7 +40,7 @@ export default function EditInventoryPage() {
      return (
         <div className="flex-1 p-8 text-center">
             <p className="text-destructive mt-10">
-                {error ? `Error: ${error.message}` : 'Inventory item not found.'}
+                {error ? `Error: ${error.message}` : 'Item not found on your rack.'}
             </p>
         </div>
      )
@@ -50,7 +50,7 @@ export default function EditInventoryPage() {
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
       <header className="mb-10">
         <h1 className="text-4xl font-headline font-bold text-foreground tracking-tight">
-          Edit Inventory Item
+          Edit Rack Item
         </h1>
         <p className="text-lg text-muted-foreground mt-2 max-w-2xl">
           Update the details for &quot;{item.title}&quot;.
