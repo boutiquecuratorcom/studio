@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { formatDistanceToNow } from 'date-fns';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -83,8 +84,17 @@ function OutfitCard({ outfit }: { outfit: Outfit }) {
           </DropdownMenu>
         </CardHeader>
         <CardContent className="flex-grow">
-            <div className="aspect-video bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground">
-                <p>No cover image</p>
+            <div className="relative aspect-video bg-muted rounded-md flex items-center justify-center text-sm text-muted-foreground">
+                {outfit.cover?.thumbUrl || outfit.cover?.imageUrl ? (
+                    <Image
+                        src={outfit.cover.thumbUrl || outfit.cover.imageUrl!}
+                        alt={outfit.title}
+                        fill
+                        className="object-cover"
+                    />
+                ) : (
+                    <p>No cover image</p>
+                )}
             </div>
         </CardContent>
         <CardFooter>

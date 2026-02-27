@@ -1,13 +1,13 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useInventoryItemsByIds, type InventoryItem } from '@/lib/inventory';
+import { useInventoryItemsByIds, type InventoryItem, updateInventoryItem, generateSearchKeywords } from '@/lib/inventory';
 import { AlertTriangle, Trash2, XCircle, Link as LinkIcon, Link2Off } from 'lucide-react';
-import { useFirestore } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { unlinkRackItemFromOutfit } from '@/lib/outfits';
@@ -23,6 +23,72 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { Badge } from '../ui/badge';
+import { analyzeInventoryImage } from '@/ai/flows/analyze-inventory-image-flow';
+
+function ItemAnalysisTrigger({ item }: { item: InventoryItem }) {
+  const { user } = useUser();
+  const firestore = useFirestore();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    let isMounted = true;
+    
+    const runAnalysis = async () => {
+        if (!user || !firestore || item.analysis?.status !== 'pending') {
+            return;
+        }
+
+        try {
+            const imageUrlForAnalysis = item.originalImageDetails?.thumbUrl || item.image.thumbUrl;
+            if (!imageUrlForAnalysis) {
+              throw new Error("No valid image URL found for analysis.");
+            }
+
+            const analysisResult = await analyzeInventoryImage({ imageUrl: imageUrlForAnalysis });
+            
+            if (isMounted) {
+                const updatedItemData = { ...item, analysis: { ...analysisResult, status: 'complete' } };
+                const searchKeywords = generateSearchKeywords(updatedItemData);
+
+                await updateInventoryItem(firestore, item.id, {
+                    analysis: {
+                        ...analysisResult,
+                        status: 'complete',
+                        error: '',
+                    },
+                    searchKeywords,
+                });
+                toast({
+                    title: 'Analysis Complete',
+                    description: `AI analysis for "${item.title}" is done.`,
+                });
+            }
+        } catch (error: any) {
+            console.error('AI Analysis failed:', error);
+            if (isMounted) {
+                await updateInventoryItem(firestore, item.id, {
+                    'analysis.status': 'failed',
+                    'analysis.error': error.message || 'An unknown error occurred during analysis.',
+                });
+                toast({
+                    variant: 'destructive',
+                    title: 'Analysis Failed',
+                    description: `Could not analyze "${item.title}".`,
+                });
+            }
+        }
+    };
+    
+    runAnalysis();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [item, user, firestore, toast]);
+
+  return null;
+}
+
 
 const LinkedItemCard = ({ item, outfitId }: { item: InventoryItem; outfitId: string }) => {
   const firestore = useFirestore();
@@ -155,7 +221,12 @@ export function LinkedItemsList({ outfitId, linkedItemIds }: { outfitId: string;
         {linkedItemIds.map(id => {
             const item = itemsMap.get(id);
             if (item) {
-                return <LinkedItemCard key={id} item={item} outfitId={outfitId} />;
+                return (
+                  <React.Fragment key={id}>
+                    <ItemAnalysisTrigger item={item} />
+                    <LinkedItemCard item={item} outfitId={outfitId} />
+                  </React.Fragment>
+                );
             } else if (!loading) { // Only show not found if we are done loading
                 return <NotFoundItemCard key={id} itemId={id} outfitId={outfitId} />;
             }

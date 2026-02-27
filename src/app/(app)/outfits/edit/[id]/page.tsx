@@ -139,7 +139,7 @@ export default function EditOutfitPage() {
     },
   });
   
-  const { reset, watch, handleSubmit, control, setValue, getValues } = form;
+  const { reset, watch, handleSubmit, control, setValue, getValues, formState } = form;
   const watchOutfitClaim = watch('outfitClaim');
   const watchClaimMethod = watch('outfitClaim.claim.mode');
 
@@ -238,6 +238,7 @@ export default function EditOutfitPage() {
 
       await updateOutfit(firestore, outfit.id, dataToUpdate);
       toast({ title: 'Outfit Saved!', description: 'Your changes have been saved successfully.' });
+      reset(values);
     } catch (error: any) {
       console.error('Failed to save outfit:', error);
       toast({ variant: 'destructive', title: 'Save Failed', description: error.message });
@@ -447,7 +448,7 @@ export default function EditOutfitPage() {
                 Outfit Editor
               </h1>
             </div>
-            <Button type="submit" size="lg" disabled={isSaving || isUploading || outfit.cover?.status === 'generating' || isGeneratingDesc}>
+            <Button type="submit" size="lg" disabled={!formState.isDirty || isSaving || isUploading || outfit.cover?.status === 'generating' || isGeneratingDesc}>
               {isSaving || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
               {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : 'Save Outfit'}
             </Button>
