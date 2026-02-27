@@ -76,9 +76,9 @@ export default function ViewInventoryItemPage() {
   if (loading) {
     return (
       <div className="flex-1 p-8 sm:p-10 lg:p-12">
-        <header className="mb-10">
-          <Skeleton className="h-12 w-3/5" />
-          <Skeleton className="mt-4 h-6 w-2/5" />
+        <header className="mb-16">
+          <Skeleton className="h-16 w-3/5" />
+          <Skeleton className="mt-4 h-7 w-2/5" />
         </header>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-1">
@@ -207,9 +207,9 @@ export default function ViewInventoryItemPage() {
   
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
-      <header className="mb-10">
-        <h1 className="text-4xl font-headline font-bold text-foreground tracking-tight break-words">{item.title}</h1>
-        <p className="text-lg text-muted-foreground mt-2">{item.type}</p>
+      <header className="mb-16">
+        <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight break-words">{item.title}</h1>
+        <p className="text-xl text-muted-foreground mt-4">{item.type}</p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

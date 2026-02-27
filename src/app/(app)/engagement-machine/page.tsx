@@ -222,11 +222,11 @@ const EngagementMachineClient = () => {
 
     return (
         <div className="flex-1 p-8 sm:p-10 lg:p-12">
-            <header className="mb-10">
-                <h1 className="text-4xl font-headline font-bold text-foreground tracking-tight">
+            <header className="mb-16">
+                <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">
                     Today&apos;s Engagement Drop
                 </h1>
-                <p className="text-lg text-muted-foreground mt-2 max-w-2xl">
+                <p className="text-xl text-muted-foreground mt-4 max-w-2xl">
                     Your daily dose of 5 AI-powered ideas to connect with your audience.
                 </p>
             </header>

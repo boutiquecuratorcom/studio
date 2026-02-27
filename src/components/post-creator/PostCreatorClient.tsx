@@ -37,10 +37,10 @@ const DEFAULT_CTA_STYLE: TextLayerStyle = { textColorMode: 'auto', badgeColor: '
 function LoadingState() {
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
-      <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
+      <header className="mb-16 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Skeleton className="h-10 w-72 mb-3" />
-          <Skeleton className="h-6 w-96" />
+          <Skeleton className="h-14 w-80 mb-4" />
+          <Skeleton className="h-7 w-96" />
         </div>
         <div className="flex items-center gap-2">
           <Skeleton className="h-10 w-24" />
@@ -78,9 +78,9 @@ function ImageSelector({ onImageSelect }: { onImageSelect: (url: string) => void
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
-      <header className="mb-10 text-center flex flex-col items-center">
-        <h1 className="text-4xl font-headline font-bold text-foreground tracking-tight">Post Creator</h1>
-        <p className="text-lg text-muted-foreground mt-2 max-w-2xl mx-auto">
+      <header className="mb-16 text-center flex flex-col items-center">
+        <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">Post Creator</h1>
+        <p className="text-xl text-muted-foreground mt-4 max-w-2xl mx-auto">
           Start by selecting an image from your recent uploads, or generate a new one.
         </p>
         <Button asChild size="lg" className="mt-6 py-6 text-base">
@@ -92,7 +92,7 @@ function ImageSelector({ onImageSelect }: { onImageSelect: (url: string) => void
       </header>
 
       <div>
-        <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">Select a Recent Upload</h2>
+        <h2 className="text-3xl font-headline font-semibold tracking-tight mb-6">Select a Recent Upload</h2>
         {loading && (
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -311,12 +311,12 @@ export default function PostCreatorClient() {
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
-      <header className="mb-10 flex flex-wrap items-center justify-between gap-4">
+      <header className="mb-16 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-headline font-bold text-foreground tracking-tight">
+          <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight">
             Instant Post Creator
           </h1>
-          <p className="text-lg text-muted-foreground mt-2 max-w-2xl">
+          <p className="text-xl text-muted-foreground mt-4 max-w-2xl">
             Customize your auto-generated post and export it for social media.
           </p>
         </div>

@@ -48,14 +48,14 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-card border-r flex flex-col">
-      <div className="h-20 flex items-center px-6">
+    <aside className="w-64 flex-shrink-0 bg-secondary border-r flex flex-col">
+      <div className="h-24 flex items-center px-6">
         <Sparkles className="h-7 w-7 text-primary" />
         <h1 className="ml-3 text-xl font-headline font-semibold tracking-tight text-foreground">
           Boutique Curator
         </h1>
       </div>
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 px-4 space-y-1">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -63,10 +63,10 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center gap-3 rounded-lg px-4 py-2.5 text-base font-medium transition-colors',
+                'flex items-center gap-3 rounded-lg px-6 py-3 text-base transition-colors',
                 isActive
-                  ? 'bg-primary text-primary-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                  ? 'text-primary font-bold'
+                  : 'text-muted-foreground hover:text-foreground font-medium'
               )}
             >
               <item.icon className="h-5 w-5" />
