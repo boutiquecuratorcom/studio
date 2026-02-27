@@ -56,7 +56,7 @@ export default function AddInventoryPage() {
         if (!firestore) throw new Error('Firestore not available');
         await linkRackItemToOutfit(firestore, outfitContext.outfitId, itemId);
         toast({ title: 'Item Linked!', description: 'The new item has been linked to your outfit.' });
-        router.push(`/outfits/view/${outfitContext.outfitId}`);
+        router.push(`/outfits/edit/${outfitContext.outfitId}`);
       } catch (error: any) {
         console.error('Failed to link item to outfit', error);
         toast({ variant: 'destructive', title: 'Linking Failed', description: error.message });

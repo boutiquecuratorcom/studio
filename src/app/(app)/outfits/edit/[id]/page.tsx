@@ -255,10 +255,18 @@ export default function EditOutfitPage() {
                 <CardHeader>
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2"><Layers className="h-5 w-5" /> Linked Items</CardTitle>
-                    <Button type="button" variant="outline" onClick={() => setIsModalOpen(true)}>
-                        <Plus className="mr-2 h-4 w-4" />
-                        Add from My Rack
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button asChild variant="outline">
+                          <Link href={`/inventory/add?source=outfit&outfitId=${outfit.id}`}>
+                              <UploadCloud className="mr-2 h-4 w-4" />
+                              Upload New Item
+                          </Link>
+                      </Button>
+                      <Button type="button" onClick={() => setIsModalOpen(true)}>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add from My Rack
+                      </Button>
+                    </div>
                   </div>
                   <CardDescription>The individual rack items that make up this outfit.</CardDescription>
                 </CardHeader>
