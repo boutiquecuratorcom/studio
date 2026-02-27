@@ -135,7 +135,7 @@ export function GlowUpStudio() {
   // --- Rack Item Integration State ---
   const [source, setSource] = React.useState<string | null>(null);
   const [rackItemId, setRackItemId] = React.useState<string | null>(null);
-  const { item: sourceItem } = useInventoryItem(rackItemId);
+  const { item: sourceItem, loading: sourceItemLoading } = useInventoryItem(rackItemId);
 
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -151,15 +151,16 @@ export function GlowUpStudio() {
     if (sourceParam === 'rackItem' && idParam) {
       setSource(sourceParam);
       setRackItemId(idParam);
+      setCreationType("single");
+      setStep("upload"); // Use 'upload' as an intermediate "loading" state
     }
   }, [searchParams]);
 
   React.useEffect(() => {
     if (sourceItem && rackItemId && source === 'rackItem') {
       setOriginalImages([sourceItem.image.originalUrl]);
-      setCreationType("single");
-      setStep("selectStyleType");
       setEnhancedImage(null);
+      setStep("selectStyleType");
     }
   }, [sourceItem, rackItemId, source]);
 
@@ -597,41 +598,47 @@ export function GlowUpStudio() {
   }: {
     title: string;
     wrapperRef?: React.Ref<HTMLDivElement>;
-  }) => (
-    <div className="space-y-3" ref={wrapperRef}>
-      <h3 className="text-center font-medium text-lg text-muted-foreground">{title}</h3>
-      <Card className={cn("relative group aspect-square w-full overflow-hidden shadow-lg", isEnhancing && "bg-muted/30")}>
-        {enhancedImage ? (
-           <Image src={enhancedImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isInstantGlowUp && "saturate-125 brightness-110 contrast-105")} data-ai-hint="dress mannequin" />
-        ) : (
-          !isEnhancing && (
-             <div className="flex flex-col h-full items-center justify-center bg-muted/50 p-8 text-center">
-              <Sparkles className="w-12 h-12 text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">Your enhanced image will appear here</p>
+  }) => {
+    const displayImage = enhancedImage || (source === 'rackItem' && originalImages.length > 0 ? originalImages[0] : null);
+
+    return (
+        <div className="space-y-3" ref={wrapperRef}>
+        <h3 className="text-center font-medium text-lg text-muted-foreground">{title}</h3>
+        <Card className={cn("relative group aspect-square w-full overflow-hidden shadow-lg", isEnhancing && "bg-muted/30")}>
+            {displayImage ? (
+            <Image src={displayImage} alt={title} fill className={cn("object-cover transition-transform duration-300 group-hover:scale-105", isInstantGlowUp && "saturate-125 brightness-110 contrast-105")} data-ai-hint="dress mannequin" />
+            ) : (
+            !isEnhancing && (
+                <div className="flex flex-col h-full items-center justify-center bg-muted/50 p-8 text-center">
+                <Sparkles className="w-12 h-12 text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">Your enhanced image will appear here</p>
+                </div>
+            )
+            )}
+            {isEnhancing && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-8">
+                <p className="font-medium text-lg text-primary mb-4">Creating your glow-up...</p>
+                <Progress value={progress} className="w-full max-w-xs" />
+                <p className="text-sm text-muted-foreground mt-2">{progress}%</p>
             </div>
-          )
-        )}
-        {isEnhancing && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm p-8">
-            <p className="font-medium text-lg text-primary mb-4">Creating your glow-up...</p>
-            <Progress value={progress} className="w-full max-w-xs" />
-            <p className="text-sm text-muted-foreground mt-2">{progress}%</p>
-          </div>
-        )}
-        {step === "done" && enhancedImage && (
-          <div className="absolute inset-0 bg-black/60 flex flex-col gap-4 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <Button variant="secondary" onClick={handleDownload}><Download className="mr-2 h-4 w-4" />Download Image</Button>
-          </div>
-        )}
-        {(!enhancedImage && !isEnhancing) && <Skeleton className="w-full h-full" />}
-      </Card>
-    </div>
-  );
+            )}
+            {step === "done" && enhancedImage && (
+            <div className="absolute inset-0 bg-black/60 flex flex-col gap-4 items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                <Button variant="secondary" onClick={handleDownload}><Download className="mr-2 h-4 w-4" />Download Image</Button>
+            </div>
+            )}
+            {(!displayImage && !isEnhancing) && <Skeleton className="w-full h-full" />}
+        </Card>
+        </div>
+    );
+    };
 
   const getCardDescription = () => {
     switch (step) {
       case 'selectCreationType': return "Select one to begin.";
-      case 'upload': return `Upload up to ${creationType === 'multiple' ? '3 images' : '1 image'}.`;
+      case 'upload': 
+        if (source === 'rackItem') return "Loading your item...";
+        return `Upload up to ${creationType === 'multiple' ? '3 images' : '1 image'}.`;
       case 'selectStyleType': return "How should it be styled?";
       case 'selectLookPreset': return "Pick a look that matches your brand.";
       case 'enhancing': return "Our AI is working its magic...";
