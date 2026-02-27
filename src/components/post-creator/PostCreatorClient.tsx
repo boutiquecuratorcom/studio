@@ -285,7 +285,7 @@ export default function PostCreatorClient() {
         styleConfig: { headline: headlineStyle, subtext: subtextStyle, cta: ctaStyle },
         brandSnapshot: {
           primaryFont: brandProfile?.primaryFont || 'Poppins',
-          secondaryFont: brandProfile?.secondaryFont || 'Cormorant Garamond',
+          secondaryFont: brandProfile?.secondaryFont || 'Montserrat',
           brandColors: brandProfile?.brandColors || [],
         },
       };

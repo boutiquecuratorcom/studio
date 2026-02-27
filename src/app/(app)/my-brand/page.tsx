@@ -975,7 +975,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
             </h3>
             <p
               className="text-sm text-muted-foreground"
-              style={{ fontFamily: getFontFamily(values.secondaryFont, "'Cormorant Garamond', serif") }}
+              style={{ fontFamily: getFontFamily(values.secondaryFont, 'Montserrat, sans-serif') }}
             >
               {values.tagline || 'Your tagline'}
             </p>
@@ -1023,7 +1023,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
               Secondary Font
             </p>
             {renderValue(values.secondaryFont, 'Not set', {
-              fontFamily: getFontFamily(values.secondaryFont, "'Cormorant Garamond', serif"),
+              fontFamily: getFontFamily(values.secondaryFont, 'Montserrat, sans-serif'),
             })}
           </div>
         </div>

@@ -69,7 +69,7 @@ const isColorDark = (hexColor: string): boolean => {
 
 const TextLayerComponent = ({ layer, type, templateId, brandProfile }: { layer: TextLayer, type: 'headline' | 'subtext' | 'cta', templateId: TemplateId, brandProfile?: BrandProfile | null}) => {
     const primaryFont = getFontFamily(brandProfile?.primaryFont, "Poppins, sans-serif");
-    const secondaryFont = getFontFamily(brandProfile?.secondaryFont, "'Cormorant Garamond', serif");
+    const secondaryFont = getFontFamily(brandProfile?.secondaryFont, "'Montserrat', sans-serif");
     const brandPrimary = brandProfile?.brandColors?.[0] || '#111111';
     const brandAccent = brandProfile?.brandColors?.[1] || '#22c55e';
 
