@@ -23,5 +23,10 @@ service firebase.storage {
     match /inventory/{userId}/{allPaths=**} {
       allow read, write: if isOwner(userId);
     }
+
+    // Allow users to read and write their own 'glowUps' folder
+    match /glowUps/{userId}/{allPaths=**} {
+      allow read, write: if isOwner(userId);
+    }
   }
 }
