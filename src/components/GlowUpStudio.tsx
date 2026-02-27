@@ -40,7 +40,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useUser, useFirestore, useStorage, useCollection } from "@/firebase";
-import { type InventoryItem, type GlowUp, createInventoryItemFromGlowUp } from "@/lib/inventory";
+import { type InventoryItem, type GlowUp } from "@/lib/inventory";
 import { resizeImage } from "@/lib/image-utils";
 import { FirestorePermissionError } from "@/firebase/errors";
 import { errorEmitter } from "@/firebase/error-emitter";
@@ -640,29 +640,34 @@ export function GlowUpStudio() {
 
   const handleAddToRack = async () => {
     if (!newGlowUpId || !user || !firestore) return;
-
+  
     setIsSaving(true);
-    toast({ title: "Adding to My Rack...", description: "Please wait while we create your new inventory item." });
+    toast({ title: "Preparing item for My Rack...", description: "Please wait." });
     
     try {
-        const glowUpRef = doc(firestore, `users/${user.uid}/glowUps`, newGlowUpId);
-        const glowUpSnap = await getDoc(glowUpRef);
-        if (!glowUpSnap.exists()) throw new Error("GlowUp record not found.");
-
-        const glowUpData = glowUpSnap.data() as GlowUp;
-
-        const newItemId = await createInventoryItemFromGlowUp(firestore, user, glowUpData, newGlowUpId);
-
-        await updateDoc(glowUpRef, { linkedRackItemId: newItemId });
-
-        toast({ title: "Item Added to My Rack!", description: "You can now edit the details of your new item." });
-        router.push('/inventory');
-
+      const glowUpRef = doc(firestore, `users/${user.uid}/glowUps`, newGlowUpId);
+      const glowUpSnap = await getDoc(glowUpRef);
+      if (!glowUpSnap.exists()) throw new Error("GlowUp record not found.");
+  
+      const glowUpData = glowUpSnap.data() as GlowUp;
+      
+      const prefillData = {
+        id: newGlowUpId,
+        inputImageUrl: glowUpData.inputImageUrl,
+        inputImageStoragePath: glowUpData.inputImageStoragePath,
+        outputImageUrl: glowUpData.outputImageUrl,
+        outputThumbUrl: glowUpData.outputThumbUrl,
+        storagePath: glowUpData.storagePath,
+        thumbStoragePath: glowUpData.thumbStoragePath,
+      };
+  
+      localStorage.setItem('glowUpToAdd', JSON.stringify(prefillData));
+      router.push('/inventory/add');
+  
     } catch (error: any) {
-        console.error("Failed to add to rack:", error);
-        toast({ variant: 'destructive', title: "Failed to Add Item", description: error.message });
-    } finally {
-        setIsSaving(false);
+      console.error("Failed to prepare item for rack:", error);
+      toast({ variant: 'destructive', title: "Failed to Start", description: error.message });
+      setIsSaving(false);
     }
   };
 

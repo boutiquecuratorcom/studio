@@ -302,13 +302,21 @@ export const createInventoryItem = async (
 };
 
 /**
- * Creates a new inventory item from an existing GlowUp record. This function does not perform any storage operations.
+ * Creates a new inventory item from form data after a GlowUp has been created.
  */
-export const createInventoryItemFromGlowUp = async (
+export const createInventoryItemFromGlowUpForm = async (
   firestore: Firestore,
   user: User,
-  glowUpData: GlowUp,
-  glowUpId: string
+  formData: { title: string; type: string; sizes: string[]; notes?: string },
+  glowUp: {
+    id: string;
+    inputImageUrl: string;
+    inputImageStoragePath: string;
+    outputImageUrl: string;
+    outputThumbUrl: string;
+    storagePath: string;
+    thumbStoragePath: string;
+  }
 ): Promise<string> => {
   // 1. Transaction to check monthly usage
   const userDocRef = doc(firestore, `users/${user.uid}`);
@@ -341,59 +349,52 @@ export const createInventoryItemFromGlowUp = async (
   const newItemRef = doc(collection(firestore, 'inventory'));
   const itemId = newItemRef.id;
 
-  // 3. Construct originalImageDetails from the GlowUp's input image.
-  // We re-use the main image URL for the thumbnail URL as a fallback, since one wasn't generated on original upload.
-  if (!glowUpData.inputImageUrl || !glowUpData.inputImageStoragePath) {
-    throw new Error('GlowUp record is missing original image source information.');
+  // 3. Construct originalImageDetails
+  if (!glowUp.inputImageUrl || !glowUp.inputImageStoragePath) {
+    throw new Error('GlowUp data is missing original image source information.');
   }
   const originalImageDetails: ImageDetails = {
-    originalPath: glowUpData.inputImageStoragePath,
-    originalUrl: glowUpData.inputImageUrl,
-    thumbPath: glowUpData.inputImageStoragePath, // Fallback to main path
-    thumbUrl: glowUpData.inputImageUrl,        // Fallback to main URL
+    originalPath: glowUp.inputImageStoragePath,
+    originalUrl: glowUp.inputImageUrl,
+    thumbPath: glowUp.inputImageStoragePath,
+    thumbUrl: glowUp.inputImageUrl,
   };
-
-  // 4. The display image is the GlowUp output.
-  if (
-    !glowUpData.outputImageUrl ||
-    !glowUpData.storagePath ||
-    !glowUpData.outputThumbUrl ||
-    !glowUpData.thumbStoragePath
-  ) {
-    throw new Error('GlowUp record is missing output image information.');
+  
+  // 4. Construct display image
+  if (!glowUp.outputImageUrl || !glowUp.storagePath || !glowUp.outputThumbUrl || !glowUp.thumbStoragePath) {
+    throw new Error('GlowUp data is missing output image information.');
   }
   const displayImage: ImageDetails = {
-    originalPath: glowUpData.storagePath,
-    originalUrl: glowUpData.outputImageUrl,
-    thumbPath: glowUpData.thumbStoragePath,
-    thumbUrl: glowUpData.outputThumbUrl,
+    originalPath: glowUp.storagePath,
+    originalUrl: glowUp.outputImageUrl,
+    thumbPath: glowUp.thumbStoragePath,
+    thumbUrl: glowUp.outputThumbUrl,
   };
 
-  // 5. Set up initial data and keywords
-  const itemDataForKeywords = {
-    title: 'New Item from Glow-Up',
-    type: 'Apparel',
-    brand: 'LuLaRoe', // Default brand
-  };
-  const searchKeywords = generateSearchKeywords(itemDataForKeywords);
-
-  // 6. Create the final inventory document
+  // 5. Build full item data
   const finalItemData: Omit<InventoryItem, 'id'> = {
-    ...itemDataForKeywords,
+    title: formData.title,
+    type: formData.type,
+    sizes: formData.sizes,
+    notes: formData.notes,
+    brand: 'LuLaRoe', // Default brand
     ownerId: user.uid,
-    sizes: ['OS'], // Default size
-    notes: `Created from Glow-Up: ${glowUpId}`,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
     image: displayImage,
     originalImageDetails: originalImageDetails,
-    glowUpId: glowUpId,
+    glowUpId: glowUp.id,
     glowedAt: serverTimestamp(),
     analysis: { status: 'pending' },
-    searchKeywords,
+    searchKeywords: generateSearchKeywords({ ...formData, brand: 'LuLaRoe' }),
   };
 
+  // 6. Save doc
   await setDoc(newItemRef, finalItemData);
+
+  // 7. Update GlowUp with linked ID
+  const glowUpRef = doc(firestore, `users/${user.uid}/glowUps`, glowUp.id);
+  await updateDoc(glowUpRef, { linkedRackItemId: itemId });
 
   return itemId;
 };

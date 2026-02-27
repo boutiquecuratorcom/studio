@@ -16,12 +16,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, Wand2 } from 'lucide-react';
 import React, { useState } from 'react';
-import { createInventoryItem, updateInventoryItem, InventoryItem, generateSearchKeywords } from '@/lib/inventory';
+import { createInventoryItem, createInventoryItemFromGlowUpForm, type InventoryItem } from '@/lib/inventory';
 import { ImageUploader } from './ImageUploader';
 import { useUser, useFirestore, useStorage } from '@/firebase';
 import { Checkbox } from '../ui/checkbox';
+import type { GlowUpPrefillData } from '@/app/(app)/inventory/add/page';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const allSizes = [
     'XXS', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', 
@@ -45,9 +47,10 @@ type InventoryFormProps = {
   mode: 'create' | 'update';
   item?: InventoryItem;
   onSave: (itemId: string) => void;
+  glowUpData?: GlowUpPrefillData | null;
 };
 
-export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
+export function InventoryForm({ mode, item, onSave, glowUpData }: InventoryFormProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const storage = useStorage();
@@ -70,31 +73,32 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
         toast({ variant: 'destructive', title: 'Error', description: 'User or Firebase services not available.' });
         return;
     }
-    if (mode === 'create' && !imageFile) {
-        toast({ variant: 'destructive', title: 'Image Required', description: 'Please upload an image for the new item.' });
-        return;
-    }
-    
+
     setIsSaving(true);
     
     try {
         let itemId: string;
-        
-        if (mode === 'create') {
-            const processedData = {
-                ...values,
-                brand: 'LuLaRoe', // Default brand
-            };
-            itemId = await createInventoryItem(firestore, storage, user, processedData, imageFile!);
+
+        if (glowUpData) {
+            // New flow: creating from a completed GlowUp
+            itemId = await createInventoryItemFromGlowUpForm(firestore, user, values, glowUpData);
+            toast({ title: 'Item Added!', description: `"${values.title}" has been added to My Rack from your Glow-Up.` });
+        } else if (mode === 'create') {
+            // Original flow: creating from a manual file upload
+            if (!imageFile) {
+                toast({ variant: 'destructive', title: 'Image Required', description: 'Please upload an image for the new item.' });
+                setIsSaving(false);
+                return;
+            }
+            const processedData = { ...values, brand: 'LuLaRoe' };
+            itemId = await createInventoryItem(firestore, storage, user, processedData, imageFile);
             toast({ title: 'Item Added', description: `"${values.title}" has been added to My Rack.` });
         } else {
+            // Update flow
             if (!item) throw new Error('Item not found for update.');
             itemId = item.id;
             
-            const mergedData = { ...item, ...values };
-            const searchKeywords = generateSearchKeywords(mergedData);
-            
-            await updateInventoryItem(firestore, itemId, { ...values, searchKeywords });
+            await updateInventoryItem(firestore, itemId, values);
             toast({ title: 'Item Updated', description: `"${values.title}" has been successfully updated.` });
         }
         onSave(itemId);
@@ -108,6 +112,15 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
 
   return (
     <Form {...form}>
+      {glowUpData && (
+        <Alert className="mb-6 border-accent/50 bg-accent/5 text-accent-foreground">
+          <Wand2 className="h-4 w-4 !text-accent" />
+          <AlertTitle>Adding from a Glow-Up!</AlertTitle>
+          <AlertDescription>
+            Your enhanced image is ready. Add the item details below to save it to My Rack.
+          </AlertDescription>
+        </Alert>
+      )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
         <div className="md:col-span-1 space-y-6">
             <FormField
@@ -119,11 +132,11 @@ export function InventoryForm({ mode, item, onSave }: InventoryFormProps) {
                   <FormControl>
                     <ImageUploader 
                         onFileSelect={setImageFile}
-                        existingImageUrl={mode === 'update' ? item?.image.thumbUrl : undefined}
+                        existingImageUrl={glowUpData?.outputThumbUrl || item?.image.thumbUrl}
                     />
                   </FormControl>
                    <FormDescription>
-                    {mode === 'create' ? 'Upload a new image.' : 'Image cannot be changed after creation.'}
+                    {mode === 'create' && !glowUpData ? 'Upload a new image.' : 'Image cannot be changed after creation.'}
                   </FormDescription>
                   <FormMessage />
                 </FormItem>
