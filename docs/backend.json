@@ -510,7 +510,18 @@
             "storagePath": { "type": ["string", "null"] },
             "thumbStoragePath": { "type": ["string", "null"] },
             "source": { "type": "string", "enum": ["ai", "manual"] },
-            "glowUpId": { "type": ["string", "null"] }
+            "glowUpId": { "type": ["string", "null"] },
+            "generatedAt": { "type": ["string", "null"], "format": "date-time" },
+            "status": { "type": "string", "enum": ["idle", "generating", "completed", "error"] },
+            "error": { "type": ["string", "null"] },
+            "prefs": {
+              "type": "object",
+              "properties": {
+                "preset": { "type": "string" },
+                "accessories": { "type": "string" },
+                "layout": { "type": "string" }
+              }
+            }
           }
         },
         "status": { "type": "string", "enum": ["draft", "published"] },

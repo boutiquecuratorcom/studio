@@ -11,12 +11,10 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const LookPresetSchema = z.enum([
-  // Flat Lay Presets
   'clean-catalog',
   'styled-boutique',
   'facebook-sales-post',
   'luxury-editorial',
-  // Modeled Presets
   'minimal-studio-model',
   'warm-lifestyle-model',
   'casual-outdoor-model',
@@ -33,6 +31,8 @@ const EnhanceImageInputSchema = z.object({
   creationType: z.enum(['single', 'multiple']),
   styleType: z.enum(['flat-lay', 'on-model']),
   lookPreset: LookPresetSchema,
+  accessories: z.enum(['Off', 'Light', 'Full']).optional().describe('The level of accessory styling.'),
+  layout: z.enum(['Grid', 'Flat-lay', 'Hero']).optional().describe('The desired composition layout.'),
 });
 export type EnhanceImageInput = z.infer<typeof EnhanceImageInputSchema>;
 
@@ -56,7 +56,7 @@ const enhanceImageFlow = ai.defineFlow(
     inputSchema: EnhanceImageInputSchema,
     outputSchema: EnhanceImageOutputSchema,
   },
-  async ({imageDataUris, creationType, styleType, lookPreset}) => {
+  async ({imageDataUris, creationType, styleType, lookPreset, accessories, layout}) => {
     const maxRetries = 2;
     const initialDelay = 1000;
 
@@ -75,7 +75,7 @@ const enhanceImageFlow = ai.defineFlow(
 
 **2. Composition & Layout:**
 - **Camera Angle:** Strict 90-degree overhead, top-down flat lay view.
-- **Layout:** The composition must be center-weighted and visually balanced. Arrange items naturally and intentionally, NOT in a symmetrical grid.
+- **Layout:** The composition must be center-weighted and visually balanced. Arrange items naturally and intentionally.
 - **Spacing:** Ensure clean, balanced spacing between all items.
 
 **3. Garment Presentation (CRITICAL):**
@@ -84,12 +84,7 @@ const enhanceImageFlow = ai.defineFlow(
 - **Bottoms:** Must be displayed realistically and in a wearable way (e.g., fully extended to show length). A single, gentle fold is acceptable only if required for styling, but AVOID random, excessive, or square folding.
 - **Placement:** Garments should not look like they are floating. No awkward overlapping that obscures items. The outfit must feel intentionally styled.
 
-**4. Prop & Accessory Styling:**
-- **Requirement:** Include coordinating boutique-style props and accessories to complete the look.
-- **Examples:** A stylish bag, simple jewelry, sunglasses, a pair of shoes, a coffee mug, or a small plant.
-- **Rule:** Props must ENHANCE the outfit, not overpower it. They must feel intentionally placed and match the outfit's style and color palette. Keep the layout clean, uncluttered, and with 3-5 props maximum. The exact number and style of accessories will be guided by the Look Preset.
-
-**5. Final Output:**
+**4. Final Output:**
 - **Format:** Square (1:1) aspect ratio.
 - **Forbidden:** No text, watermarks, or logos. Avoid busy backgrounds, clutter, or a generic "stock photo" feel.
 `;
@@ -106,37 +101,54 @@ const enhanceImageFlow = ai.defineFlow(
 - Add complementary accessories to give it context and create a mini-outfit look.
 `;
       }
+      
+      // -- NEW: Layout, Accessories, and Preset Refinements --
+
+      if (layout) {
+          promptText += `\n--- LAYOUT STYLE: ${layout} ---`;
+          if (layout === 'Grid') {
+              promptText += `\n- Refinement: Arrange items in a clean, organized, grid-like fashion with minimal overlap. More structured than a standard flat-lay.`
+          } else if (layout === 'Hero' && imageDataUris.length > 1) {
+              promptText += `\n- Refinement: Make the first clothing item the clear focal point, larger and more central than the others, which should be arranged around it.`
+          } else { // Flat-lay
+               promptText += `\n- Refinement: Arrange items in a natural, organic flat-lay with tasteful overlaps. This is the classic boutique look.`
+          }
+      }
+
+      if (accessories) {
+          promptText += `\n--- ACCESSORY LEVEL: ${accessories} ---`;
+          if (accessories === 'Off') {
+              promptText += `\n- Refinement: Do not include ANY props or accessories. Focus only on the main clothing item(s).`;
+          } else if (accessories === 'Light') {
+              promptText += `\n- Refinement: Include 1-2 simple, complementary accessories (e.g., a piece of jewelry, sunglasses).`;
+          } else { // Full
+              promptText += `\n- Refinement: Include 3-5 stylish accessories to create a complete, rich look (e.g., handbag, shoes, jewelry).`;
+          }
+      } else {
+           promptText += `\n--- ACCESSORY LEVEL: Default --- \n- Use your best judgment to add 1-3 tasteful accessories that enhance the outfit.`;
+      }
+
 
       promptText += `\n--- LOOK PRESET REFINEMENT: ${lookPreset.replace(/-/g, ' ')} ---`;
       switch (lookPreset) {
         case 'clean-catalog':
           promptText += `
-- **Refinement:** For this preset, lean towards a brighter, cleaner, and more organized arrangement. Reduce overlap and angles slightly. Keep it very organized and minimal.
-- **Accessories:** Minimal (one simple item) or no accessories. The focus is 100% on the product.
-- **Vibe:** Crisp, professional, high-end e-commerce catalog.
+- **Vibe:** Crisp, professional, high-end e-commerce catalog. Reduce overlap and angles. Keep it very organized and minimal. If accessories are requested, keep them very simple.
 `;
           break;
         case 'styled-boutique':
           promptText += `
-- **Refinement:** This is the core style. Create a warm, inviting arrangement with a soft, organic feel and tasteful overlaps.
-- **Shadows:** Emphasize soft, realistic drop shadows for depth.
-- **Accessories:** Add one premium, standout accessory (e.g., a leather bag, high-quality sunglasses).
-- **Vibe:** Sophisticated, warm, high-end boutique.
+- **Vibe:** Sophisticated, warm, high-end boutique. Create a warm, inviting arrangement with a soft, organic feel and tasteful overlaps. Emphasize soft, realistic drop shadows for depth.
 `;
           break;
         case 'facebook-sales-post':
           promptText += `
-- **Refinement:** Create a dynamic but still neat and organized arrangement. Embrace the natural, styled look with soft overlaps to be eye-catching.
-- **Accessories:** Add up to two trendy but tasteful accessories (e.g., sunglasses and a handbag). A lifestyle prop is a good fit here.
-- **Vibe:** Engaging, ready for social media, scroll-stopping.
+- **Vibe:** Engaging, ready for social media, scroll-stopping. Create a dynamic but still neat arrangement. Use trendy but tasteful accessories if requested.
 `;
           break;
         case 'luxury-editorial':
           promptText += `
-- **Refinement:** Create a more artistic and aspirational arrangement. The composition can be more creative.
-- **Lighting:** Use slightly more dramatic lighting and shadows to create a premium, editorial feel, while still being clean.
-- **Accessories:** Add premium, luxury-style accessories that tell a story.
-- **Vibe:** Aspirational, editorial, luxury magazine.
+- **Vibe:** Aspirational, editorial, luxury magazine. Create a more artistic arrangement. Use slightly more dramatic lighting and shadows to create a premium feel.
 `;
           break;
       }

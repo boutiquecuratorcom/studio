@@ -31,7 +31,7 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useOutfit, updateOutfit, type Outfit, type OutfitClaim, useInventoryItemsByIds } from '@/lib/outfits';
+import { useOutfit, updateOutfit, type Outfit, type OutfitClaim, useInventoryItemsByIds, type CoverPreferences } from '@/lib/outfits';
 import { useUser, useFirestore, useStorage, useDoc } from '@/firebase';
 import {
   AlertTriangle,
@@ -45,7 +45,8 @@ import {
   UploadCloud,
   Wand2,
   Sparkles,
-  Info
+  Info,
+  Cpu,
 } from 'lucide-react';
 import { useParams, useRouter } from 'next/navigation';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -62,6 +63,7 @@ import { generateOutfitDescriptions } from '@/ai/flows/generate-outfit-descripti
 import { SimplifiedItem } from '@/ai/flows/generate-outfit-descriptions-flow';
 import { enhanceImage, EnhanceImageInput } from '@/ai/flows/enhance-image-flow';
 import { resizeImage } from '@/lib/image-utils';
+import { GenerateCoverModal } from '@/components/outfits/GenerateCoverModal';
 
 const claimMethods = [
   { value: 'none', label: 'None' },
@@ -111,8 +113,8 @@ export default function EditOutfitPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [isGeneratingDesc, setIsGeneratingDesc] = useState(false);
-  const [isGeneratingCover, setIsGeneratingCover] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [addItemsModalOpen, setAddItemsModalOpen] = useState(false);
+  const [coverModalOpen, setCoverModalOpen] = useState(false);
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
 
@@ -223,6 +225,7 @@ export default function EditOutfitPage() {
         ]);
         
         dataToUpdate.cover = {
+            ...outfit.cover,
             imageUrl: imageUrl,
             thumbUrl: thumbUrl, 
             storagePath: coverPath,
@@ -243,9 +246,18 @@ export default function EditOutfitPage() {
     }
   };
   
+    const analysisIsPending = useMemo(() => {
+        if (itemsLoading || !linkedItems || linkedItems.length < 2) return false;
+        return linkedItems.some(item => !item.analysis || item.analysis.status === 'pending');
+    }, [linkedItems, itemsLoading]);
+  
     const handleGenerateDescriptions = async () => {
         if (!linkedItems || linkedItems.length < 2) {
             toast({ variant: 'destructive', title: 'Not enough items', description: 'Add at least 2 items to generate descriptions.'});
+            return;
+        }
+        if (analysisIsPending) {
+             toast({ variant: 'destructive', title: 'Analysis Incomplete', description: 'Please wait for all linked items to be analyzed.'});
             return;
         }
         setIsGeneratingDesc(true);
@@ -286,13 +298,22 @@ export default function EditOutfitPage() {
         }
     };
     
-    const handleGenerateCover = async () => {
+    const handleGenerateCover = async (prefs: CoverPreferences) => {
         if (!storage || !firestore || !user || !outfit || !linkedItems || linkedItems.length < 2) {
             toast({ variant: 'destructive', title: 'Not Ready', description: 'Add at least 2 items with images to generate a cover.'});
             return;
         }
-        setIsGeneratingCover(true);
+
         try {
+            await updateOutfit(firestore, outfit.id, { 
+                cover: {
+                    ...outfit.cover,
+                    status: 'generating',
+                    prefs,
+                    error: null,
+                }
+            });
+
             const imageUris = linkedItems.map(item => item.originalImageDetails?.originalUrl || item.image.originalUrl).filter(Boolean);
             if (imageUris.length < 2) {
                 throw new Error("Not enough valid original images found on linked items.");
@@ -301,8 +322,10 @@ export default function EditOutfitPage() {
             const input: EnhanceImageInput = {
                 imageDataUris: imageUris,
                 creationType: 'multiple',
-                styleType: 'flat-lay',
-                lookPreset: 'styled-boutique',
+                styleType: 'flat-lay', // Outfit covers are always flat-lay for now
+                lookPreset: prefs.preset as any,
+                accessories: prefs.accessories as any,
+                layout: prefs.layout as any,
             };
             const result = await enhanceImage(input);
 
@@ -336,7 +359,11 @@ export default function EditOutfitPage() {
                 storagePath: coverPath,
                 thumbStoragePath: thumbPath,
                 source: 'ai' as const,
-                glowUpId: null, // This is an outfit cover, not a single-item glowup
+                glowUpId: null,
+                generatedAt: serverTimestamp(),
+                status: 'completed' as const,
+                error: null,
+                prefs,
             };
 
             await updateOutfit(firestore, outfit.id, { cover: coverData });
@@ -344,10 +371,12 @@ export default function EditOutfitPage() {
 
             toast({ title: 'AI Cover Generated!', description: 'Your new outfit cover image has been saved.' });
         } catch (error: any) {
-             console.error('Failed to generate cover:', error);
+            console.error('Failed to generate cover:', error);
+            await updateOutfit(firestore, outfit.id, { 
+                'cover.status': 'error',
+                'cover.error': error.message 
+            });
             toast({ variant: 'destructive', title: 'Cover Generation Failed', description: error.message });
-        } finally {
-            setIsGeneratingCover(false);
         }
     };
 
@@ -395,9 +424,15 @@ export default function EditOutfitPage() {
   return (
     <>
     <AddItemsFromRackModal
-        isOpen={isModalOpen}
-        onOpenChange={setIsModalOpen}
+        isOpen={addItemsModalOpen}
+        onOpenChange={setAddItemsModalOpen}
         outfit={outfit}
+    />
+    <GenerateCoverModal
+        isOpen={coverModalOpen}
+        onOpenChange={setCoverModalOpen}
+        onGenerate={handleGenerateCover}
+        currentPrefs={outfit.cover?.prefs}
     />
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
       <Form {...form}>
@@ -412,13 +447,9 @@ export default function EditOutfitPage() {
                 Outfit Editor
               </h1>
             </div>
-            <Button type="submit" size="lg" disabled={isSaving || isUploading || isGeneratingCover || isGeneratingDesc}>
-              {isSaving || isUploading || isGeneratingCover || isGeneratingDesc ? (
-                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-              ) : (
-                <Save className="mr-2 h-5 w-5" />
-              )}
-              {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : isGeneratingCover ? 'Generating...' : isGeneratingDesc ? 'Generating...' : 'Save Outfit'}
+            <Button type="submit" size="lg" disabled={isSaving || isUploading || outfit.cover?.status === 'generating' || isGeneratingDesc}>
+              {isSaving || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+              {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : 'Save Outfit'}
             </Button>
           </header>
           
@@ -430,13 +461,13 @@ export default function EditOutfitPage() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2"><Layers className="h-5 w-5" /> Linked Items</CardTitle>
                     <div className="flex items-center gap-2">
-                      <Button asChild variant="outline" type="button">
-                          <Link href={`/inventory/add?source=outfit&outfitId=${outfit.id}`}>
-                              <UploadCloud className="mr-2 h-4 w-4" />
-                              Upload New Item
-                          </Link>
-                      </Button>
-                      <Button type="button" onClick={() => setIsModalOpen(true)}>
+                        <Button asChild variant="outline" type="button">
+                            <Link href={`/inventory/add?source=outfit&outfitId=${outfit.id}`}>
+                                <UploadCloud className="mr-2 h-4 w-4" />
+                                Upload New Item
+                            </Link>
+                        </Button>
+                      <Button type="button" onClick={() => setAddItemsModalOpen(true)}>
                           <Plus className="mr-2 h-4 w-4" />
                           Add from My Rack
                       </Button>
@@ -562,7 +593,7 @@ export default function EditOutfitPage() {
                             <CardTitle className="flex items-center gap-2"><Sparkles className="h-5 w-5 text-accent" /> AI Marketing Kit</CardTitle>
                             <CardDescription>Generate descriptions for your storefront and social media.</CardDescription>
                         </div>
-                         <Button type="button" onClick={handleGenerateDescriptions} disabled={!canGenerate || isGeneratingDesc || itemsLoading}>
+                         <Button type="button" onClick={handleGenerateDescriptions} disabled={!canGenerate || isGeneratingDesc || itemsLoading || analysisIsPending}>
                             {isGeneratingDesc ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
                             {isGeneratingDesc ? 'Generating...' : outfit?.descriptionLastGeneratedAt ? 'Re-generate' : 'Generate'}
                         </Button>
@@ -575,6 +606,14 @@ export default function EditOutfitPage() {
                             <AlertTitle>Add More Items</AlertTitle>
                             <AlertDescription>
                                 You need at least 2 linked items in this outfit to generate AI descriptions.
+                            </AlertDescription>
+                        </Alert>
+                    ) : analysisIsPending ? (
+                        <Alert className="bg-muted/50">
+                            <Cpu className="h-4 w-4" />
+                            <AlertTitle>Analysis in Progress</AlertTitle>
+                            <AlertDescription>
+                                Some linked items are still being analyzed by the AI. Description generation will be available once complete.
                             </AlertDescription>
                         </Alert>
                     ) : (
@@ -651,21 +690,29 @@ export default function EditOutfitPage() {
                         ) : (
                             <ImageIcon className="h-12 w-12 text-muted-foreground" />
                         )}
-                         {isGeneratingCover && (
-                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4">
-                                <Loader2 className="h-8 w-8 animate-spin mb-2" />
-                                <p className="font-medium">Generating AI Cover...</p>
+                         {outfit?.cover?.status === 'generating' && (
+                            <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 rounded-lg">
+                                <Loader2 className="h-8 w-8 animate-spin mb-2 text-primary" />
+                                <p className="font-medium text-foreground">Generating AI Cover...</p>
+                                <p className="text-sm text-muted-foreground">This can take a minute.</p>
                             </div>
                         )}
+                         {outfit?.cover?.status === 'error' && (
+                            <div className="absolute inset-0 bg-destructive/80 backdrop-blur-sm flex flex-col items-center justify-center text-center p-4 rounded-lg">
+                                <AlertTriangle className="h-8 w-8 mb-2 text-destructive-foreground" />
+                                <p className="font-medium text-destructive-foreground">Generation Failed</p>
+                                {outfit.cover.error && <p className="text-xs text-destructive-foreground/80 mt-1">{outfit.cover.error}</p>}
+                            </div>
+                         )}
                     </div>
                     <div className="grid grid-cols-2 gap-2">
                         <Button type="button" variant="outline" onClick={() => document.getElementById('cover-upload')?.click()}>
                             <UploadCloud className="mr-2 h-4 w-4" /> Upload
                         </Button>
                         <input type="file" id="cover-upload" accept="image/*" className="hidden" onChange={handleCoverImageSelect} />
-                        <Button type="button" variant="outline" onClick={handleGenerateCover} disabled={!canGenerate || isGeneratingCover}>
-                            {isGeneratingCover ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Wand2 className="mr-2 h-4 w-4" />}
-                             AI Generate
+                        <Button type="button" variant="outline" onClick={() => setCoverModalOpen(true)} disabled={!canGenerate || outfit?.cover?.status === 'generating'}>
+                            <Wand2 className="mr-2 h-4 w-4" />
+                            {outfit?.cover?.imageUrl ? 'Re-generate' : 'AI Generate'}
                         </Button>
                     </div>
                      {!canGenerate && (
@@ -688,6 +735,7 @@ export default function EditOutfitPage() {
                                     <SelectItem value="published">Published</SelectItem>
                                 </SelectContent>
                             </Select>
+                             <FormDescription className="pt-2">"Published" outfits may appear on public-facing pages in the future.</FormDescription>
                              <FormMessage />
                         </FormItem>
                         )}

@@ -27,6 +27,12 @@ export interface OutfitClaim {
   claim: ClaimDetails;
 }
 
+export interface CoverPreferences {
+  preset: string;
+  accessories: string;
+  layout: string;
+}
+
 export interface Outfit extends DocumentData {
   id: string;
   ownerId: string;
@@ -44,8 +50,12 @@ export interface Outfit extends DocumentData {
     thumbStoragePath: string | null;
     source: 'ai' | 'manual';
     glowUpId: string | null;
+    generatedAt?: any;
+    status?: 'idle' | 'generating' | 'completed' | 'error';
+    error?: string | null;
+    prefs?: CoverPreferences;
   };
-  status: "draft" | "published";
+  status: 'draft' | 'published';
   createdAt: any;
   updatedAt: any;
 }
