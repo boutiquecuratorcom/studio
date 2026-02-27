@@ -13,19 +13,26 @@ import {
   type DocumentData,
   type Firestore,
   arrayRemove,
+  documentId,
 } from 'firebase/firestore';
 import type { User } from 'firebase/auth';
 import { useCollection, useDoc, useFirestore } from '@/firebase';
 import { useMemo } from 'react';
+import type { ClaimDetails, InventoryItem } from './inventory';
 
 // Interface for Outfit Document
+
+export interface OutfitClaim {
+  mode: 'individual' | 'outfit';
+  claim: ClaimDetails;
+}
+
 export interface Outfit extends DocumentData {
   id: string;
   ownerId: string;
   title: string;
-  notes: string; // Used for the main description
-  claimDestination?: 'sonlet' | 'comment_sold' | 'facebook_live' | 'messenger' | 'custom';
-  claimUrl?: string;
+  notes: string;
+  outfitClaim?: OutfitClaim;
   linkedRackItemIds: string[];
   cover: {
     imageUrl: string | null;
@@ -40,6 +47,8 @@ export interface Outfit extends DocumentData {
   createdAt: any;
   updatedAt: any;
 }
+
+export * from './inventory';
 
 // Hook to get a list of outfits for a user
 export const useOutfits = (userId: string | null) => {
@@ -92,6 +101,15 @@ export const createOutfit = async (
     title: data.title,
     notes: data.notes,
     linkedRackItemIds: [],
+    outfitClaim: {
+        mode: 'individual',
+        claim: {
+            mode: 'none',
+            url: null,
+            label: null,
+            updatedAt: null,
+        }
+    },
     cover: {
       imageUrl: null,
       thumbUrl: null,
@@ -171,3 +189,5 @@ export const deleteOutfit = async (
 ) => {
   await deleteDoc(doc(firestore, 'outfits', outfitId));
 };
+
+    

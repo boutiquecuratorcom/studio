@@ -2,22 +2,68 @@
 
 import { useParams } from 'next/navigation';
 import Image from 'next/image';
-import { useOutfit } from '@/lib/outfits';
+import { useInventoryItemsByIds, useOutfit } from '@/lib/outfits';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { AlertTriangle, ServerCrash, FileQuestion, UserX, Layers, UploadCloud } from 'lucide-react';
+import { AlertTriangle, ServerCrash, FileQuestion, UserX, Layers, UploadCloud, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useUser } from '@/firebase';
 import { format } from 'date-fns';
 import { LinkedItemsList } from '@/components/outfits/LinkedItemsList';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
+const IndividualClaimDialog = ({ linkedItemIds }: { linkedItemIds: string[] }) => {
+    const { items, loading, error } = useInventoryItemsByIds(linkedItemIds);
+
+    return (
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Claim Individual Items</DialogTitle>
+                <DialogDescription>
+                    Each item in this outfit has its own claim destination. Select an item to proceed.
+                </DialogDescription>
+            </DialogHeader>
+            <div className="max-h-[60vh] overflow-y-auto p-1 -mx-4">
+                {loading && <p>Loading items...</p>}
+                {error && <p className="text-destructive">Error loading items.</p>}
+                <div className="space-y-2">
+                    {items?.map(item => (
+                        <div key={item.id} className="flex items-center justify-between p-2 rounded-md border">
+                            <div className="flex items-center gap-3">
+                                <div className="relative h-12 w-12 rounded-md overflow-hidden bg-muted flex-shrink-0">
+                                    <Image src={item.image.thumbUrl} alt={item.title} fill className="object-cover" />
+                                </div>
+                                <div>
+                                    <p className="font-semibold">{item.title}</p>
+                                    <p className="text-sm text-muted-foreground">{item.type}</p>
+                                </div>
+                            </div>
+                            {item.claim?.url ? (
+                                 <Button asChild size="sm">
+                                    <a href={item.claim.url} target="_blank" rel="noopener noreferrer">
+                                        {item.claim.label || 'Claim'} <ExternalLink className="ml-2 h-4 w-4" />
+                                    </a>
+                                </Button>
+                            ) : (
+                                <Button size="sm" disabled variant="outline">No Link</Button>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </DialogContent>
+    )
+}
 
 export default function ViewOutfitPage() {
   const params = useParams();
   const id = params.id as string;
   const { user } = useUser();
   const { data: outfit, loading, error } = useOutfit(id);
+  const [isClaimOpen, setIsClaimOpen] = useState(false);
 
   if (loading) {
     return (
@@ -64,6 +110,31 @@ export default function ViewOutfitPage() {
         </div>
     )
   }
+
+  const claimMode = outfit.outfitClaim?.mode || 'individual';
+  const outfitClaimUrl = outfit.outfitClaim?.claim?.url;
+  const outfitClaimLabel = outfit.outfitClaim?.claim?.label || 'Claim Now';
+
+  const ClaimButton = () => {
+    if (claimMode === 'outfit' && outfitClaimUrl) {
+        return (
+            <Button size="lg" asChild>
+                <a href={outfitClaimUrl} target="_blank" rel="noopener noreferrer">{outfitClaimLabel}</a>
+            </Button>
+        );
+    }
+    if (claimMode === 'individual') {
+        return (
+            <Dialog open={isClaimOpen} onOpenChange={setIsClaimOpen}>
+                <DialogTrigger asChild>
+                    <Button size="lg">Claim Items</Button>
+                </DialogTrigger>
+                <IndividualClaimDialog linkedItemIds={outfit.linkedRackItemIds} />
+            </Dialog>
+        );
+    }
+    return <Button size="lg" disabled>Claim Not Set</Button>
+  }
   
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -74,9 +145,12 @@ export default function ViewOutfitPage() {
                 Created on {outfit.createdAt ? format(outfit.createdAt.toDate(), 'PPP') : ''}
             </p>
         </div>
-        <Button asChild>
-            <Link href={`/outfits/edit/${outfit.id}`}>Edit Outfit</Link>
-        </Button>
+        <div className="flex items-center gap-3">
+            <Button asChild variant="outline">
+                <Link href={`/outfits/edit/${outfit.id}`}>Edit Outfit</Link>
+            </Button>
+            <ClaimButton />
+        </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -145,3 +219,5 @@ export default function ViewOutfitPage() {
     </div>
   );
 }
+
+    

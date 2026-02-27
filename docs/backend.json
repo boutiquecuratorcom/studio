@@ -489,15 +489,29 @@
           "type": "string",
           "description": "A multi-line description of the outfit for storefronts and posts."
         },
-        "claimDestination": {
-          "type": "string",
-          "enum": ["sonlet", "comment_sold", "facebook_live", "messenger", "custom"],
-          "description": "The destination for claiming the outfit."
-        },
-        "claimUrl": {
-            "type": "string",
-            "format": "uri",
-            "description": "A custom URL for the claim link if claimDestination is 'custom'."
+        "outfitClaim": {
+          "type": "object",
+          "description": "Defines the claim strategy for the entire outfit.",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": ["individual", "outfit"],
+              "description": "Determines if claims are handled per-item or for the whole outfit."
+            },
+            "claim": {
+              "type": "object",
+              "description": "The claim details used if mode is 'outfit'.",
+              "properties": {
+                "mode": {
+                  "type": "string",
+                  "enum": ["none", "custom_url", "messenger", "facebook_page", "whatsapp", "sonlet_manual"]
+                },
+                "url": { "type": ["string", "null"], "format": "uri" },
+                "label": { "type": ["string", "null"] },
+                "updatedAt": { "type": ["string", "null"], "format": "date-time" }
+              }
+            }
+          }
         },
         "linkedRackItemIds": {
           "type": "array",
@@ -629,3 +643,5 @@
     }
   }
 }
+
+    

@@ -14,7 +14,6 @@ import {
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -31,9 +30,10 @@ import {
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useOutfit, updateOutfit, type Outfit } from '@/lib/outfits';
-import { useFirestore, useStorage, useUser } from '@/firebase';
+import { useOutfit, updateOutfit, type Outfit, type OutfitClaim, type InventoryItem, useInventoryItemsByIds } from '@/lib/outfits';
+import { useUser, useFirestore, useStorage } from '@/firebase';
 import {
+  AlertTriangle,
   ArrowLeft,
   ImageIcon,
   Layers,
@@ -51,13 +51,32 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import { AddItemsFromRackModal } from '@/components/outfits/AddItemsFromRackModal';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { serverTimestamp } from 'firebase/firestore';
+import { Badge } from '@/components/ui/badge';
+
+const claimMethods = [
+  { value: 'none', label: 'None' },
+  { value: 'custom_url', label: 'Custom URL' },
+  { value: 'messenger', label: 'Messenger' },
+  { value: 'facebook_page', label: 'Facebook Page' },
+  { value: 'whatsapp', label: 'WhatsApp' },
+  { value: 'sonlet_manual', label: 'Sonlet Link (Manual)' },
+] as const;
 
 const outfitFormSchema = z.object({
   title: z.string().min(1, { message: 'Title is required.' }),
   notes: z.string().optional(),
   status: z.enum(['draft', 'published']),
-  claimDestination: z.enum(['sonlet', 'comment_sold', 'facebook_live', 'messenger', 'custom']).optional(),
-  claimUrl: z.string().url().optional().or(z.literal('')),
+  outfitClaim: z.object({
+    mode: z.enum(['individual', 'outfit']),
+    claim: z.object({
+        mode: z.enum(['none', 'custom_url', 'messenger', 'facebook_page', 'whatsapp', 'sonlet_manual']),
+        url: z.string().url({ message: "Please enter a valid URL." }).optional().or(z.literal('')),
+        label: z.string().optional().or(z.literal('')),
+    })
+  }),
 });
 
 type OutfitFormValues = z.infer<typeof outfitFormSchema>;
@@ -72,6 +91,8 @@ export default function EditOutfitPage() {
   const { toast } = useToast();
   
   const { data: outfit, loading, error } = useOutfit(id);
+  const { items: linkedItems } = useInventoryItemsByIds(outfit?.linkedRackItemIds || []);
+
 
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -79,6 +100,14 @@ export default function EditOutfitPage() {
   const [coverImageFile, setCoverImageFile] = useState<File | null>(null);
   const [coverImagePreview, setCoverImagePreview] = useState<string | null>(null);
 
+  const defaultOutfitClaim: OutfitClaim = {
+    mode: 'individual',
+    claim: {
+        mode: 'none',
+        url: '',
+        label: '',
+    }
+  };
 
   const form = useForm<OutfitFormValues>({
     resolver: zodResolver(outfitFormSchema),
@@ -86,13 +115,13 @@ export default function EditOutfitPage() {
       title: '',
       notes: '',
       status: 'draft',
-      claimDestination: undefined,
-      claimUrl: '',
+      outfitClaim: defaultOutfitClaim,
     },
   });
   
-  const { reset, watch, handleSubmit, control } = form;
-  const watchClaimDestination = watch('claimDestination');
+  const { reset, watch, handleSubmit, control, setValue, getValues } = form;
+  const watchOutfitClaim = watch('outfitClaim');
+  const watchClaimMethod = watch('outfitClaim.claim.mode');
 
   useEffect(() => {
     if (outfit) {
@@ -100,12 +129,30 @@ export default function EditOutfitPage() {
         title: outfit.title || '',
         notes: outfit.notes || '',
         status: outfit.status || 'draft',
-        claimDestination: outfit.claimDestination || undefined,
-        claimUrl: outfit.claimUrl || '',
+        outfitClaim: outfit.outfitClaim || defaultOutfitClaim,
       });
       setCoverImagePreview(outfit.cover?.imageUrl || null);
     }
   }, [outfit, reset]);
+  
+    useEffect(() => {
+    const defaultLabels: Record<typeof claimMethods[number]['value'], string> = {
+      'none': '',
+      'custom_url': 'Shop Now',
+      'messenger': 'Claim in Messenger',
+      'facebook_page': 'View on Facebook',
+      'whatsapp': 'Message on WhatsApp',
+      'sonlet_manual': 'Shop on Sonlet',
+    };
+    
+    const currentLabel = getValues('outfitClaim.claim.label') || '';
+    const isDefaultLabel = Object.values(defaultLabels).includes(currentLabel);
+    
+    if (watchClaimMethod && (currentLabel === '' || isDefaultLabel)) {
+      setValue('outfitClaim.claim.label', defaultLabels[watchClaimMethod], { shouldDirty: true });
+    }
+  }, [watchClaimMethod, setValue, getValues]);
+
 
   const handleCoverImageSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -127,10 +174,15 @@ export default function EditOutfitPage() {
     if (!firestore || !user || !outfit) return;
 
     setIsSaving(true);
-    let dataToUpdate: Partial<Outfit> = { ...values };
+    let dataToUpdate: Partial<Outfit> & { 'outfitClaim.claim.updatedAt'?: any } = { ...values };
+
+    // Handle claim timestamp
+    const claimHasChanged = JSON.stringify(outfit.outfitClaim?.claim || {}) !== JSON.stringify(values.outfitClaim.claim);
+    if (claimHasChanged) {
+        dataToUpdate['outfitClaim.claim.updatedAt'] = serverTimestamp();
+    }
 
     try {
-      // Handle cover image upload if a new one was selected
       if (coverImageFile) {
         setIsUploading(true);
         const coverPath = `outfits/${outfit.id}/cover-${Date.now()}`;
@@ -141,7 +193,6 @@ export default function EditOutfitPage() {
         dataToUpdate.cover = {
             ...(outfit.cover || {}),
             imageUrl: downloadURL,
-            // In a real app, we'd generate a thumb here too
             thumbUrl: downloadURL, 
         };
         setIsUploading(false);
@@ -156,6 +207,14 @@ export default function EditOutfitPage() {
       setIsSaving(false);
     }
   };
+  
+    const urlPlaceholders: Record<string, string> = {
+        messenger: 'e.g., m.me/your-page-name',
+        whatsapp: 'e.g., wa.me/1234567890',
+    }
+
+    const incompleteClaimItems = linkedItems?.filter(item => !item.claim || item.claim.mode === 'none' || (item.claim.mode !== 'none' && !item.claim.url));
+
 
   if (loading) {
     return (
@@ -219,7 +278,6 @@ export default function EditOutfitPage() {
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
             <div className="md:col-span-2 space-y-6">
-              {/* Main Details Card */}
               <Card>
                 <CardHeader><CardTitle>Outfit Details</CardTitle></CardHeader>
                 <CardContent className="space-y-6">
@@ -250,7 +308,6 @@ export default function EditOutfitPage() {
                 </CardContent>
               </Card>
 
-              {/* Linked Items Card */}
               <Card>
                 <CardHeader>
                   <div className="flex items-center justify-between">
@@ -275,52 +332,114 @@ export default function EditOutfitPage() {
                 </CardContent>
               </Card>
 
-              {/* Claim Links Card */}
-               <Card>
-                <CardHeader>
+              <Card>
+                 <CardHeader>
                     <CardTitle className="flex items-center gap-2"><LinkIcon className="h-5 w-5" /> Claim Destination</CardTitle>
-                    <CardDescription>Set a primary claim link for this entire outfit.</CardDescription>
+                    <CardDescription>Set how customers will claim or purchase this outfit.</CardDescription>
                 </CardHeader>
-                <CardContent className="space-y-4">
-                   <FormField
-                        control={control} name="claimDestination"
+                <CardContent>
+                    <FormField
+                        control={control}
+                        name="outfitClaim.mode"
                         render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Claim Method</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select a method" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="comment_sold">Comment "Sold"</SelectItem>
-                                    <SelectItem value="sonlet">Sonlet Link</SelectItem>
-                                    <SelectItem value="facebook_live">Facebook Live</SelectItem>
-                                    <SelectItem value="messenger">Messenger</SelectItem>
-                                    <SelectItem value="custom">Custom URL</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                        </FormItem>
+                            <FormItem>
+                                <Tabs
+                                    value={field.value}
+                                    onValueChange={field.onChange}
+                                >
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="individual">Individual Claim</TabsTrigger>
+                                        <TabsTrigger value="outfit">Outfit Claim</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="individual" className="pt-4">
+                                        <Card className="bg-muted/50 p-4">
+                                            <p className="text-sm text-muted-foreground mb-4">This mode uses the individual Claim Destination set on each linked item. This is recommended for flexibility.</p>
+                                             {incompleteClaimItems && incompleteClaimItems.length > 0 && (
+                                                <Alert variant="destructive" className="mb-4">
+                                                    <AlertTriangle className="h-4 w-4" />
+                                                    <AlertTitle>Incomplete Claims</AlertTitle>
+                                                    <AlertDescription>
+                                                        {incompleteClaimItems.length} linked item(s) do not have a claim destination set. They will not have a claim button.
+                                                    </AlertDescription>
+                                                </Alert>
+                                            )}
+                                            <div className="space-y-2">
+                                                {linkedItems?.map(item => (
+                                                    <div key={item.id} className="flex items-center justify-between text-sm p-2 rounded-md bg-background/50">
+                                                        <span className="font-medium truncate pr-4">{item.title}</span>
+                                                        <Badge variant={item.claim?.mode === 'none' || !item.claim ? 'destructive' : 'secondary'}>
+                                                            {item.claim?.mode?.replace(/_/g, ' ') || 'None'}
+                                                        </Badge>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </Card>
+                                    </TabsContent>
+                                    <TabsContent value="outfit" className="pt-4 space-y-4">
+                                        <p className="text-sm text-muted-foreground">This mode sets one primary claim link for the entire outfit, overriding individual item links.</p>
+                                        <FormField
+                                            control={control}
+                                            name="outfitClaim.claim.mode"
+                                            render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>Claim Method</FormLabel>
+                                                <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger><SelectValue placeholder="Select a claim method" /></SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {claimMethods.map(method => (
+                                                    <SelectItem key={method.value} value={method.value}>{method.label}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                                </Select>
+                                                <FormMessage />
+                                            </FormItem>
+                                            )}
+                                        />
+                                        {watchOutfitClaim.claim.mode && watchOutfitClaim.claim.mode !== 'none' && (
+                                            <>
+                                                <FormField
+                                                    control={control}
+                                                    name="outfitClaim.claim.url"
+                                                    render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Claim URL</FormLabel>
+                                                        <div className="relative">
+                                                        <LinkIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                        <FormControl>
+                                                            <Input placeholder={urlPlaceholders[watchOutfitClaim.claim.mode] || 'https://...'} {...field} value={field.value || ''} className="pl-10" />
+                                                        </FormControl>
+                                                        </div>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={control}
+                                                    name="outfitClaim.claim.label"
+                                                    render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>Button Label</FormLabel>
+                                                        <FormControl>
+                                                        <Input placeholder="e.g., Shop Now" {...field} value={field.value || ''} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                    )}
+                                                />
+                                            </>
+                                        )}
+                                    </TabsContent>
+                                </Tabs>
+                            </FormItem>
                         )}
                     />
-                    {watchClaimDestination === 'custom' && (
-                         <FormField
-                            control={control} name="claimUrl"
-                            render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Custom URL</FormLabel>
-                                <FormControl>
-                                <Input placeholder="https://your-claim-link.com" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                            )}
-                        />
-                    )}
                 </CardContent>
               </Card>
 
             </div>
             <div className="md:col-span-1 space-y-6 sticky top-12">
-               {/* Cover Image Card */}
               <Card>
                 <CardHeader><CardTitle>Outfit Image</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
@@ -343,7 +462,6 @@ export default function EditOutfitPage() {
                 </CardContent>
               </Card>
 
-               {/* Status Card */}
                <Card>
                 <CardHeader><CardTitle>Visibility</CardTitle></CardHeader>
                 <CardContent>
@@ -351,14 +469,14 @@ export default function EditOutfitPage() {
                         control={control} name="status"
                         render={({ field }) => (
                         <FormItem>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                            <Select onValueChange={field.onChange} value={field.value}>
                                 <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
                                 <SelectContent>
                                     <SelectItem value="draft">Draft</SelectItem>
                                     <SelectItem value="published">Published</SelectItem>
                                 </SelectContent>
                             </Select>
-                             <FormDescription className="pt-2">"Published" outfits may appear on public-facing pages in the future.</FormDescription>
+                             <p className="text-xs text-muted-foreground pt-2">"Published" outfits may appear on public-facing pages in the future.</p>
                             <FormMessage />
                         </FormItem>
                         )}
@@ -373,3 +491,5 @@ export default function EditOutfitPage() {
     </>
   );
 }
+
+    
