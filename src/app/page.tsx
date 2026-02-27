@@ -28,7 +28,7 @@ export default function RootPage() {
 
 
   return (
-    <div className="flex flex-col min-h-screen items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'radial-gradient(circle, hsl(var(--background)) 0%, hsl(var(--secondary)) 100%)' }}>
       <AuthForm />
     </div>
   );

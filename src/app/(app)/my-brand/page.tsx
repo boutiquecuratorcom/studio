@@ -239,12 +239,8 @@ export default function MyBrandPage() {
 
   useEffect(() => {
     if (brandProfileData) {
-      // When Firestore data arrives, reset the form to populate the fields.
-      // This is necessary because react-hook-form doesn't automatically update
-      // on async default value changes.
       const data = brandProfileData || {};
       const colors = data.brandColors || [];
-      // Ensure the brandColors array always has 3 elements for the form fields
       const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
 
       reset({
@@ -254,17 +250,17 @@ export default function MyBrandPage() {
         websiteUrl: data.websiteUrl || '',
         instagramUrl: data.instagramUrl || '',
         facebookUrl: data.facebookUrl || '',
-        toneOfVoice: data.toneOfVoice || '',
-        brandVibe: data.brandVibe || '',
-        targetCustomer: data.targetCustomer || '',
-        primaryGoal: data.primaryGoal || '',
+        toneOfVoice: data.toneOfVoice || undefined,
+        brandVibe: data.brandVibe || undefined,
+        targetCustomer: data.targetCustomer || undefined,
+        primaryGoal: data.primaryGoal || undefined,
         logoUrl: data.logoUrl || '',
         brandColors: paddedColors,
-        primaryFont: data.primaryFont || '',
-        secondaryFont: data.secondaryFont || '',
-        primaryPlatform: data.primaryPlatform || '',
-        postingFrequency: data.postingFrequency || '',
-        promoStyle: data.promoStyle || '',
+        primaryFont: data.primaryFont || undefined,
+        secondaryFont: data.secondaryFont || undefined,
+        primaryPlatform: data.primaryPlatform || undefined,
+        postingFrequency: data.postingFrequency || undefined,
+        promoStyle: data.promoStyle || undefined,
       });
     }
   }, [brandProfileData, reset]);
@@ -277,7 +273,6 @@ export default function MyBrandPage() {
     if (!file || !user || !storage) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      // 5MB limit
       toast({
         variant: 'destructive',
         title: 'Logo too large',
@@ -327,14 +322,12 @@ export default function MyBrandPage() {
     setIsSaving(true);
     
     const payload: { [key: string]: any } = {};
-    // Filter out undefined values from the form data
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined) {
         payload[key] = value;
       }
     });
     
-    // Special handling for brandColors to filter out empty strings
     if (data.brandColors) {
       payload.brandColors = data.brandColors.filter(
         (color) => !!color && color.match(/^#[0-9a-fA-F]{6}$/)
@@ -370,8 +363,8 @@ export default function MyBrandPage() {
     return (
       <div className="flex-1 p-8 sm:p-10 lg:p-12">
         <header className="mb-12">
-          <Skeleton className="h-12 w-80 mb-4" />
-          <Skeleton className="h-6 w-96" />
+          <Skeleton className="h-16 w-96 mb-4" />
+          <Skeleton className="h-7 w-full max-w-md" />
         </header>
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
           <div className="lg:col-span-2 space-y-6">
@@ -390,10 +383,10 @@ export default function MyBrandPage() {
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
       <header className="mb-12">
-        <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">
+        <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
           My Brand
         </h1>
-        <p className="text-lg text-muted-foreground mt-3 max-w-2xl">
+        <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
           This is your Brand Intelligence vault. Fill it out to personalize
           your AI content.
         </p>
@@ -425,7 +418,7 @@ export default function MyBrandPage() {
                   <CardHeader className="p-0 flex-row items-center gap-4 text-left">
                     <Building className="h-6 w-6 text-accent" />
                     <div>
-                      <CardTitle className="text-xl">Brand Identity</CardTitle>
+                      <CardTitle>Brand Identity</CardTitle>
                       <CardDescription className="mt-1">
                         The basics of who you are.
                       </CardDescription>
@@ -561,7 +554,7 @@ export default function MyBrandPage() {
                   <CardHeader className="p-0 flex-row items-center gap-4 text-left">
                     <Megaphone className="h-6 w-6 text-accent" />
                     <div>
-                      <CardTitle className="text-xl">
+                      <CardTitle>
                         Brand Voice & Positioning
                       </CardTitle>
                       <CardDescription className="mt-1">
@@ -625,7 +618,7 @@ export default function MyBrandPage() {
                   <CardHeader className="p-0 flex-row items-center gap-4 text-left">
                     <Palette className="h-6 w-6 text-accent" />
                     <div>
-                      <CardTitle className="text-xl">Visual Identity</CardTitle>
+                      <CardTitle>Visual Identity</CardTitle>
                       <CardDescription className="mt-1">
                         Upload your logo and set your brand colors & fonts.
                       </CardDescription>
@@ -803,7 +796,7 @@ export default function MyBrandPage() {
                   <CardHeader className="p-0 flex-row items-center gap-4 text-left">
                     <Heart className="h-6 w-6 text-accent" />
                     <div>
-                      <CardTitle className="text-xl">Business Basics</CardTitle>
+                      <CardTitle>Business Basics</CardTitle>
                       <CardDescription className="mt-1">
                         How you connect with your customers.
                       </CardDescription>
@@ -952,7 +945,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
   return (
     <Card className="overflow-hidden">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-xl">
+        <CardTitle className="flex items-center gap-2">
           <Sparkles className="h-5 w-5 text-accent" />
           Brand Preview
         </CardTitle>

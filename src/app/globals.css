@@ -4,48 +4,68 @@
 
 @layer base {
   :root {
-    --background: 40 29% 96%; /* Warm Ivory */
-    --foreground: 20 10% 15%; /* Charcoal */
-    --card: 40 30% 99%;
-    --card-foreground: 20 10% 15%;
-    --popover: 40 30% 99%;
-    --popover-foreground: 20 10% 15%;
-    --primary: 20 10% 15%; /* Charcoal for primary actions */
-    --primary-foreground: 40 30% 98%;
-    --secondary: 40 20% 93%; /* Light warm neutral for sidebar/muted */
-    --secondary-foreground: 20 10% 25%;
-    --muted: 40 20% 93%;
-    --muted-foreground: 20 10% 40%;
-    --accent: 345 25% 70%; /* Dusty Rose */
-    --accent-foreground: 20 10% 15%;
-    --destructive: 0 84.2% 60.2%;
+    --background: 39 42% 96%; /* Warm Ivory */
+    --foreground: 24 10% 15%; /* Deep Charcoal */
+    --card: 39 42% 99%;
+    --card-foreground: 24 10% 15%;
+    --popover: 39 42% 98%;
+    --popover-foreground: 24 10% 15%;
+
+    --primary: 345 30% 22%; /* Deep Plum for buttons, active states */
+    --primary-foreground: 39 40% 95%; /* Warm Off-white */
+    
+    --secondary: 35 30% 93%;
+    --secondary-foreground: 24 10% 25%;
+    
+    --muted: 35 30% 93%;
+    --muted-foreground: 24 10% 45%;
+
+    --accent: 35 60% 60%; /* Muted Gold */
+    --accent-foreground: 24 10% 15%;
+    
+    --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 98%;
-    --border: 40 20% 88%;
-    --input: 40 20% 92%;
-    --ring: 345 25% 70%;
-    --radius: 0.75rem;
+
+    --border: 35 25% 88%;
+    --input: 35 25% 92%;
+    --ring: 35 60% 60%; /* Muted Gold Ring */
+
+    --radius: 0.5rem;
+
+    /* Custom colors from the design reference */
+    --sidebar-background: 345 25% 18%;
+    --sidebar-foreground: 35 40% 88%;
+    --sidebar-foreground-active: 35 40% 98%;
+    --sidebar-accent: 35 60% 70%;
   }
+
   .dark {
-    --background: 20 10% 12%; /* Warm Dark */
-    --foreground: 40 30% 95%; /* Light Ivory */
-    --card: 20 10% 15%;
-    --card-foreground: 40 30% 95%;
-    --popover: 20 10% 12%;
-    --popover-foreground: 40 30% 95%;
-    --primary: 40 30% 95%;
-    --primary-foreground: 20 10% 12%;
-    --secondary: 20 10% 18%;
-    --secondary-foreground: 40 30% 95%;
-    --muted: 20 10% 18%;
-    --muted-foreground: 40 30% 60%;
-    --accent: 345 35% 75%;
-    --accent-foreground: 40 30% 95%;
+    /* A dark theme inspired by the new palette */
+    --background: 24 10% 10%;
+    --foreground: 39 40% 95%;
+    --card: 24 10% 13%;
+    --card-foreground: 39 40% 95%;
+    --popover: 24 10% 10%;
+    --popover-foreground: 39 40% 95%;
+    --primary: 35 60% 70%;
+    --primary-foreground: 24 10% 10%;
+    --secondary: 24 10% 18%;
+    --secondary-foreground: 39 40% 95%;
+    --muted: 24 10% 18%;
+    --muted-foreground: 39 40% 60%;
+    --accent: 35 70% 65%;
+    --accent-foreground: 39 40% 95%;
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 0 0% 98%;
-    --border: 20 10% 22%;
-    --input: 20 10% 18%;
-    --ring: 345 35% 75%;
-    --radius: 0.75rem;
+    --border: 24 10% 22%;
+    --input: 24 10% 18%;
+    --ring: 35 70% 65%;
+    --radius: 0.5rem;
+
+    --sidebar-background: 345 25% 18%;
+    --sidebar-foreground: 35 40% 88%;
+    --sidebar-foreground-active: 35 40% 98%;
+    --sidebar-accent: 35 60% 70%;
   }
 }
 
@@ -55,5 +75,8 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-headline text-foreground;
   }
 }

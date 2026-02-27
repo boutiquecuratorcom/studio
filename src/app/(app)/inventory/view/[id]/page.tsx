@@ -53,9 +53,6 @@ export default function ViewInventoryItemPage() {
       } catch (e: any) {
         setError(e);
         
-        // For one-time reads like getDoc, if we get a permission error, we need to
-        // manually construct and emit our rich contextual error so the developer
-        // can see it in the Next.js error overlay.
         if (e.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
                 path: itemRef.path,
@@ -93,8 +90,6 @@ export default function ViewInventoryItemPage() {
       </div>
     );
   }
-  
-  // After loading, show debug info and handle outcomes
   
   const renderErrorState = (icon: React.ReactNode, title: string, description: string, rawError?: string) => (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -134,11 +129,8 @@ export default function ViewInventoryItemPage() {
       "You do not have permission to view this item. Please sign in to the correct account."
     );
   }
-
-  // --- Success State: Render Item ---
   
   const AnalysisContent = () => {
-    // This part is unchanged as per the instructions.
     if (!item.analysis || item.analysis.status === 'pending') {
       return (
         <div className="flex flex-col items-center justify-center text-center p-8">
@@ -160,7 +152,6 @@ export default function ViewInventoryItemPage() {
         </div>
       );
     }
-    // Status is 'complete'
     return (
         <div className="space-y-4 text-sm">
             <DetailItem icon={FileText} label="Visual Description" value={item.analysis.visualDescription} />
@@ -206,9 +197,9 @@ export default function ViewInventoryItemPage() {
   };
   
   return (
-    <div className="flex-1 p-8 sm:p-10 lg:p-12 overflow-y-auto">
+    <div className="flex-1 p-8 sm:p-10 lg:p-12">
       <header className="mb-16">
-        <h1 className="text-5xl lg:text-6xl font-headline font-bold text-foreground tracking-tight break-words">{item.title}</h1>
+        <h1 className="text-5xl lg:text-6xl font-bold tracking-tight break-words">{item.title}</h1>
         <p className="text-xl text-muted-foreground mt-4">{item.type}</p>
       </header>
 

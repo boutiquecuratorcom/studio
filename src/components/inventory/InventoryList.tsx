@@ -88,7 +88,7 @@ function InventoryAnalysis({ item }: { item: InventoryItem }) {
     return () => {
       isMounted = false;
     };
-  }, [item, user, firestore, toast]); // Dependency array includes the whole item
+  }, [item, user, firestore, toast]);
 
   return null;
 }
@@ -153,7 +153,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
   return (
     <>
       <InventoryAnalysis item={item} />
-      <Card className="w-full overflow-hidden shadow-lg transition-shadow hover:shadow-2xl flex flex-col">
+      <Card className="w-full overflow-hidden shadow-xl transition-shadow hover:shadow-2xl flex flex-col">
         <div className="relative group aspect-square">
           <Image
             src={item.image.thumbUrl}
@@ -203,7 +203,7 @@ function ItemCard({ item }: { item: InventoryItem }) {
         </div>
         <div className="p-4 flex-grow flex flex-col">
             <div>
-                <h3 className="font-semibold leading-snug break-words mb-2">{item.title}</h3>
+                <h4 className="font-semibold leading-snug break-words mb-2">{item.title}</h4>
                 <p className="text-sm text-muted-foreground mb-3">{item.type}</p>
                 <div className="flex flex-wrap gap-2">
                     {item.sizes.map((size) => (
@@ -386,7 +386,7 @@ export function InventoryList({ userId }: { userId: string }) {
                 placeholder="Search by keyword, type, color..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
+                className="pl-10 rounded-full h-11"
             />
         </div>
         {isAdmin && (

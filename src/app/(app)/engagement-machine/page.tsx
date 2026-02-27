@@ -35,7 +35,7 @@ const IdeaCard = ({ idea, onCreatePost }: { idea: EngagementIdea; onCreatePost: 
     };
     
     return (
-        <Card className="flex flex-col h-full shadow-lg transition-shadow hover:shadow-xl">
+        <Card className="flex flex-col h-full shadow-lg transition-shadow hover:shadow-xl bg-card">
             <CardHeader>
                 <CardTitle className="text-xl leading-tight">{idea.title}</CardTitle>
                 <CardDescription>{idea.recommendedFormat}</CardDescription>
@@ -50,12 +50,12 @@ const IdeaCard = ({ idea, onCreatePost }: { idea: EngagementIdea; onCreatePost: 
                     <p className="text-xs text-muted-foreground mt-1">{idea.whyItWorks}</p>
                 </div>
             </CardContent>
-            <CardFooter className="flex gap-2 bg-muted/50 p-3">
+            <CardFooter className="flex gap-2 bg-muted/20 p-3">
                 <Button variant="outline" size="sm" onClick={handleCopy} className="flex-1">
-                    <Copy className="mr-2 h-4 w-4" /> Copy Caption
+                    <Copy className="mr-2 h-4 w-4" /> Copy
                 </Button>
                 <Button size="sm" onClick={() => onCreatePost(idea)} className="flex-1">
-                    <Send className="mr-2 h-4 w-4" /> Create Post
+                    <Send className="mr-2 h-4 w-4" /> Create
                 </Button>
             </CardFooter>
         </Card>
@@ -174,7 +174,7 @@ const EngagementMachineClient = () => {
     const renderContent = () => {
         if (isLoading) {
             return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 mt-8">
                     {Array.from({ length: 5 }).map((_, i) => (
                         <Card key={i}>
                             <CardHeader>
@@ -223,10 +223,10 @@ const EngagementMachineClient = () => {
     return (
         <div className="flex-1 p-8 sm:p-10 lg:p-12">
             <header className="mb-12">
-                <h1 className="text-4xl lg:text-5xl font-headline font-bold text-foreground tracking-normal">
+                <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
                     Today&apos;s Engagement Drop
                 </h1>
-                <p className="text-lg text-muted-foreground mt-3 max-w-2xl">
+                <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
                     Your daily dose of 5 AI-powered ideas to connect with your audience.
                 </p>
             </header>

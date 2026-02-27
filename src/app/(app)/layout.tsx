@@ -9,7 +9,7 @@ export default function AppLayout({
   return (
     <div className="flex min-h-screen w-full bg-background">
       <Sidebar />
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col overflow-y-auto">
         {children}
       </main>
     </div>

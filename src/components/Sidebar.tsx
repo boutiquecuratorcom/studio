@@ -2,7 +2,20 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Sparkles, Settings } from 'lucide-react';
+import {
+  Sparkles,
+  Settings,
+  Home,
+  LayoutGrid,
+  Wand2,
+  PenSquare,
+  MessageCircle,
+  Briefcase,
+  Heart,
+  LogOut,
+  User,
+  Library,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
 import {
@@ -15,19 +28,18 @@ import {
 } from './ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { Button } from './ui/button';
-import { LogOut, User } from 'lucide-react';
 import { isAdminEmail } from '@/lib/admin';
 
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard' },
-  { href: '/editor', label: 'AI Editor' },
-  { href: '/post-creator', label: 'Post Creator' },
-  { href: '/engagement-machine', label: 'Engagement Machine' },
-  { href: '/inventory', label: 'My Rack' },
-  { href: '/uploads', label: 'My Library' },
-  { href: '/my-brand', label: 'My Brand' },
-  { href: '/looks', label: 'Looks' },
+    { href: '/dashboard', label: 'Studio', icon: Home },
+    { href: '/inventory', label: 'My Rack', icon: LayoutGrid },
+    { href: '/editor', label: 'Glow-Up Studio', icon: Wand2 },
+    { href: '/post-creator', label: 'Post Creator', icon: PenSquare },
+    { href: '/engagement-machine', label: 'Engagement', icon: MessageCircle },
+    { href: '/my-brand', label: 'My Brand', icon: Heart },
+    { href: '/uploads', label: 'Library', icon: Library },
+    { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export function Sidebar() {
@@ -48,14 +60,14 @@ export function Sidebar() {
   };
 
   return (
-    <aside className="w-64 flex-shrink-0 bg-secondary border-r flex flex-col">
-      <div className="h-24 flex items-center px-8">
-        <Sparkles className="h-6 w-6 text-primary" />
-        <h1 className="ml-3 text-lg font-headline font-semibold tracking-wide text-foreground">
+    <aside className="w-64 flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col">
+      <div className="h-24 flex items-center px-6 border-b border-white/10">
+        <Sparkles className="h-7 w-7 text-sidebar-accent" />
+        <h1 className="ml-3 text-lg font-headline font-bold tracking-wide text-white">
           Boutique Curator
         </h1>
       </div>
-      <nav className="flex-1 px-4 space-y-2">
+      <nav className="flex-1 px-4 py-4 space-y-1">
         {navItems.map((item) => {
           const isActive = pathname.startsWith(item.href);
           return (
@@ -63,30 +75,31 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                'flex items-center rounded-md px-4 py-2.5 text-base transition-colors font-medium',
+                'flex items-center rounded-md px-4 py-3 text-base transition-colors font-medium gap-3',
                 isActive
-                  ? 'text-foreground bg-black/5'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-black/5'
+                  ? 'bg-white/10 text-sidebar-foreground-active font-semibold'
+                  : 'hover:bg-white/5 hover:text-sidebar-foreground-active'
               )}
             >
-              {item.label}
+              <item.icon className="h-5 w-5 text-sidebar-accent" />
+              <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
       {user && (
-        <div className="p-4 border-t">
+        <div className="p-4 border-t border-white/10">
            <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start text-left h-auto py-2 px-2">
+                <Button variant="ghost" className="w-full justify-start text-left h-auto py-2 px-2 hover:bg-white/5">
                     <div className="flex items-center gap-3">
                         <Avatar className="h-10 w-10">
                             <AvatarImage src={user.photoURL ?? ''} alt={user.email ?? ''} />
                             <AvatarFallback>{getInitials(user.email)}</AvatarFallback>
                         </Avatar>
                         <div className="flex flex-col items-start overflow-hidden">
-                            <span className="font-semibold text-sm truncate w-full">{user.displayName || user.email?.split('@')[0]}</span>
-                            <span className="text-xs text-muted-foreground">{isAdmin ? 'Admin' : 'Member'}</span>
+                            <span className="font-semibold text-sm text-sidebar-foreground-active truncate w-full">{user.displayName || user.email?.split('@')[0]}</span>
+                            <span className="text-xs text-sidebar-foreground">{isAdmin ? 'Admin' : 'Member'}</span>
                         </div>
                     </div>
                 </Button>

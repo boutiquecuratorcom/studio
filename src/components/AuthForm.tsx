@@ -139,15 +139,15 @@ export function AuthForm() {
   }
 
   return (
-    <Card className="w-full max-w-md border-none sm:border bg-card/80 shadow-none sm:shadow-lg">
+    <Card className="w-full max-w-md bg-card/80 backdrop-blur-lg shadow-2xl">
       <CardHeader className="text-center">
         <div className="flex justify-center items-center gap-3 mb-4">
-            <Sparkles className="h-7 w-7 text-primary" />
+            <Sparkles className="h-7 w-7 text-accent" />
             <h1 className="text-xl font-headline font-semibold tracking-wide text-foreground">
                 Boutique Curator
             </h1>
         </div>
-        <CardTitle className="font-headline text-3xl">Welcome Back</CardTitle>
+        <CardTitle>Welcome Back</CardTitle>
         <CardDescription>
           Sign in or create an account to access your studio.
         </CardDescription>
@@ -161,7 +161,7 @@ export function AuthForm() {
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pt-6">
                 <AuthFormFields form={form} />
-                <Button type="submit" size="lg" className="w-full text-base py-6" disabled={isLoading}>
+                <Button type="submit" size="lg" className="w-full text-base py-6 rounded-full" disabled={isLoading}>
                     {isLoading && <Loader2 className="mr-2 h-5 w-5 animate-spin" />}
                     {activeTab === 'signin' ? 'Sign In' : 'Create Account'}
                 </Button>

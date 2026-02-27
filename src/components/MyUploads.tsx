@@ -31,7 +31,7 @@ const UploadGrid = ({ uploads, type = 'images' }: { uploads: Upload[], type?: 'i
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
             {uploads.map((upload) => (
             <div key={upload.id} className="relative group aspect-square">
-                <Card className="w-full h-full overflow-hidden shadow-lg transition-shadow hover:shadow-2xl">
+                <Card className="w-full h-full overflow-hidden shadow-xl transition-shadow hover:shadow-2xl">
                     <Image
                     src={upload.downloadURL}
                     alt={upload.originalName || 'Uploaded image'}
@@ -40,7 +40,7 @@ const UploadGrid = ({ uploads, type = 'images' }: { uploads: Upload[], type?: 'i
                     className="object-cover transition-transform duration-300 ease-in-out group-hover:scale-105"
                     />
                 </Card>
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity p-3 flex flex-col justify-end">
                     <p className="text-white text-sm font-medium truncate">{upload.originalName}</p>
                     <p className="text-white/80 text-xs">
                         {upload.createdAt ? formatDistanceToNow(upload.createdAt.toDate(), { addSuffix: true }) : 'just now'}
@@ -72,9 +72,8 @@ export function MyUploads() {
   const uploadsQuery = useMemo(() => {
     if (user && firestore && collectionPath) {
         const baseQuery = collection(firestore, collectionPath);
-        // On dashboard, limit to recent uploads. On uploads page, show all.
         return isDashboard 
-            ? query(baseQuery, orderBy('createdAt', 'desc'), limit(12))
+            ? query(baseQuery, orderBy('createdAt', 'desc'), limit(6))
             : query(baseQuery, orderBy('createdAt', 'desc'));
     }
     return null;
@@ -122,11 +121,11 @@ export function MyUploads() {
   return (
       <div className="space-y-12">
         <div>
-          <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">Glow-Ups</h2>
+          <h2 className="text-3xl font-semibold tracking-tight mb-6">Glow-Ups</h2>
           <UploadGrid uploads={enhancedUploads || []} type="Glow-Ups" />
         </div>
         <div>
-          <h2 className="text-2xl font-headline font-semibold tracking-tight mb-4">Originals</h2>
+          <h2 className="text-3xl font-semibold tracking-tight mb-6">Originals</h2>
           <UploadGrid uploads={originalUploads || []} type="Originals" />
         </div>
       </div>
