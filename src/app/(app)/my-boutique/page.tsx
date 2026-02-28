@@ -64,7 +64,7 @@ import {
   Save,
   XCircle,
 } from 'lucide-react';
-import { doc, setDoc, serverTimestamp, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, updateDoc, getDoc, deleteDoc, runTransaction } from 'firebase/firestore';
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
@@ -251,12 +251,29 @@ export default function MyBoutiquePage() {
         steps.push(result);
         setSelfTestResults([...steps]);
     };
+    // Store original state to restore it later
+    const originalSettings = {
+        handle: handle?.handle || null,
+        enabled: boutiqueSettings?.enabled ?? false,
+    };
 
     try {
-        // Step 1: Claim Handle
-        await claimHandleTransaction(firestore, user, randomHandle);
-        addResult({ step: '1. Claim Handle (public & handles docs)', ok: true });
+        // Step 1: Claim Test Handle (Transactionally)
+        await runTransaction(firestore, async (transaction) => {
+            const testHandleRef = doc(firestore, 'handles', randomHandle);
+            const testPublicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
+
+            const testHandleSnap = await transaction.get(testHandleRef);
+            if (testHandleSnap.exists()) {
+                throw new Error(`Test handle '${randomHandle}' already exists.`);
+            }
+            const now = serverTimestamp();
+            transaction.set(testHandleRef, { uid: user.uid, handle: randomHandle, createdAt: now, updatedAt: now });
+            transaction.set(testPublicBoutiqueRef, { uid: user.uid, handle: randomHandle, enabled: false, updatedAt: now });
+        });
+        addResult({ step: '1. Claim Test Handle', ok: true });
         
+        // Step 2: Update Private Settings to use the test handle
         await updateBoutiqueSettings(firestore, user.uid, { handle: randomHandle });
         addResult({ step: '2. Update Private Settings', ok: true });
 
@@ -266,7 +283,7 @@ export default function MyBoutiquePage() {
 
         // Step 4: Enable Boutique
         const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
-        await updateDoc(publicBoutiqueRef, { enabled: true, updatedAt: serverTimestamp() });
+        await updateDoc(publicBoutiqueRef, { enabled: true });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
         addResult({ step: '4. Enable Boutique', ok: true });
 
@@ -278,17 +295,9 @@ export default function MyBoutiquePage() {
         addResult({ step: '5. Verify Live Status', ok: true });
         
         // Step 6: Disable Boutique
-        await updateDoc(publicBoutiqueRef, { enabled: false, updatedAt: serverTimestamp() });
+        await updateDoc(publicBoutiqueRef, { enabled: false });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
         addResult({ step: '6. Disable Boutique', ok: true });
-
-        // Step 7: Cleanup
-        const handleRef = doc(firestore, 'handles', randomHandle);
-        await deleteDoc(publicBoutiqueRef);
-        await deleteDoc(handleRef);
-        // Reset user's handle in settings back to original
-        await updateBoutiqueSettings(firestore, user.uid, { handle: handle?.handle || null });
-        addResult({ step: '7. Cleanup', ok: true });
 
         toast({ title: 'Self-Test Passed!', description: 'All steps completed successfully.' });
 
@@ -300,6 +309,27 @@ export default function MyBoutiquePage() {
         addResult({ step: `${failedStepName}: ${lastStep.step.split('.')[1]?.trim() || 'Execution'}`, ok: false, error: e.message });
         toast({ variant: 'destructive', title: `Self-Test Failed at ${failedStepName}`, description: e.message });
     } finally {
+        // Final Cleanup step (runs on success or failure after catch)
+        try {
+            const handleRef = doc(firestore, 'handles', randomHandle);
+            const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
+            const handleSnap = await getDoc(handleRef);
+            const publicSnap = await getDoc(publicBoutiqueRef);
+
+            if (handleSnap.exists()) await deleteDoc(handleRef);
+            if (publicSnap.exists()) await deleteDoc(publicBoutiqueRef);
+            
+            // Restore original settings
+            await updateBoutiqueSettings(firestore, user.uid, originalSettings);
+            
+            addResult({ step: '7. Cleanup & Restore', ok: true });
+
+        } catch (cleanupError: any) {
+             addResult({ step: '7. Cleanup & Restore', ok: false, error: cleanupError.message });
+             console.error("Critical: Failed to cleanup test data or restore settings:", cleanupError);
+             toast({ variant: 'destructive', title: 'Cleanup Failed', description: 'Test data may not have been fully removed.' });
+        }
+        
         setIsTesting(false);
     }
 };
