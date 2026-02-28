@@ -121,41 +121,45 @@ export const usePublicBoutiqueByHandle = (handle: string | null) => {
 // --- Data Functions ---
 
 export const claimHandleTransaction = async (firestore: Firestore, user: User, handle: string) => {
-  // 1. Pre-transaction check: Does this user already have a handle?
+  // Validate with schema first
+  handleSchema.parse({ handle });
+
+  // Pre-transaction check to fail early
   const userHandleQuery = query(collection(firestore, 'handles'), where('uid', '==', user.uid), limit(1));
   const userHandleSnap = await getDocs(userHandleQuery);
   if (!userHandleSnap.empty) {
-    throw new Error(`You have already claimed the handle "${userHandleSnap.docs[0].id}". You can update it if your boutique is not live.`);
+    throw new Error(`You have already claimed the handle "${userHandleSnap.docs[0].id}".`);
   }
 
   const newHandleRef = doc(firestore, 'handles', handle);
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
 
-  // 2. Run the transaction
   await runTransaction(firestore, async (transaction) => {
-    const newHandleSnap = await transaction.get(newHandleRef);
-    if (newHandleSnap.exists()) {
+    const handleDoc = await transaction.get(newHandleRef);
+    if (handleDoc.exists()) {
       throw new Error("This handle is already taken. Please choose another.");
     }
 
     const now = serverTimestamp();
 
-    // A) Create handle ownership document
+    // Write to handles collection
     transaction.set(newHandleRef, {
       uid: user.uid,
+      handle: handle,
       createdAt: now,
+      updatedAt: now,
     });
 
-    // B) Create public boutique document
+    // Write to publicBoutiques collection
     transaction.set(publicBoutiqueRef, {
       uid: user.uid,
       handle: handle,
-      enabled: false,
+      enabled: false, // Always start as private
       updatedAt: now,
     });
   });
 
-  // 3. Post-transaction write: Update user's private settings
+  // Post-transaction: update user's private settings
   const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
   await setDoc(settingsRef, { handle: handle }, { merge: true });
 };
@@ -184,14 +188,34 @@ export const updateHandleTransaction = async (firestore: Firestore, user: User, 
 
         const now = serverTimestamp();
         
-        // We use set instead of update because the doc might only have { uid, createdAt }
-        transaction.set(newHandleRef, { uid: user.uid, handle: newHandle, createdAt: oldHandleSnap.data().createdAt || now, updatedAt: now });
+        // Create new handle doc and delete old one
+        transaction.set(newHandleRef, { 
+            uid: user.uid, 
+            handle: newHandle, 
+            createdAt: oldHandleSnap.data().createdAt || now, 
+            updatedAt: now 
+        });
         transaction.delete(oldHandleRef);
         
-        const oldPublicData = await transaction.get(oldPublicBoutiqueRef);
-        if (oldPublicData.exists()) {
+        // Migrate public boutique doc
+        const oldPublicDataSnap = await transaction.get(oldPublicBoutiqueRef);
+        if (oldPublicDataSnap.exists()) {
             const newPublicBoutiqueRef = doc(firestore, 'publicBoutiques', newHandle);
-            transaction.set(newPublicBoutiqueRef, { ...oldPublicData.data(), handle: newHandle, updatedAt: now });
+            let publicDataToMigrate = oldPublicDataSnap.data();
+
+            // Backward compatibility fix: ensure 'uid' field exists
+            if (!publicDataToMigrate.uid && publicDataToMigrate.ownerId) {
+                publicDataToMigrate.uid = publicDataToMigrate.ownerId;
+                delete publicDataToMigrate.ownerId; // Clean up old field
+            } else if (!publicDataToMigrate.uid) {
+                publicDataToMigrate.uid = user.uid; // Ensure uid is present
+            }
+
+            transaction.set(newPublicBoutiqueRef, { 
+                ...publicDataToMigrate, 
+                handle: newHandle, // update handle field
+                updatedAt: now 
+            });
             transaction.delete(oldPublicBoutiqueRef);
         }
     });
