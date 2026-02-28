@@ -63,7 +63,7 @@ import {
   Save,
   XCircle,
 } from 'lucide-react';
-import { doc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
@@ -100,15 +100,14 @@ export default function MyBoutiquePage() {
 
   // --- Effects ---
   useEffect(() => {
-    if (handle) {
+    if (handle?.handle) {
       handleForm.reset({ handle: handle.handle });
       setPublicUrl(`${window.location.origin}/boutique/${handle.handle}`);
     } else {
-      handleForm.reset({ handle: '' });
-      setPublicUrl('');
+        setPublicUrl('');
     }
   }, [handle, handleForm]);
-
+  
 
   useEffect(() => {
     if (userLoading || settingsLoading) return;
@@ -132,9 +131,9 @@ export default function MyBoutiquePage() {
             featuredOutfitId: null,
             accentColor: brandProfile?.brandColors?.[0] || null,
             stylePreset: 'magazine',
+            handle: null,
           };
           await updateBoutiqueSettings(firestore, user.uid, defaults);
-          // Hook will refetch and update state.
         } catch (e: any) {
           console.error('[MyBoutique] Failed to create default settings:', e);
           toast({ variant: 'destructive', title: 'Initialization Failed', description: e.message });
@@ -146,7 +145,7 @@ export default function MyBoutiquePage() {
   // --- Handlers ---
   
   const handleEnabledToggle = async (enabled: boolean) => {
-    if (!user || !firestore || !handle) {
+    if (!user || !firestore || !handle?.handle) {
       toast({ variant: 'destructive', title: 'Cannot go live', description: 'You must claim a public handle first.' });
       return;
     }
@@ -155,22 +154,18 @@ export default function MyBoutiquePage() {
     toast({ title: 'Updating boutique status...', description: 'Please wait.' });
 
     try {
-      if (enabled) {
-        // When going live, sync all data.
-        await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
-      } else {
-        // When going private, just disable the flag.
-        const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle.handle);
-        await setDoc(publicBoutiqueRef, { enabled: false, updatedAt: serverTimestamp() }, { merge: true });
-      }
+        if (enabled) {
+            await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
+        }
+        
+        const publicBoutiqueRef = doc(firestore, "publicBoutiques", handle.handle);
+        await updateDoc(publicBoutiqueRef, { enabled, updatedAt: serverTimestamp() });
+        await updateBoutiqueSettings(firestore, user.uid, { enabled });
       
-      // Also update the private setting doc
-      await updateBoutiqueSettings(firestore, user.uid, { enabled });
-      
-      toast({
-        title: 'Boutique Status Updated',
-        description: `Your boutique is now ${enabled ? 'live' : 'private'}.`,
-      });
+        toast({
+            title: 'Boutique Status Updated',
+            description: `Your boutique is now ${enabled ? 'live' : 'private'}.`,
+        });
     } catch (e: any) {
       console.error('[MyBoutique] Failed to toggle status:', e);
       toast({
@@ -195,7 +190,6 @@ export default function MyBoutiquePage() {
       };
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
 
-      // If already live, re-sync public data
       if (boutiqueSettings?.enabled && handle) {
         await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
       }
@@ -222,16 +216,12 @@ export default function MyBoutiquePage() {
     }
     
     handleForm.clearErrors();
-    const {isSubmitting} = handleForm.formState;
-    if (isSubmitting) return;
-
+    
     try {
         if (isUpdate && oldHandle) {
-            // Update flow
             await updateHandleTransaction(firestore, user, oldHandle, newHandle);
             toast({ title: 'Handle Updated!', description: `Your new public URL is /boutique/${newHandle}` });
         } else {
-            // Claim flow
             await claimHandleTransaction(firestore, user, newHandle);
             toast({ title: 'Handle Claimed!', description: `Your boutique is now ready to go live at /boutique/${newHandle}` });
         }
@@ -410,15 +400,18 @@ export default function MyBoutiquePage() {
                 <CardContent className="space-y-3">
                      <div className="flex items-center space-x-2 rounded-lg border p-2 pl-3 bg-muted/50">
                         <Globe className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground font-mono flex-grow truncate">{`/boutique/${handle?.handle}`}</p>
+                        <p className="text-sm text-muted-foreground font-mono flex-grow truncate">
+  {new URL(publicUrl).pathname}
+</p>
+
                     </div>
                      <Button variant="outline" className="w-full justify-between" asChild>
                        <Link href={publicUrl} target="_blank">
-                            Visit Public Page <ExternalLink />
+                            Visit Public Page <ExternalLink className="h-4 w-4"/>
                        </Link>
                     </Button>
                      <Button variant="outline" className="w-full justify-between" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: 'Link Copied!' }); }}>
-                        Copy Link <Copy />
+                        Copy Link <Copy className="h-4 w-4"/>
                     </Button>
                 </CardContent>
             </Card>

@@ -62,16 +62,15 @@ service cloud.firestore {
     
     // Rules for the denormalized 'publicBoutiques' collection
     match /publicBoutiques/{handle} {
-      // Anyone can read this public data
-      allow read: if true;
+      // Allow public read ONLY if the boutique is enabled.
+      allow read: if resource.data.enabled == true;
 
       // Only the owner can create or update their public profile
-      allow create: if isOwner(request.resource.data.uid);
-      allow update: if isOwner(resource.data.uid);
+      allow create: if request.resource.data.uid == request.auth.uid;
+      allow update: if request.auth.uid == resource.data.uid;
       
-      // Deletes are disallowed to prevent accidental removal of public pages.
-      // Users should disable the page instead.
-      allow delete: if false;
+      // Allow owner to delete (for handle migrations)
+      allow delete: if isOwner(resource.data.uid);
     }
   }
 }

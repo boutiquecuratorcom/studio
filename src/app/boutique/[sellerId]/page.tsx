@@ -1,6 +1,6 @@
 'use client';
 
-import { useParams, notFound } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Store, ImageIcon, Loader2 } from 'lucide-react';
@@ -9,7 +9,6 @@ import { usePublicBoutiqueByHandle, type PublicBoutiqueProfile } from '@/lib/bou
 import { PublicClaimButton } from '@/components/boutique/PublicClaimButton';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 
 function BoutiqueLoading() {
     return (
@@ -43,8 +42,6 @@ export default function PublicBoutiquePage() {
   }
 
   if (error || !data || !data.enabled) {
-    // If there's an error, the doc doesn't exist, or it's not enabled, show "Not Available".
-    // This prevents showing a 404 for disabled boutiques.
     return <BoutiqueNotAvailable />;
   }
   
