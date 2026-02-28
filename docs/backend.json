@@ -88,6 +88,34 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
+    "BoutiqueSettings": {
+      "title": "Boutique Settings",
+      "description": "Settings for a user's public-facing boutique page.",
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the boutique page is live and public."
+        },
+        "featuredOutfitId": {
+          "type": ["string", "null"],
+          "description": "The ID of the outfit to feature. Null means show the latest."
+        },
+        "accentColor": {
+          "type": ["string", "null"],
+          "description": "A custom accent color for the boutique page. Defaults to the brand's primary color."
+        },
+        "stylePreset": {
+          "type": "string",
+          "enum": ["magazine", "modern", "classic"],
+          "description": "The visual layout preset for the boutique page."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
     "InventoryItem": {
       "title": "Inventory Item",
       "description": "Represents a single item in the user's inventory.",
@@ -555,6 +583,12 @@
         "$ref": "#/entities/BrandProfile"
       },
       "description": "Stores the user's brand profile. Expect a single document per user."
+    },
+    "/users/{userId}/boutiqueSettings/{settingsId}": {
+      "schema": {
+        "$ref": "#/entities/BoutiqueSettings"
+      },
+      "description": "Stores the user's public boutique settings. Expect a single document named 'main'."
     },
     "/users/{userId}/posts/{postId}": {
       "schema": {

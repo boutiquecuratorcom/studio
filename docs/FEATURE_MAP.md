@@ -161,3 +161,19 @@ A feature for creating, viewing, and managing styled outfits from a user's inven
 | **Notes** | Full CRUD interface for outfits. Supports linking existing rack items or creating new ones. Includes AI generation for descriptions and cover images if outfit has 2+ items. |
 
 ---
+
+### 11. My Boutique
+
+A private dashboard for sellers to configure and preview their public-facing boutique showcase page.
+
+| Property | Value |
+| --- | --- |
+| **Feature Name** | My Boutique |
+| **Entry Route(s)** | `/my-boutique` |
+| **Main Component(s)** | `src/app/(app)/my-boutique/page.tsx` |
+| **Firestore Collections**| `users/{userId}/brandProfile/main`, `users/{userId}/boutiqueSettings/main`, `/outfits` |
+| **Storage Paths** | None directly, reads from outfit covers. |
+| **Dependencies** | Firebase Auth, My Brand, Outfits |
+| **Notes** | Allows sellers to enable/disable their public page, select a featured outfit, and customize appearance. Provides a live preview of the public page. |
+
+---

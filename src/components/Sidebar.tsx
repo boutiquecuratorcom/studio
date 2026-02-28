@@ -15,6 +15,7 @@ import {
   LogOut,
   User,
   Library,
+  Store,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUser, useAuth } from '@/firebase';
@@ -39,6 +40,7 @@ const navItems = [
     { href: '/post-creator', label: 'Post Creator', icon: PenSquare },
     { href: '/engagement-machine', label: 'Engagement', icon: MessageCircle },
     { href: '/my-brand', label: 'My Brand', icon: Heart },
+    { href: '/my-boutique', label: 'My Boutique', icon: Store },
     { href: '/uploads', label: 'Library', icon: Library },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
