@@ -8,7 +8,7 @@ import type { BrandProfile } from '@/ai/flows/schemas';
 // 1. Interfaces
 export interface BoutiqueDesign {
   id: string;
-  templateId: 'editorial-chic' | 'modern-minimal' | 'soft-feminine' | 'bold-luxury' | 'clean-classic';
+  templateId: 'editorial-chic' | 'modern-minimal' | 'soft-feminine' | 'bold-luxury' | 'playful-boutique';
   accentColor: string; // Legacy, kept for quick customize
   palette: {
     background: string;
@@ -100,20 +100,20 @@ export const boutiqueTemplates: Record<BoutiqueDesign['templateId'], Omit<Boutiq
     frames: { outfitFrameStyle: 'thick-border' },
     background: { patternId: 'none', intensity: 0 },
   },
-  'clean-classic': {
-    templateId: 'clean-classic',
+   'playful-boutique': {
+    templateId: 'playful-boutique',
     palette: {
-      background: '#FFFFFF',
-      surface: '#F8F9FA',
-      text: '#212529',
-      muted: '#6C757D',
-      accent: '#3A5A40',
+      background: '#FEFCE8',
+      surface: '#FFFFFF',
+      text: '#44403C',
+      muted: '#A8A29E',
+      accent: '#FB923C',
       accentText: '#FFFFFF',
     },
-    fonts: { heading: 'Libre Baskerville', body: 'Open Sans', button: 'Open Sans' },
-    buttons: { radius: 'lg', style: 'solid' },
-    frames: { outfitFrameStyle: 'soft-border' },
-    background: { patternId: 'none', intensity: 0 },
+    fonts: { heading: 'Poppins', body: 'Quicksand', button: 'Poppins' },
+    buttons: { radius: 'full', style: 'solid' },
+    frames: { outfitFrameStyle: 'shadow' },
+    background: { patternId: 'subtle-dots', intensity: 0.05 },
   },
 };
 
@@ -132,6 +132,7 @@ export const getFontFamily = (fontName: string | undefined, defaultFont: string)
     { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
     { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
     { name: 'Dancing Script', family: "'Dancing Script', cursive" },
+    { name: 'Quicksand', family: 'Quicksand, sans-serif' },
   ];
   return fontOptions.find(f => f.name === fontName)?.family || defaultFont;
 };
@@ -200,3 +201,5 @@ export const updateBoutiqueDesign = async (firestore: Firestore, userId: string,
   const designRef = doc(firestore, `users/${userId}/boutiqueDesign/main`);
   await setDoc(designRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
 };
+
+    

@@ -360,3 +360,5 @@ export const syncPublicBoutiqueData = async (
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
   await setDoc(publicBoutiqueRef, { ...publicData, updatedAt: serverTimestamp() }, { merge: true });
 };
+
+    
