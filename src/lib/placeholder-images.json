@@ -1,6 +1,60 @@
 {
   "placeholderImages": [
     {
+      "id": "hero-boutique-rack",
+      "description": "A beautifully organized clothing rack in a bright, airy boutique setting.",
+      "imageUrl": "https://images.unsplash.com/photo-1529720317453-c8da503f2051?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y2xvdGhpbmclMjByYWNrfGVufDB8fHx8MTc3MjI4MDk4M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "clothing rack"
+    },
+    {
+      "id": "feature-glow-up",
+      "description": "A diptych showing a before and after of a clothing item, from a simple photo to a styled studio shot.",
+      "imageUrl": "https://images.unsplash.com/photo-1750326459593-65ef3bf731e6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxibGF6ZXIlMjBwcm9kdWN0fGVufDB8fHx8MTc3MjI4NTcyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "blazer product"
+    },
+    {
+      "id": "feature-my-rack",
+      "description": "A close-up of several clothing items hanging neatly on a rack, showing different textures and colors.",
+      "imageUrl": "https://images.unsplash.com/photo-1529720317453-c8da503f2051?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8Y2xvdGhpbmclMjByYWNrfGVufDB8fHx8MTc3MjI4MDk4M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "clothing rack"
+    },
+    {
+      "id": "feature-outfits",
+      "description": "A stylish flat-lay of a complete outfit with accessories on a neutral background.",
+      "imageUrl": "https://images.unsplash.com/photo-1518655048521-f130df041f66?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxmbGF0JTIwbGF5fGVufDB8fHx8MTc3MjI4NTcyN3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "flat lay"
+    },
+    {
+      "id": "growth-workspace",
+      "description": "An aesthetic top-down view of a workspace with a laptop, coffee, and fabric swatches.",
+      "imageUrl": "https://images.unsplash.com/photo-1741466071728-cc5691bfb535?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bGFwdG9wJTIwd29ya3NwYWNlfGVufDB8fHx8MTc3MjI0OTQ5NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "laptop workspace"
+    },
+    {
+      "id": "how-it-works-upload",
+      "description": "A person's hands holding a smartphone, appearing to take a photo of a clothing item.",
+      "imageUrl": "https://images.unsplash.com/photo-1631884355586-12792a4f95ad?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwaG9uZSUyMHBob3RvfGVufDB8fHx8MTc3MjI4NTcyOHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "phone photo"
+    },
+    {
+      "id": "how-it-works-create",
+      "description": "A laptop screen showing the Boutique Curator interface with an enhanced product image.",
+      "imageUrl": "https://images.unsplash.com/photo-1420310414923-bf3651a89816?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bGFwdG9wJTIwc2NyZWVufGVufDB8fHx8MTc3MjIyNDU2NXww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "laptop screen"
+    },
+    {
+      "id": "how-it-works-share",
+      "description": "A person working on a laptop in a cozy setting, implying sharing content online.",
+      "imageUrl": "https://images.unsplash.com/photo-1533264947364-a516593e6308?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxsYXB0b3AlMjBwZXJzb258ZW58MHx8fHwxNzcyMjg1NzI4fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "laptop person"
+    },
+    {
+      "id": "platform-preview",
+      "description": "A stylized mockup of the Boutique Curator dashboard interface on a large screen.",
+      "imageUrl": "https://images.unsplash.com/photo-1563486299190-d415ab26e837?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxkYXNoYm9hcmQlMjBtb2NrdXB8ZW58MHx8fHwxNzcyMjczMjkyfDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "dashboard mockup"
+    },
+    {
       "id": "glow-up-before-default",
       "description": "A casual photo of a patterned dress on a hanger against a plain wall.",
       "imageUrl": "https://images.unsplash.com/photo-1581044777550-4cfa6ce67943?q=80&w=1080",

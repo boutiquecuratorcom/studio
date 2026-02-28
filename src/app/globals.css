@@ -11,8 +11,8 @@
     --popover: 39 42% 98%;
     --popover-foreground: 24 10% 15%;
 
-    --primary: 345 30% 22%; /* Deep Plum for buttons, active states */
-    --primary-foreground: 39 40% 95%; /* Warm Off-white */
+    --primary: 30 50% 92%; /* Light Rosy Beige */
+    --primary-foreground: 24 10% 15%; /* Deep Charcoal */
     
     --secondary: 35 30% 93%;
     --secondary-foreground: 24 10% 25%;
@@ -28,9 +28,9 @@
 
     --border: 35 25% 88%;
     --input: 35 25% 92%;
-    --ring: 35 60% 60%; /* Muted Gold Ring */
+    --ring: 345 30% 40%; /* Muted Rosewood for focus rings */
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     /* Custom colors from the design reference */
     --sidebar-background: 345 25% 18%;
@@ -60,7 +60,7 @@
     --border: 24 10% 22%;
     --input: 24 10% 18%;
     --ring: 35 70% 65%;
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
     --sidebar-background: 345 25% 18%;
     --sidebar-foreground: 35 40% 88%;
