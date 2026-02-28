@@ -5,24 +5,28 @@ import { useDoc, useFirestore } from '@/firebase';
 import { useMemo } from 'react';
 import type { BrandProfile } from '@/ai/flows/schemas';
 
-// 1. Interfaces
+// --- Interfaces ---
+
+export interface BoutiquePalette {
+  background: string;
+  surface: string;
+  text: string;
+  muted: string;
+  accent: string;
+  accentText: string;
+}
+
+export interface BoutiqueFonts {
+  heading: string;
+  body: string;
+  button: string;
+}
+
 export interface BoutiqueDesign {
   id: string;
   templateId: 'editorial-chic' | 'modern-minimal' | 'soft-feminine' | 'bold-luxury' | 'playful-boutique';
-  accentColor: string; // Legacy, kept for quick customize
-  palette: {
-    background: string;
-    surface: string;
-    text: string;
-    muted: string;
-    accent: string;
-    accentText: string;
-  };
-  fonts: {
-    heading: string;
-    body: string;
-    button: string;
-  };
+  palette: BoutiquePalette;
+  fonts: BoutiqueFonts;
   buttons: {
     radius: 'none' | 'sm' | 'md' | 'lg' | 'full';
     style: 'solid' | 'outline' | 'ghost';
@@ -31,15 +35,17 @@ export interface BoutiqueDesign {
     outfitFrameStyle: 'none' | 'soft-border' | 'shadow' | 'thick-border';
   };
   background: {
-    patternId: 'none' | 'subtle-dots' | 'geometric-lines';
+    patternId: 'none' | 'subtle-dots' | 'geometric-lines' | 'sparkle' | 'flowers' | 'hearts' | 'linen' | 'grid';
     intensity: number; // 0 to 1
   };
   welcomeMessage: string | null;
   updatedAt?: any;
 }
 
-// 2. Templates Definition
-export const boutiqueTemplates: Record<BoutiqueDesign['templateId'], Omit<BoutiqueDesign, 'id' | 'updatedAt' | 'accentColor' | 'welcomeMessage'>> = {
+
+// --- Templates Definition ---
+
+export const boutiqueTemplates: Record<BoutiqueDesign['templateId'], Omit<BoutiqueDesign, 'id' | 'updatedAt' | 'welcomeMessage'>> = {
   'editorial-chic': {
     templateId: 'editorial-chic',
     palette: {
@@ -83,7 +89,7 @@ export const boutiqueTemplates: Record<BoutiqueDesign['templateId'], Omit<Boutiq
     fonts: { heading: 'Lora', body: 'Lato', button: 'Lato' },
     buttons: { radius: 'full', style: 'solid' },
     frames: { outfitFrameStyle: 'shadow' },
-    background: { patternId: 'none', intensity: 0 },
+    background: { patternId: 'flowers', intensity: 0.05 },
   },
   'bold-luxury': {
     templateId: 'bold-luxury',
@@ -113,27 +119,28 @@ export const boutiqueTemplates: Record<BoutiqueDesign['templateId'], Omit<Boutiq
     fonts: { heading: 'Poppins', body: 'Quicksand', button: 'Poppins' },
     buttons: { radius: 'full', style: 'solid' },
     frames: { outfitFrameStyle: 'shadow' },
-    background: { patternId: 'subtle-dots', intensity: 0.05 },
+    background: { patternId: 'sparkle', intensity: 0.08 },
   },
 };
 
-// 3. Helper functions
+
+// --- Helper Functions ---
+
 export const getFontFamily = (fontName: string | undefined, defaultFont: string) => {
-  const fontOptions = [
-    { name: 'Inter', family: 'Inter, sans-serif' },
+  const fontOptions: { name: string, family: string }[] = [
     { name: 'Playfair Display', family: "'Playfair Display', serif" },
-    { name: 'Lora', family: "'Lora', serif" },
     { name: 'Montserrat', family: 'Montserrat, sans-serif' },
-    { name: 'Lato', family: 'Lato, sans-serif' },
-    { name: 'Raleway', family: 'Raleway, sans-serif' },
     { name: 'Poppins', family: 'Poppins, sans-serif' },
-    { name: 'Open Sans', family: "'Open Sans', sans-serif" },
-    { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
-    { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
+    { name: 'DM Sans', family: "'DM Sans', sans-serif" },
+    { name: 'Lora', family: "'Lora', serif" },
+    { name: 'Oswald', family: 'Oswald, sans-serif' },
     { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
-    { name: 'Dancing Script', family: "'Dancing Script', cursive" },
+    { name: 'Raleway', family: 'Raleway, sans-serif' },
+    { name: 'Inter', family: 'Inter, sans-serif' },
+    { name: 'Nunito', family: 'Nunito, sans-serif' },
     { name: 'Quicksand', family: 'Quicksand, sans-serif' },
     { name: 'Cinzel', family: "'Cinzel', serif" },
+    { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
     { name: 'Josefin Sans', family: "'Josefin Sans', sans-serif" },
     { name: 'Merriweather', family: "'Merriweather', serif" },
     { name: 'Abril Fatface', family: "'Abril Fatface', cursive" },
@@ -141,6 +148,10 @@ export const getFontFamily = (fontName: string | undefined, defaultFont: string)
     { name: 'Manrope', family: 'Manrope, sans-serif' },
     { name: 'Tenor Sans', family: "'Tenor Sans', sans-serif" },
     { name: 'Plus Jakarta Sans', family: "'Plus Jakarta Sans', sans-serif" },
+    { name: 'Lato', family: 'Lato, sans-serif' },
+    { name: 'Open Sans', family: "'Open Sans', sans-serif" },
+    { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
+    { name: 'Dancing Script', family: "'Dancing Script', cursive" },
   ];
   return fontOptions.find(f => f.name === fontName)?.family || defaultFont;
 };
@@ -171,7 +182,6 @@ export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): O
 
   return {
     ...defaultTemplate,
-    accentColor: accentColor,
     palette: {
       ...defaultTemplate.palette,
       accent: accentColor,
@@ -181,7 +191,7 @@ export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): O
   };
 };
 
-// 4. Hooks and data functions
+// --- Hooks and Data Functions ---
 
 export const useBoutiqueDesign = (userId: string | null) => {
   const firestore = useFirestore();

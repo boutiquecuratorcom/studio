@@ -105,14 +105,9 @@
           "type": ["string", "null"],
           "description": "The ID of the outfit to feature. Null means show the latest."
         },
-        "accentColor": {
+        "handle": {
           "type": ["string", "null"],
-          "description": "A custom accent color for the boutique page. Defaults to the brand's primary color."
-        },
-        "stylePreset": {
-          "type": "string",
-          "enum": ["magazine", "modern", "classic"],
-          "description": "The visual layout preset for the boutique page."
+          "description": "The user's claimed public handle."
         },
         "updatedAt": {
           "type": "string",
@@ -126,7 +121,6 @@
       "type": "object",
       "properties": {
         "templateId": { "type": "string" },
-        "accentColor": { "type": "string" },
         "palette": {
           "type": "object",
           "properties": {
@@ -270,44 +264,7 @@
           }
         },
         "design": {
-          "type": "object",
-          "description": "The denormalized design settings for the boutique.",
-          "properties": {
-            "templateId": { "type": "string" },
-            "palette": {
-              "type": "object",
-              "properties": {
-                "background": { "type": "string" },
-                "surface": { "type": "string" },
-                "text": { "type": "string" },
-                "muted": { "type": "string" },
-                "accent": { "type": "string" },
-                "accentText": { "type": "string" }
-              }
-            },
-            "fonts": {
-              "type": "object",
-              "properties": {
-                "heading": { "type": "string" },
-                "body": { "type": "string" },
-                "button": { "type": "string" }
-              }
-            },
-            "buttons": {
-              "type": "object",
-              "properties": {
-                "radius": { "type": "string" },
-                "style": { "type": "string" }
-              }
-            },
-            "frames": {
-              "type": "object",
-              "properties": {
-                "outfitFrameStyle": { "type": "string" }
-              }
-            },
-            "welcomeMessage": { "type": ["string", "null"] }
-          }
+          "$ref": "#/entities/BoutiqueDesign"
         },
         "updatedAt": {
           "type": "string",

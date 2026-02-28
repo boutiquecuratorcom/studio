@@ -44,8 +44,6 @@ export interface BoutiqueSettings extends DocumentData {
   id: string;
   enabled: boolean;
   featuredOutfitId: string | null;
-  accentColor: string | null; // This is now legacy, replaced by boutiqueDesign
-  stylePreset: 'magazine' | 'modern' | 'classic'; // This is now legacy, replaced by boutiqueDesign
   handle: string | null;
   updatedAt?: any;
 }
@@ -174,22 +172,16 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
     ]);
     
     if (newHandleSnap.exists()) {
-      // The handle they are trying to claim already exists.
       const handleData = asRecord(newHandleSnap.data());
       if (handleData.uid !== user.uid) {
-        // And it's NOT theirs. Error.
         throw new Error('This handle is already taken. Please choose another.');
       }
-      // If it IS theirs, we just let the transaction proceed idempotently. No error.
     } else if (!userHandleSnap.empty) {
-      // The handle they are trying to claim is free.
-      // But we must check if they already have another handle.
       throw new Error(`You already have a handle (${userHandleSnap.docs[0].id}). You can only have one.`);
     }
 
     const now = serverTimestamp();
 
-    // Set handle doc (idempotent)
     transaction.set(newHandleRef, {
       uid: user.uid,
       handle,
@@ -197,11 +189,10 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
       updatedAt: now,
     }, { merge: true });
 
-    // Set public boutique doc (idempotent)
     transaction.set(publicBoutiqueRef, {
       uid: user.uid,
       handle,
-      enabled: false, // Always default to false on claim/re-claim
+      enabled: false,
       updatedAt: now,
     }, { merge: true });
   });
@@ -217,6 +208,10 @@ export const updateHandleTransaction = async (
   newHandle: string
 ) => {
   handleSchema.parse({ handle: newHandle });
+
+  if (newHandle === oldHandle) {
+    return; // No changes needed if the handle is the same
+  }
 
   const oldHandleRef = doc(firestore, 'handles', oldHandle);
   const newHandleRef = doc(firestore, 'handles', newHandle);
@@ -236,19 +231,12 @@ export const updateHandleTransaction = async (
       throw new Error('You do not own the handle you are trying to update.');
     }
 
-    // Only throw error if the new handle exists AND is owned by another user.
     if (newHandleSnap.exists() && asRecord(newHandleSnap.data()).uid !== user.uid) {
       throw new Error('This handle is already taken. Please choose another.');
     }
 
-    // If the user is just re-saving their existing handle, do nothing inside the transaction.
-    if (newHandle === oldHandle) {
-        return;
-    }
-
     const now = serverTimestamp();
 
-    // Create new handle doc
     transaction.set(newHandleRef, {
       uid: user.uid,
       handle: newHandle,
@@ -256,16 +244,14 @@ export const updateHandleTransaction = async (
       updatedAt: now,
     });
     
-    // Delete old handle doc
     transaction.delete(oldHandleRef);
 
-    // Migrate public boutique doc
     const oldPublicDataSnap = await transaction.get(oldPublicBoutiqueRef);
     if (oldPublicDataSnap.exists()) {
       const newPublicBoutiqueRef = doc(firestore, 'publicBoutiques', newHandle);
       const publicDataToMigrate = {
           ...asRecord(oldPublicDataSnap.data()),
-          uid: user.uid, // Ensure UID is correct
+          uid: user.uid,
           handle: newHandle,
           updatedAt: now,
       };
@@ -275,12 +261,8 @@ export const updateHandleTransaction = async (
     }
   });
 
-  // These updates can happen outside the transaction if the transaction succeeds.
-  // No need to run them if the handle hasn't changed.
-  if (newHandle !== oldHandle) {
-    await setDoc(settingsRef, { handle: newHandle }, { merge: true });
-    await setDoc(userProfileRef, { handle: newHandle }, { merge: true });
-  }
+  await setDoc(settingsRef, { handle: newHandle }, { merge: true });
+  await setDoc(userProfileRef, { handle: newHandle }, { merge: true });
 };
 
 export const updateBoutiqueSettings = async (
@@ -289,7 +271,19 @@ export const updateBoutiqueSettings = async (
   data: Partial<Omit<BoutiqueSettings, 'id'>>
 ) => {
   const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
-  await setDoc(settingsRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  const docSnap = await getDoc(settingsRef);
+  if (!docSnap.exists()) {
+    await setDoc(settingsRef, {
+      ...data,
+      enabled: false,
+      featuredOutfitId: null,
+      handle: null,
+      createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    });
+  } else {
+    await setDoc(settingsRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+  }
 };
 
 export const syncPublicBoutiqueData = async (
@@ -360,5 +354,3 @@ export const syncPublicBoutiqueData = async (
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
   await setDoc(publicBoutiqueRef, { ...publicData, updatedAt: serverTimestamp() }, { merge: true });
 };
-
-    

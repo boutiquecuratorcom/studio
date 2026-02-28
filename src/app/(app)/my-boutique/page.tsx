@@ -122,7 +122,7 @@ export default function MyBoutiquePage() {
     const performInitialization = async () => {
       // Initialize settings if they don't exist
       if (!boutiqueSettings) {
-        await updateBoutiqueSettings(firestore, user.uid, { enabled: false, featuredOutfitId: null });
+        await updateBoutiqueSettings(firestore, user.uid, { enabled: false, featuredOutfitId: null, handle: null });
       } else {
         setLocalSettings({
           enabled: boutiqueSettings.enabled,
@@ -206,11 +206,6 @@ export default function MyBoutiquePage() {
     const newHandle = values.handle;
     const oldHandle = handle?.handle;
 
-    if (isUpdate && newHandle === oldHandle) {
-        toast({ title: "No Changes", description: "You already own this handle." });
-        return;
-    }
-    
     handleForm.clearErrors();
     
     try {
@@ -307,17 +302,16 @@ export default function MyBoutiquePage() {
       fonts: template.fonts,
       buttons: template.buttons,
       frames: template.frames,
-      accentColor: template.palette.accent,
+      background: template.background
     }));
   };
 
   const handleAccentColorChange = (color: string) => {
-    if (!localDesign) return;
+    if (!localDesign || !localDesign.palette) return;
     setLocalDesign({
       ...localDesign,
-      accentColor: color,
       palette: {
-        ...localDesign.palette!,
+        ...localDesign.palette,
         accent: color,
         accentText: getContrastingTextColor(color),
       },
@@ -337,8 +331,9 @@ export default function MyBoutiquePage() {
   }, [localSettings.featuredOutfitId, outfits]);
   
   const isConfigDirty = useMemo(() => {
-    const settingsDirty = boutiqueSettings ? (localSettings.featuredOutfitId !== (boutiqueSettings.featuredOutfitId || 'auto')) : false;
-    const designDirty = boutiqueDesign ? JSON.stringify(localDesign) !== JSON.stringify(boutiqueDesign) : false;
+    if (!boutiqueSettings || !boutiqueDesign || !localDesign || !localSettings) return false;
+    const settingsDirty = localSettings.featuredOutfitId !== (boutiqueSettings.featuredOutfitId || 'auto');
+    const designDirty = JSON.stringify(localDesign) !== JSON.stringify(boutiqueDesign);
     return settingsDirty || designDirty;
   }, [localSettings, boutiqueSettings, localDesign, boutiqueDesign]);
   
@@ -402,8 +397,12 @@ export default function MyBoutiquePage() {
                     <Label className="font-semibold">Template</Label>
                     <div className="grid grid-cols-3 gap-2 mt-2">
                       {Object.values(boutiqueTemplates).map(t => (
-                        <button key={t.templateId} type="button" onClick={() => handleTemplateSelect(t.templateId)} className={`aspect-square rounded-md border-2 p-1 ${localDesign?.templateId === t.templateId ? 'border-primary' : 'border-border'}`}>
-                          <div className="w-full h-full rounded-sm" style={{ backgroundColor: t.palette.background }}></div>
+                        <button key={t.templateId} type="button" onClick={() => handleTemplateSelect(t.templateId)} className={`aspect-[4/3] rounded-md border-2 p-1 ${localDesign?.templateId === t.templateId ? 'border-primary ring-2 ring-primary/50' : 'border-border'}`}>
+                          <div className="w-full h-full rounded-sm flex flex-col gap-1 p-1" style={{ backgroundColor: t.palette.background }}>
+                              <div className="h-2 w-1/2 rounded-full" style={{backgroundColor: t.palette.accent}}></div>
+                              <div className="h-1 w-2/3 rounded-full" style={{backgroundColor: t.palette.text}}></div>
+                              <div className="h-1 w-1/3 rounded-full" style={{backgroundColor: t.palette.muted}}></div>
+                          </div>
                         </button>
                       ))}
                     </div>
@@ -451,5 +450,3 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
-
-    
