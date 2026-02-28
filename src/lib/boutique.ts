@@ -40,12 +40,34 @@ type BrandProfilePublicBits = Partial<BrandProfile> & {
 };
 
 // --- Interfaces ---
+export interface BoutiqueDesignSettings {
+  template: string;
+  headerBackground: string;
+  bodyBackground: string;
+  accentColor: string;
+  fontPair: {
+    heading: string;
+    body: string;
+  };
+  buttonStyle: string;
+  cardStyle: string;
+  pattern: {
+    type: string;
+    color: string;
+    opacity: number;
+    scale: number;
+  };
+  frameStyle: string;
+  vibe: string;
+  updatedAt?: any;
+}
 export interface BoutiqueSettings extends DocumentData {
   id: string;
   enabled: boolean;
   featuredOutfitId: string | null;
   handle: string | null;
   updatedAt?: any;
+  design?: BoutiqueDesignSettings;
 }
 
 export interface HandleMapping {
@@ -268,6 +290,27 @@ export const updateHandleTransaction = async (
   await setDoc(userProfileRef, { handle: newHandle }, { merge: true });
 };
 
+const defaultDesign: Omit<BoutiqueDesignSettings, 'updatedAt'> = {
+  template: 'editorial',
+  headerBackground: '#f8f6f2',
+  bodyBackground: '#ffffff',
+  accentColor: '#111111',
+  fontPair: {
+    heading: 'Playfair Display',
+    body: 'Inter',
+  },
+  buttonStyle: 'soft-rounded',
+  cardStyle: 'elevated',
+  pattern: {
+    type: 'none',
+    color: '#000000',
+    opacity: 0.08,
+    scale: 1,
+  },
+  frameStyle: 'none',
+  vibe: 'elevated',
+};
+
 export const updateBoutiqueSettings = async (
   firestore: Firestore,
   userId: string,
@@ -283,9 +326,17 @@ export const updateBoutiqueSettings = async (
       handle: null,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
+      design: {
+        ...defaultDesign,
+        updatedAt: serverTimestamp(),
+      },
     });
   } else {
-    await setDoc(settingsRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+    const updateData = { ...data, updatedAt: serverTimestamp() };
+    if (data.design) {
+      (updateData.design as BoutiqueDesignSettings).updatedAt = serverTimestamp();
+    }
+    await setDoc(settingsRef, updateData, { merge: true });
   }
 };
 
@@ -357,5 +408,3 @@ export const syncPublicBoutiqueData = async (
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
   await setDoc(publicBoutiqueRef, { ...publicData, updatedAt: serverTimestamp() }, { merge: true });
 };
-
-    

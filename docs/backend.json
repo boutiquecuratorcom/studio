@@ -112,6 +112,68 @@
         "updatedAt": {
           "type": "string",
           "format": "date-time"
+        },
+        "design": {
+          "type": "object",
+          "description": "The visual design settings for the public boutique.",
+          "properties": {
+            "template": {
+              "type": "string"
+            },
+            "headerBackground": {
+              "type": "string"
+            },
+            "bodyBackground": {
+              "type": "string"
+            },
+            "accentColor": {
+              "type": "string"
+            },
+            "fontPair": {
+              "type": "object",
+              "properties": {
+                "heading": {
+                  "type": "string"
+                },
+                "body": {
+                  "type": "string"
+                }
+              }
+            },
+            "buttonStyle": {
+              "type": "string"
+            },
+            "cardStyle": {
+              "type": "string"
+            },
+            "pattern": {
+              "type": "object",
+              "properties": {
+                "type": {
+                  "type": "string"
+                },
+                "color": {
+                  "type": "string"
+                },
+                "opacity": {
+                  "type": "number"
+                },
+                "scale": {
+                  "type": "number"
+                }
+              }
+            },
+            "frameStyle": {
+              "type": "string"
+            },
+            "vibe": {
+              "type": "string"
+            },
+            "updatedAt": {
+              "type": "string",
+              "format": "date-time"
+            }
+          }
         }
       }
     },
@@ -796,5 +858,3 @@
     }
   }
 }
-
-    
