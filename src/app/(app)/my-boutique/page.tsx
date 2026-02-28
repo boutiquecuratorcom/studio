@@ -146,9 +146,14 @@ export default function MyBoutiquePage() {
 
   const { data: boutiqueSettings, loading: settingsLoading, error: settingsError } =
     useBoutiqueSettings(user?.uid || null);
-  const { data: brandProfile, loading: brandLoading, error: brandError } = useDoc<any>(
-    user && firestore ? doc(firestore, `users/${user.uid}/brandProfile/main`) : null
-  );
+
+  const brandProfileRef = useMemo(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, `users/${user.uid}/brandProfile/main`);
+  }, [user, firestore]);
+
+  const { data: brandProfile, loading: brandLoading, error: brandError } = useDoc<any>(brandProfileRef);
+  
   const { outfits, loading: outfitsLoading, error: outfitsError } = useOutfits(user?.uid || null);
 
   const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
@@ -436,3 +441,5 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
+
+    
