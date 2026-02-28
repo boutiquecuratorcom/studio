@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogTrigger } from '@/components/ui/dialog';
-import type { Outfit } from '@/lib/outfits';
+import { PublicBoutiqueProfile } from '@/lib/boutique';
 import { IndividualClaimDialog } from '@/components/outfits/IndividualClaimDialog';
 
 interface PublicClaimButtonProps {
-    outfit: Outfit;
+    outfitSummary: NonNullable<PublicBoutiqueProfile['featuredOutfit']>;
     accentColor: string;
 }
 
@@ -33,12 +33,10 @@ const getContrastingTextColor = (hexColor: string) => {
 }
 
 
-export function PublicClaimButton({ outfit, accentColor }: PublicClaimButtonProps) {
-    const [isClaimOpen, setIsClaimOpen] = useState(false);
-
-    const claimMode = outfit.outfitClaim?.mode || 'individual';
-    const outfitClaimUrl = outfit.outfitClaim?.claim?.url;
-    const outfitClaimLabel = outfit.outfitClaim?.claim?.label || 'Claim Now';
+export function PublicClaimButton({ outfitSummary, accentColor }: PublicClaimButtonProps) {
+    const claimMode = outfitSummary.outfitClaim?.mode || 'individual';
+    const outfitClaimUrl = outfitSummary.outfitClaim?.claim?.url;
+    const outfitClaimLabel = outfitSummary.outfitClaim?.claim?.label || 'Claim Now';
     
     const buttonStyle = {
         backgroundColor: accentColor,
@@ -52,17 +50,9 @@ export function PublicClaimButton({ outfit, accentColor }: PublicClaimButtonProp
             </Button>
         );
     }
-
-    if (claimMode === 'individual' && outfit.linkedRackItemIds?.length > 0) {
-        return (
-            <Dialog open={isClaimOpen} onOpenChange={setIsClaimOpen}>
-                <DialogTrigger asChild>
-                    <Button size="lg" style={buttonStyle}>Claim a Look</Button>
-                </DialogTrigger>
-                <IndividualClaimDialog linkedItemIds={outfit.linkedRackItemIds} />
-            </Dialog>
-        );
-    }
     
-    return <Button size="lg" disabled>Claim Not Available</Button>;
+    // For public pages, individual claim dialogs are not supported as we don't expose all item IDs.
+    // The button will simply be a non-clickable label. A better UX would be to link to the seller's main website if available.
+    // For now, we just show a generic button.
+    return <Button size="lg" style={buttonStyle}>Claim a Look</Button>;
 }

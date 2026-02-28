@@ -30,6 +30,10 @@
         "inventoryMonthKey": {
           "type": "string",
           "description": "The year-month key (e.g., '2024-08') for tracking monthly inventory limits."
+        },
+        "handle": {
+          "type": "string",
+          "description": "The user's unique, public boutique handle."
         }
       },
       "required": ["uid", "email", "createdAt"]
@@ -116,27 +120,18 @@
         }
       }
     },
-    "PublicBoutique": {
-      "title": "Public Boutique Mapping",
-      "description": "Maps a public handle to a user's ownerId.",
+    "HandleMapping": {
+      "title": "Handle-to-UID Mapping",
+      "description": "Maps a unique, public handle to a Firebase Auth UID.",
       "type": "object",
       "properties": {
-        "ownerId": {
+        "uid": {
           "type": "string",
           "description": "The Firebase Auth UID of the boutique owner."
         },
         "handle": {
           "type": "string",
           "description": "The public, URL-friendly handle for the boutique."
-        },
-        "displayName": {
-          "type": "string",
-          "description": "A snapshot of the boutique's display name for quick lookups."
-        },
-        "logoUrl": {
-          "type": "string",
-          "format": "uri",
-          "description": "A snapshot of the boutique's logo URL."
         },
         "createdAt": {
           "type": "string",
@@ -147,7 +142,94 @@
           "format": "date-time"
         }
       },
-      "required": ["ownerId", "handle", "createdAt", "updatedAt"]
+      "required": ["uid", "handle", "createdAt", "updatedAt"]
+    },
+    "PublicBoutiqueProfile": {
+      "title": "Public Boutique Profile",
+      "description": "Denormalized public data for a boutique showcase, keyed by handle.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string"
+        },
+        "handle": {
+          "type": "string"
+        },
+        "enabled": {
+          "type": "boolean"
+        },
+        "brandName": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "tagline": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "logoUrl": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "format": "uri"
+        },
+        "accentColor": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "featuredOutfit": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "title": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "imageUrl": {
+              "type": [
+                "string",
+                "null"
+              ],
+              "format": "uri"
+            },
+            "description": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "itemCount": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+             "outfitClaim": {
+              "type": [
+                "object",
+                "null"
+              ]
+            }
+          }
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
     },
     "InventoryItem": {
       "title": "Inventory Item",
@@ -629,11 +711,17 @@
       },
       "description": "Stores saved post drafts for a user."
     },
+     "/handles/{handle}": {
+      "schema": {
+        "$ref": "#/entities/HandleMapping"
+      },
+      "description": "Maps unique public handles to owner UIDs to enable pretty URLs."
+    },
     "/publicBoutiques/{handle}": {
       "schema": {
-        "$ref": "#/entities/PublicBoutique"
+        "$ref": "#/entities/PublicBoutiqueProfile"
       },
-      "description": "Stores the public mapping from a handle to an ownerId."
+      "description": "Stores the denormalized, public-facing data for a boutique, keyed by handle."
     },
     "/inventory/{itemId}": {
       "schema": {

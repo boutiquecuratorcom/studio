@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,9 +12,12 @@ import {
   BoutiqueSettings,
   useBoutiqueSettings,
   updateBoutiqueSettings,
-  usePublicBoutique,
-  claimBoutiqueHandle,
+  useUserHandle,
+  claimHandleTransaction,
+  updateHandleTransaction,
+  syncPublicBoutiqueData,
   handleSchema,
+  PublicBoutiqueProfile,
 } from '@/lib/boutique';
 import { useToast } from '@/hooks/use-toast';
 
@@ -40,29 +43,28 @@ import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertTriangle,
   ArrowRight,
+  CheckCircle2,
   Copy,
   ExternalLink,
   Eye,
+  Globe,
   Info,
   Loader2,
   Save,
+  XCircle,
 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
-
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -71,10 +73,10 @@ export default function MyBoutiquePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
+  const { handle, loading: handleLoading, error: handleEror } = useUserHandle(user?.uid || null);
+
   const { data: boutiqueSettings, loading: settingsLoading, error: settingsError } =
     useBoutiqueSettings(user?.uid || null);
-
-  const { publicBoutique, loading: publicBoutiqueLoading, error: publicBoutiqueError } = usePublicBoutique(user?.uid || null);
 
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
@@ -86,70 +88,98 @@ export default function MyBoutiquePage() {
   const { outfits, loading: outfitsLoading, error: outfitsError } = useOutfits(user?.uid || null);
 
   const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
-  const [isSavingEnabled, setIsSavingEnabled] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [isClaiming, setIsClaiming] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [publicUrl, setPublicUrl] = useState('');
 
   const handleForm = useForm<HandleFormValues>({
-    resolver: zodResolver(z.object({ handle: handleSchema })),
+    resolver: zodResolver(handleSchema),
     defaultValues: { handle: '' },
   });
+
+  // --- Effects ---
+  useEffect(() => {
+    if (handle) {
+      handleForm.reset({ handle: handle.handle });
+      setPublicUrl(`${window.location.origin}/boutique/${handle.handle}`);
+    } else {
+      handleForm.reset({ handle: '' });
+      setPublicUrl('');
+    }
+  }, [handle, handleForm]);
+
 
   useEffect(() => {
     if (userLoading || settingsLoading) return;
     if (!user) return;
 
-    const initialize = async () => {
-      if (boutiqueSettings) {
-        setLocalSettings({
-          enabled: boutiqueSettings.enabled,
-          featuredOutfitId: boutiqueSettings.featuredOutfitId || 'auto',
-          stylePreset: boutiqueSettings.stylePreset || 'magazine',
-        });
-        setIsInitialized(true);
-      } else if (!settingsError) {
+    if (boutiqueSettings) {
+      setLocalSettings({
+        enabled: boutiqueSettings.enabled,
+        featuredOutfitId: boutiqueSettings.featuredOutfitId || 'auto',
+        stylePreset: boutiqueSettings.stylePreset || 'magazine',
+        accentColor: boutiqueSettings.accentColor || brandProfile?.brandColors?.[0] || null,
+      });
+      setIsInitialized(true);
+    } else if (!settingsError) {
+      // If settings are missing, create them.
+      (async () => {
         try {
-          if (!firestore) throw new Error("Firestore not available");
-          const defaultAccent = brandProfile?.brandColors?.[0] || null;
-          const defaults: Partial<BoutiqueSettings> = {
+          if (!firestore) throw new Error('Firestore not available');
+          const defaults = {
             enabled: false,
             featuredOutfitId: null,
-            accentColor: defaultAccent,
+            accentColor: brandProfile?.brandColors?.[0] || null,
             stylePreset: 'magazine',
           };
           await updateBoutiqueSettings(firestore, user.uid, defaults);
-          // The useBoutiqueSettings hook will re-run and provide the new data
+          // Hook will refetch and update state.
         } catch (e: any) {
           console.error('[MyBoutique] Failed to create default settings:', e);
           toast({ variant: 'destructive', title: 'Initialization Failed', description: e.message });
         }
-      }
-    };
-    initialize();
+      })();
+    }
   }, [user, userLoading, firestore, boutiqueSettings, settingsLoading, settingsError, brandProfile, toast]);
 
+  // --- Handlers ---
+  
   const handleEnabledToggle = async (enabled: boolean) => {
-    if (!user || !firestore) return;
-    setIsSavingEnabled(true);
-    setLocalSettings(prev => ({ ...prev, enabled })); // Optimistic update
+    if (!user || !firestore || !handle) {
+      toast({ variant: 'destructive', title: 'Cannot go live', description: 'You must claim a public handle first.' });
+      return;
+    }
+    
+    setIsSyncing(true);
+    toast({ title: 'Updating boutique status...', description: 'Please wait.' });
 
     try {
+      if (enabled) {
+        // When going live, sync all data.
+        await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
+      } else {
+        // When going private, just disable the flag.
+        const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle.handle);
+        await setDoc(publicBoutiqueRef, { enabled: false, updatedAt: serverTimestamp() }, { merge: true });
+      }
+      
+      // Also update the private setting doc
       await updateBoutiqueSettings(firestore, user.uid, { enabled });
+      
       toast({
         title: 'Boutique Status Updated',
         description: `Your boutique is now ${enabled ? 'live' : 'private'}.`,
       });
     } catch (e: any) {
-      setLocalSettings(prev => ({ ...prev, enabled: !enabled })); // Revert on error
       console.error('[MyBoutique] Failed to toggle status:', e);
       toast({
         variant: 'destructive',
-        title: 'Save Failed',
+        title: 'Update Failed',
         description: e.message,
       });
     } finally {
-      setIsSavingEnabled(false);
+      setIsSyncing(false);
     }
   };
 
@@ -161,16 +191,19 @@ export default function MyBoutiquePage() {
         featuredOutfitId:
           localSettings.featuredOutfitId === 'auto' ? null : localSettings.featuredOutfitId,
         stylePreset: localSettings.stylePreset as any,
+        accentColor: localSettings.accentColor
       };
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
+
+      // If already live, re-sync public data
+      if (boutiqueSettings?.enabled && handle) {
+        await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
+      }
+
       toast({ title: 'Configuration Saved!' });
     } catch (e: any) {
       console.error('[MyBoutique] Failed to save config:', e);
-      toast({
-        variant: 'destructive',
-        title: 'Save Failed',
-        description: e.message,
-      });
+      toast({ variant: 'destructive', title: 'Save Failed', description: e.message });
     } finally {
       setIsSavingConfig(false);
     }
@@ -178,57 +211,58 @@ export default function MyBoutiquePage() {
 
   const onClaimSubmit = async (values: HandleFormValues) => {
     if (!user || !firestore) return;
-    setIsClaiming(true);
+    
+    const isUpdate = !!handle;
+    const newHandle = values.handle;
+    const oldHandle = handle?.handle;
+
+    if (isUpdate && newHandle === oldHandle) {
+        toast({ title: "No Changes", description: "You already own this handle." });
+        return;
+    }
+    
+    handleForm.clearErrors();
+    const {isSubmitting} = handleForm.formState;
+    if (isSubmitting) return;
+
     try {
-        await claimBoutiqueHandle(firestore, user, values.handle, brandProfile);
-        toast({ title: 'Handle Claimed!', description: `Your boutique is now live at /boutique/${values.handle}` });
-        handleForm.reset();
+        if (isUpdate && oldHandle) {
+            // Update flow
+            await updateHandleTransaction(firestore, user, oldHandle, newHandle);
+            toast({ title: 'Handle Updated!', description: `Your new public URL is /boutique/${newHandle}` });
+        } else {
+            // Claim flow
+            await claimHandleTransaction(firestore, user, newHandle);
+            toast({ title: 'Handle Claimed!', description: `Your boutique is now ready to go live at /boutique/${newHandle}` });
+        }
     } catch (e: any) {
-        toast({ variant: 'destructive', title: 'Claim Failed', description: e.message });
-    } finally {
-        setIsClaiming(false);
+        console.error('Handle transaction failed:', e);
+        handleForm.setError('handle', { type: 'manual', message: e.message });
     }
   };
-
-  const handleCopyLink = () => {
-    if (!publicBoutique) {
-      toast({
-        variant: 'destructive',
-        title: 'No Handle Claimed',
-        description: 'Please claim a handle for your boutique first.',
-      });
-      return;
-    }
-    const link = `${window.location.origin}/boutique/${publicBoutique.handle}`;
-    navigator.clipboard.writeText(link);
-    toast({
-      title: 'Link Copied!',
-      description: 'Your boutique link is ready to be shared.',
-    });
-  };
-
-  const loading = userLoading || !isInitialized || outfitsLoading || brandLoading || publicBoutiqueLoading;
-  const anyError = settingsError || brandError || outfitsError || publicBoutiqueError;
+  
+  // --- Derived State & Memos ---
+  const loading = userLoading || !isInitialized || outfitsLoading || brandLoading || handleLoading;
+  const anyError = settingsError || brandError || outfitsError || handleEror;
 
   const featuredOutfit = useMemo(() => {
     if (!outfits) return undefined;
-    if (localSettings.featuredOutfitId === 'auto') {
-      return outfits[0];
+    const featuredId = localSettings.featuredOutfitId;
+    if (featuredId === 'auto' || !featuredId) {
+      return outfits.find(o => o.status === 'published') || outfits[0];
     }
-    return outfits.find((o) => o.id === localSettings.featuredOutfitId);
+    return outfits.find((o) => o.id === featuredId);
   }, [localSettings.featuredOutfitId, outfits]);
-
-  const accentColor = useMemo(() => 
-    boutiqueSettings?.accentColor || brandProfile?.brandColors?.[0] || '#111827',
-    [boutiqueSettings, brandProfile]
-  );
   
   const isConfigDirty = useMemo(() => boutiqueSettings ? 
     (localSettings.featuredOutfitId !== (boutiqueSettings.featuredOutfitId || 'auto')) || 
-    (localSettings.stylePreset !== (boutiqueSettings.stylePreset || 'magazine'))
+    (localSettings.stylePreset !== (boutiqueSettings.stylePreset || 'magazine')) ||
+    (localSettings.accentColor !== (boutiqueSettings.accentColor || brandProfile?.brandColors?.[0] || null))
     : false,
-    [localSettings, boutiqueSettings]
+    [localSettings, boutiqueSettings, brandProfile]
   );
+  
+  // --- Render Functions ---
 
   const renderHeader = () => (
      <header className="mb-12">
@@ -242,36 +276,13 @@ export default function MyBoutiquePage() {
   );
 
   const renderHandleCard = () => {
-    if (publicBoutique) {
-      const publicUrl = `${window.location.origin}/boutique/${publicBoutique.handle}`;
-      return (
-        <Card>
-          <CardHeader>
-            <CardTitle>Your Public URL</CardTitle>
-            <CardDescription>This is the shareable link to your public boutique page.</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center space-x-2 rounded-lg border p-2 pl-3 bg-muted/50">
-              <p className="text-sm text-muted-foreground font-mono flex-grow truncate">{`/boutique/${publicBoutique.handle}`}</p>
-              <Button type="button" size="sm" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: 'Full Link Copied!' }); }}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button asChild size="sm" variant="secondary">
-                <Link href={publicUrl} target="_blank">
-                  <ExternalLink className="mr-2 h-4 w-4" /> Visit
-                </Link>
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      );
-    }
+    const isLive = boutiqueSettings?.enabled;
 
     return (
       <Card>
         <CardHeader>
-          <CardTitle>Claim Your Public Handle</CardTitle>
-          <CardDescription>Choose a unique, permanent URL for your boutique showcase.</CardDescription>
+          <CardTitle>Public Handle</CardTitle>
+          <CardDescription>This becomes your public link: /boutique/your-handle</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...handleForm}>
@@ -281,30 +292,34 @@ export default function MyBoutiquePage() {
                 name="handle"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Boutique Handle</FormLabel>
                     <div className="flex items-center">
                       <span className="text-sm text-muted-foreground bg-muted border border-r-0 rounded-l-md px-3 h-10 flex items-center">
                         .../boutique/
                       </span>
                       <FormControl>
-                        <Input placeholder="your-name" {...field} className="rounded-l-none" />
+                        <Input placeholder="your-handle" {...field} className="rounded-l-none" disabled={isLive || handleForm.formState.isSubmitting} />
                       </FormControl>
                     </div>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button type="submit" disabled={isClaiming}>
-                {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                Claim Handle
-              </Button>
+              <div className="flex flex-col gap-4">
+                <Button type="submit" disabled={isLive || handleForm.formState.isSubmitting || !handleForm.formState.isDirty}>
+                  {handleForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  {handle ? 'Update Handle' : 'Claim Handle'}
+                </Button>
+                {isLive && (
+                    <p className="text-xs text-muted-foreground text-center">Disable "Boutique is Live" to change your handle.</p>
+                )}
+              </div>
             </form>
           </Form>
         </CardContent>
       </Card>
     );
   };
-
+  
   if (userLoading) {
     return (
         <div className="flex-1 flex items-center justify-center p-8">
@@ -358,26 +373,56 @@ export default function MyBoutiquePage() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center space-x-4 rounded-lg border p-4">
-                {isSavingEnabled ? (
+                {isSyncing ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                     <Switch
                         id="boutique-enabled"
-                        checked={localSettings.enabled ?? false}
+                        checked={boutiqueSettings?.enabled ?? false}
                         onCheckedChange={handleEnabledToggle}
+                        disabled={!handle}
                     />
                 )}
                 <Label htmlFor="boutique-enabled" className="flex-grow">
-                  Boutique is {localSettings.enabled ? 'Live' : 'Private'}
+                  Boutique is {boutiqueSettings?.enabled ? 'Live' : 'Private'}
                 </Label>
               </div>
                <p className="text-sm text-muted-foreground mt-3 px-1">
-                {localSettings.enabled ? 'Your boutique is public and can be viewed by anyone with the link.' : 'Your boutique is currently private. Only you can see it.'}
+                {boutiqueSettings?.enabled ? 'Your boutique is public and can be viewed by anyone with the link.' : 'Your boutique is currently private. Only you can see it.'}
             </p>
+            {!handle && (
+                <Alert variant="destructive" className="mt-4">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertTitle>Handle Required</AlertTitle>
+                    <AlertDescription>You must claim a public handle before your boutique can go live.</AlertDescription>
+                </Alert>
+            )}
             </CardContent>
           </Card>
           
           {renderHandleCard()}
+          
+          {publicUrl && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Your Public URL</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                     <div className="flex items-center space-x-2 rounded-lg border p-2 pl-3 bg-muted/50">
+                        <Globe className="h-4 w-4 text-muted-foreground" />
+                        <p className="text-sm text-muted-foreground font-mono flex-grow truncate">{`/boutique/${handle?.handle}`}</p>
+                    </div>
+                     <Button variant="outline" className="w-full justify-between" asChild>
+                       <Link href={publicUrl} target="_blank">
+                            Visit Public Page <ExternalLink />
+                       </Link>
+                    </Button>
+                     <Button variant="outline" className="w-full justify-between" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: 'Link Copied!' }); }}>
+                        Copy Link <Copy />
+                    </Button>
+                </CardContent>
+            </Card>
+          )}
 
           <Card>
             <CardHeader>
@@ -394,7 +439,7 @@ export default function MyBoutiquePage() {
                             <SelectValue placeholder="Select an outfit..." />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="auto">Auto (newest look)</SelectItem>
+                            <SelectItem value="auto">Auto (newest published look)</SelectItem>
                             {outfits?.map(outfit => (
                                 <SelectItem key={outfit.id} value={outfit.id}>{outfit.title}</SelectItem>
                             ))}
@@ -418,36 +463,6 @@ export default function MyBoutiquePage() {
                 </Button>
             </CardContent>
           </Card>
-          
-            {!brandProfile && !brandLoading && (
-                 <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertTitle>Complete Your Brand Profile</AlertTitle>
-                    <AlertDescription>
-                        Your boutique preview uses your brand name, logo, and colors. Fill out your brand profile for the best result.
-                        <Button asChild variant="link" className="p-0 h-auto mt-2">
-                            <Link href="/my-brand">Go to My Brand <ArrowRight className="ml-1 h-4 w-4" /></Link>
-                        </Button>
-                    </AlertDescription>
-                </Alert>
-            )}
-
-            <Card>
-                <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
-                <CardContent className="space-y-3">
-                     <Button variant="outline" className="w-full justify-between" asChild disabled={!publicBoutique}>
-                       <Link href={publicBoutique ? `/boutique/${publicBoutique.handle}` : '#'} target="_blank">
-                            Open Public Page
-                            <ExternalLink />
-                       </Link>
-                    </Button>
-                     <Button variant="outline" className="w-full justify-between" onClick={handleCopyLink} disabled={!publicBoutique}>
-                        Copy My Boutique Link
-                        <Copy />
-                    </Button>
-                </CardContent>
-            </Card>
-
         </div>
         <div className="lg:col-span-2 lg:sticky top-12">
             <Card>
@@ -455,7 +470,7 @@ export default function MyBoutiquePage() {
                     <CardTitle className="flex items-center gap-2"><Eye className="h-5 w-5" /> Live Preview</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <BoutiqueLivePreview brandProfile={brandProfile} featuredOutfit={featuredOutfit} accentColor={accentColor} />
+                    <BoutiqueLivePreview brandProfile={brandProfile} featuredOutfit={featuredOutfit} accentColor={localSettings.accentColor || '#111827'} />
                 </CardContent>
             </Card>
         </div>

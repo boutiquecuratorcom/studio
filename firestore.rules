@@ -47,20 +47,31 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.ownerId);
     }
 
-    // Rules for the 'publicBoutiques' collection
+    // Rules for the 'handles' collection (replaces old publicBoutiques)
+    match /handles/{handle} {
+      // Authenticated users can read to check for availability
+      allow read: if request.auth != null;
+      
+      // An authenticated user can create a handle for themselves, but only
+      // if one for that handle doesn't already exist.
+      allow create: if isOwner(request.resource.data.uid) && !exists(/databases/$(database)/documents/handles/$(handle));
+
+      // Only the owner can update or delete their handle mapping.
+      allow update, delete: if isOwner(resource.data.uid);
+    }
+    
+    // Rules for the denormalized 'publicBoutiques' collection
     match /publicBoutiques/{handle} {
-      // Anyone can read to resolve a handle to an ownerId
+      // Anyone can read this public data
       allow read: if true;
 
-      // An authenticated user can create a mapping for themselves,
-      // but only if a mapping for that handle doesn't already exist.
-      // The transaction in the client will handle the existence check.
-      allow create: if request.auth != null &&
-                    request.resource.data.ownerId == request.auth.uid &&
-                    request.resource.data.handle == handle;
-
-      // Updates and deletes are disallowed for now to prevent handle hijacking.
-      allow update, delete: if false;
+      // Only the owner can create or update their public profile
+      allow create: if isOwner(request.resource.data.uid);
+      allow update: if isOwner(resource.data.uid);
+      
+      // Deletes are disallowed to prevent accidental removal of public pages.
+      // Users should disable the page instead.
+      allow delete: if false;
     }
   }
 }

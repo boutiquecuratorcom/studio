@@ -1,121 +1,65 @@
-import { notFound } from 'next/navigation';
+'use client';
+
+import { useParams, notFound } from 'next/navigation';
 import Image from 'next/image';
-import { getAdminInstances } from '@/firebase/admin';
-import type { BoutiqueSettings, PublicBoutique } from '@/lib/boutique';
-import type { Outfit } from '@/lib/outfits';
-import { Card } from '@/components/ui/card';
-import { Store, ImageIcon } from 'lucide-react';
-import { PublicClaimButton } from '@/components/boutique/PublicClaimButton';
 import Link from 'next/link';
+import { Store, ImageIcon, Loader2 } from 'lucide-react';
+
+import { usePublicBoutiqueByHandle, type PublicBoutiqueProfile } from '@/lib/boutique';
+import { PublicClaimButton } from '@/components/boutique/PublicClaimButton';
 import { Button } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 
-async function getBoutiqueDataByHandle(handle: string) {
-  const { db } = getAdminInstances();
-
-  // 1. Look up handle in publicBoutiques collection
-  const publicBoutiqueRef = db.collection('publicBoutiques').doc(handle);
-  const publicBoutiqueSnap = await publicBoutiqueRef.get();
-
-  if (!publicBoutiqueSnap.exists) {
-    return null; // Triggers notFound()
-  }
-
-  const ownerId = (publicBoutiqueSnap.data() as PublicBoutique)?.ownerId;
-  if (!ownerId) {
-    console.warn(`[Boutique SSR] Handle '${handle}' exists but has no ownerId.`);
-    return null; // Invalid mapping document
-  }
-  
-  // 2. Fetch boutique settings and brand profile using the resolved ownerId
-  const settingsRef = db.collection('users').doc(ownerId).collection('boutiqueSettings').doc('main');
-  const brandRef = db.collection('users').doc(ownerId).collection('brandProfile').doc('main');
-  
-  const [settingsSnap, brandSnap] = await Promise.all([
-    settingsRef.get(),
-    brandRef.get(),
-  ]);
-
-  const settings = settingsSnap.exists ? settingsSnap.data() as BoutiqueSettings : null;
-  const brandProfile = brandSnap.exists ? brandSnap.data() : null;
-
-  // 3. Check if the boutique is live
-  if (!settings || !settings.enabled) {
-    return { isLive: false };
-  }
-
-  // 4. Fetch the featured outfit
-  let featuredOutfit: Outfit | null = null;
-  
-  if (settings.featuredOutfitId && settings.featuredOutfitId !== 'auto') {
-    const outfitSnap = await db.collection('outfits').doc(settings.featuredOutfitId).get();
-    if (outfitSnap.exists) {
-        featuredOutfit = { id: outfitSnap.id, ...outfitSnap.data() } as Outfit;
-    }
-  } else {
-    // Fetch the newest published outfit for this user
-    const outfitsQuery = db.collection('outfits')
-        .where('ownerId', '==', ownerId)
-        .where('status', '==', 'published')
-        .orderBy('createdAt', 'desc')
-        .limit(1);
-    const outfitSnaps = await outfitsQuery.get();
-    if (!outfitSnaps.empty) {
-        const outfitDoc = outfitSnaps.docs[0];
-        featuredOutfit = { id: outfitDoc.id, ...outfitDoc.data() } as Outfit;
-    }
-  }
-
-  return {
-    isLive: true,
-    settings,
-    brandProfile,
-    featuredOutfit,
-  };
+function BoutiqueLoading() {
+    return (
+        <div className="flex flex-col items-center justify-center min-h-screen bg-muted p-4">
+            <Loader2 className="h-12 w-12 text-muted-foreground animate-spin" />
+        </div>
+    );
 }
 
-export default async function PublicBoutiquePage({ params }: { params: { sellerId: string } }) {
-  const { sellerId: handle } = params;
-  
-  let data;
-  try {
-    data = await getBoutiqueDataByHandle(handle);
-  } catch (error: any) {
-    console.error(`[PublicBoutiquePage] A server-side error occurred for handle '${handle}':`, error);
-    // In case of any server error (e.g., Firebase Admin init failed),
-    // default to showing the 'not live' page instead of crashing.
-    data = { isLive: false };
-  }
-
-  if (!data) {
-    notFound();
-  }
-
-  if (!data.isLive) {
+function BoutiqueNotAvailable() {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-muted text-center p-4">
-        <Store className="h-16 w-16 text-muted-foreground mb-4" />
-        <h1 className="text-2xl font-bold">Boutique Not Available</h1>
-        <p className="text-muted-foreground">This boutique is not public yet. Check back soon.</p>
-         <Button asChild variant="link" className="mt-4">
-            <Link href="/">Back to Boutique Curator</Link>
-        </Button>
-      </div>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-muted text-center p-4">
+            <Store className="h-16 w-16 text-muted-foreground mb-4" />
+            <h1 className="text-2xl font-bold">Boutique Not Available</h1>
+            <p className="text-muted-foreground">This boutique is not public yet. Check back soon.</p>
+            <Button asChild variant="link" className="mt-4">
+                <Link href="/">Back to Boutique Curator</Link>
+            </Button>
+        </div>
     );
+}
+
+export default function PublicBoutiquePage() {
+  const params = useParams();
+  const handle = params.sellerId as string;
+
+  const { data, loading, error } = usePublicBoutiqueByHandle(handle);
+
+  if (loading) {
+    return <BoutiqueLoading />;
   }
 
-  const { brandProfile, featuredOutfit, settings } = data;
-  const accentColor = settings.accentColor || brandProfile?.brandColors?.[0] || '#111827';
+  if (error || !data || !data.enabled) {
+    // If there's an error, the doc doesn't exist, or it's not enabled, show "Not Available".
+    // This prevents showing a 404 for disabled boutiques.
+    return <BoutiqueNotAvailable />;
+  }
   
+  const { brandName, tagline, logoUrl, accentColor, featuredOutfit } = data;
+
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md mx-auto bg-card rounded-xl shadow-lg p-4 border relative overflow-hidden">
         <div className="absolute top-0 left-0 w-full h-48 bg-gradient-to-b from-muted to-transparent"></div>
         <div className="relative z-10 space-y-6">
           <header className="flex flex-col items-center text-center space-y-3 pt-8">
-            {brandProfile?.logoUrl ? (
+            {logoUrl ? (
               <Image
-                src={brandProfile.logoUrl}
-                alt={`${brandProfile.brandName || 'Brand'} logo`}
+                src={logoUrl}
+                alt={`${brandName || 'Brand'} logo`}
                 width={80}
                 height={80}
                 className="rounded-full object-cover h-20 w-20 border-4 border-background shadow-md"
@@ -127,13 +71,13 @@ export default async function PublicBoutiquePage({ params }: { params: { sellerI
             )}
             <div>
               <h3 className="text-3xl font-bold tracking-tight">
-                {brandProfile?.brandName || 'Boutique'}
+                {brandName || 'Boutique'}
               </h3>
               <p className="text-muted-foreground text-md max-w-sm mx-auto">
-                {brandProfile?.tagline || 'Curated looks just for you.'}
+                {tagline || 'Curated looks just for you.'}
               </p>
             </div>
-            {featuredOutfit && <PublicClaimButton outfit={featuredOutfit} accentColor={accentColor} />}
+            {featuredOutfit && <PublicClaimButton outfitSummary={featuredOutfit} accentColor={accentColor || '#111827'} />}
           </header>
 
           <section>
@@ -142,10 +86,10 @@ export default async function PublicBoutiquePage({ params }: { params: { sellerI
                 <div className="relative aspect-video w-full">
                   <Image
                     src={
-                      featuredOutfit.cover?.imageUrl ||
+                      featuredOutfit.imageUrl ||
                       'https://picsum.photos/seed/boutique-fallback/600/400'
                     }
-                    alt={featuredOutfit.title}
+                    alt={featuredOutfit.title || 'Featured Outfit'}
                     fill
                     className="object-cover"
                   />
@@ -153,8 +97,8 @@ export default async function PublicBoutiquePage({ params }: { params: { sellerI
                 <div className="p-4">
                   <h4 className="font-semibold">{featuredOutfit.title}</h4>
                   <p className="text-sm text-muted-foreground truncate">
-                    {featuredOutfit.storefrontDescription ||
-                      `${featuredOutfit.linkedRackItemIds.length} items`}
+                    {featuredOutfit.description ||
+                      `${featuredOutfit.itemCount} items`}
                   </p>
                 </div>
               </Card>
@@ -176,7 +120,6 @@ export default async function PublicBoutiquePage({ params }: { params: { sellerI
               Boutique owner? <Link href="/login" className="underline hover:text-primary">Log in</Link>
             </p>
           </footer>
-
         </div>
       </div>
     </div>
