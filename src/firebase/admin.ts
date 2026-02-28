@@ -1,51 +1,21 @@
 import admin from 'firebase-admin';
 import type { DecodedIdToken } from 'firebase-admin/auth';
-import type { ServiceAccount } from 'firebase-admin';
 
-const hasCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-let initialized = false;
-
-if (admin.apps.length > 0) {
-  initialized = true;
+// Ensure initialization happens only once.
+if (!admin.apps.length) {
+  // When deployed to a Google Cloud environment (like App Hosting),
+  // the SDK automatically uses the runtime's service account credentials.
+  // No credentials need to be passed manually.
+  admin.initializeApp();
 }
 
 /**
- * Initializes the Firebase Admin SDK if it hasn't been already.
- * This is a singleton to prevent re-initialization.
+ * Gets the initialized Firebase Admin SDK instances.
+ * Throws an error if the SDK could not be initialized, which will be caught by the page component.
  */
-function initializeAdmin() {
-  if (initialized) {
-    return;
-  }
-  if (!hasCredentials) {
-    console.warn(
-      '[Firebase Admin] No GOOGLE_APPLICATION_CREDENTIALS_JSON found. Skipping initialization.'
-    );
-    return;
-  }
-  try {
-    const serviceAccount = JSON.parse(
-      process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON as string
-    ) as ServiceAccount;
-    
-    admin.initializeApp({
-      credential: admin.credential.cert(serviceAccount),
-    });
-    initialized = true;
-    console.log('[Firebase Admin] Initialized successfully.');
-  } catch (error: any) {
-    console.error('[Firebase Admin] Initialization failed:', error.message);
-  }
-}
-
-// Call initialization right away
-initializeAdmin();
-
-
 export const getAdminInstances = () => {
-    if (!initialized) {
-        // This will cause an error on the page if credentials are not set up, which is desired behavior for SSR.
-        throw new Error("[Firebase Admin] Admin SDK not initialized. Server-side rendering requires GOOGLE_APPLICATION_CREDENTIALS_JSON to be set.");
+    if (!admin.apps.length) {
+        throw new Error("[Firebase Admin] Admin SDK failed to initialize. This can happen if the server environment is not configured with Google Cloud credentials.");
     }
     return {
         db: admin.firestore(),
@@ -53,8 +23,12 @@ export const getAdminInstances = () => {
     };
 };
 
+/**
+ * Verifies a Firebase ID token.
+ */
 export async function verifyIdToken(token: string): Promise<DecodedIdToken | null> {
-    if (!initialized) {
+    if (!admin.apps.length) {
+        console.error('[Firebase Admin] Cannot verify token, SDK not initialized.');
         return null;
     }
     try {

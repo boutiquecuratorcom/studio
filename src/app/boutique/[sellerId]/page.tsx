@@ -11,11 +11,6 @@ import { Button } from '@/components/ui/button';
 
 async function getBoutiqueDataByHandle(handle: string) {
   const { db } = getAdminInstances();
-  if (!db) {
-    console.error("[Boutique SSR] Admin DB not initialized.");
-    // This will be caught by Next.js and show an error page in production.
-    throw new Error("Server configuration error.");
-  }
 
   // 1. Look up handle in publicBoutiques collection
   const publicBoutiqueRef = db.collection('publicBoutiques').doc(handle);
@@ -80,7 +75,16 @@ async function getBoutiqueDataByHandle(handle: string) {
 
 export default async function PublicBoutiquePage({ params }: { params: { sellerId: string } }) {
   const { sellerId: handle } = params;
-  const data = await getBoutiqueDataByHandle(handle);
+  
+  let data;
+  try {
+    data = await getBoutiqueDataByHandle(handle);
+  } catch (error: any) {
+    console.error(`[PublicBoutiquePage] A server-side error occurred for handle '${handle}':`, error);
+    // In case of any server error (e.g., Firebase Admin init failed),
+    // default to showing the 'not live' page instead of crashing.
+    data = { isLive: false };
+  }
 
   if (!data) {
     notFound();
