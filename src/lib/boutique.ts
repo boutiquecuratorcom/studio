@@ -31,6 +31,7 @@ export interface BoutiqueSettings extends DocumentData {
   featuredOutfitId: string | null;
   accentColor: string | null;
   stylePreset: 'magazine' | 'modern' | 'classic';
+  handle?: string;
   updatedAt?: any;
 }
 
@@ -72,9 +73,16 @@ const RESERVED_HANDLES = new Set([
 
 export const handleSchema = z.object({
   handle: z.string()
-    .min(3, 'Handle must be at least 3 characters long.')
-    .max(30, 'Handle cannot be more than 30 characters.')
-    .regex(/^[a-z][a-z0-9-]*$/, 'Must start with a letter and contain only lowercase letters, numbers, and hyphens.')
+    .transform(val => 
+      val.toLowerCase()
+         .trim()
+         .replace(/\s+/g, '-')
+         .replace(/[^a-z0-9-]/g, '')
+         .replace(/-+/g, '-')
+    )
+    .refine(s => s.length >= 3, 'Handle must be at least 3 characters long.')
+    .refine(s => s.length <= 30, 'Handle cannot be more than 30 characters.')
+    .refine(s => /^[a-z]/.test(s), 'Must start with a letter.')
     .refine(s => !s.endsWith('-'), 'Cannot end with a hyphen.')
     .refine(s => !s.includes('--'), 'Cannot contain consecutive hyphens.')
     .refine(s => !RESERVED_HANDLES.has(s), 'This handle is reserved. Please choose another.'),
@@ -113,28 +121,45 @@ export const usePublicBoutiqueByHandle = (handle: string | null) => {
 // --- Data Functions ---
 
 export const claimHandleTransaction = async (firestore: Firestore, user: User, handle: string) => {
-  handleSchema.parse({ handle });
-  
+  // 1. Pre-transaction check: Does this user already have a handle?
   const userHandleQuery = query(collection(firestore, 'handles'), where('uid', '==', user.uid), limit(1));
+  const userHandleSnap = await getDocs(userHandleQuery);
+  if (!userHandleSnap.empty) {
+    throw new Error(`You have already claimed the handle "${userHandleSnap.docs[0].id}". You can update it if your boutique is not live.`);
+  }
+
   const newHandleRef = doc(firestore, 'handles', handle);
-  const userProfileRef = doc(firestore, 'users', user.uid);
-  
+  const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
+
+  // 2. Run the transaction
   await runTransaction(firestore, async (transaction) => {
-    const userHandleSnap = await getDocs(userHandleQuery);
-    if (!userHandleSnap.empty) {
-      throw new Error("You have already claimed a handle. Please update it instead.");
-    }
-    
     const newHandleSnap = await transaction.get(newHandleRef);
     if (newHandleSnap.exists()) {
       throw new Error("This handle is already taken. Please choose another.");
     }
 
     const now = serverTimestamp();
-    transaction.set(newHandleRef, { uid: user.uid, handle, createdAt: now, updatedAt: now });
-    transaction.update(userProfileRef, { handle });
+
+    // A) Create handle ownership document
+    transaction.set(newHandleRef, {
+      uid: user.uid,
+      createdAt: now,
+    });
+
+    // B) Create public boutique document
+    transaction.set(publicBoutiqueRef, {
+      uid: user.uid,
+      handle: handle,
+      enabled: false,
+      updatedAt: now,
+    });
   });
+
+  // 3. Post-transaction write: Update user's private settings
+  const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+  await setDoc(settingsRef, { handle: handle }, { merge: true });
 };
+
 
 export const updateHandleTransaction = async (firestore: Firestore, user: User, oldHandle: string, newHandle: string) => {
     handleSchema.parse({ handle: newHandle });
@@ -142,6 +167,7 @@ export const updateHandleTransaction = async (firestore: Firestore, user: User, 
     const oldHandleRef = doc(firestore, 'handles', oldHandle);
     const newHandleRef = doc(firestore, 'handles', newHandle);
     const userProfileRef = doc(firestore, 'users', user.uid);
+    const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
     
     const oldPublicBoutiqueRef = doc(firestore, 'publicBoutiques', oldHandle);
 
@@ -157,9 +183,10 @@ export const updateHandleTransaction = async (firestore: Firestore, user: User, 
         }
 
         const now = serverTimestamp();
-        transaction.set(newHandleRef, { uid: user.uid, handle: newHandle, createdAt: now, updatedAt: now });
+        
+        // We use set instead of update because the doc might only have { uid, createdAt }
+        transaction.set(newHandleRef, { uid: user.uid, handle: newHandle, createdAt: oldHandleSnap.data().createdAt || now, updatedAt: now });
         transaction.delete(oldHandleRef);
-        transaction.update(userProfileRef, { handle: newHandle });
         
         const oldPublicData = await transaction.get(oldPublicBoutiqueRef);
         if (oldPublicData.exists()) {
@@ -168,6 +195,10 @@ export const updateHandleTransaction = async (firestore: Firestore, user: User, 
             transaction.delete(oldPublicBoutiqueRef);
         }
     });
+
+    // Post-transaction updates
+    await updateDoc(userProfileRef, { handle: newHandle });
+    await setDoc(settingsRef, { handle: newHandle }, { merge: true });
 };
 
 export const updateBoutiqueSettings = async (
