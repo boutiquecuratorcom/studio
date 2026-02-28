@@ -173,28 +173,37 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
         transaction.get(newHandleRef)
     ]);
     
-    if (!userHandleSnap.empty) {
-      throw new Error(`You have already claimed the handle "${userHandleSnap.docs[0].id}".`);
-    }
     if (newHandleSnap.exists()) {
-      throw new Error('This handle is already taken. Please choose another.');
+      // The handle they are trying to claim already exists.
+      const handleData = asRecord(newHandleSnap.data());
+      if (handleData.uid !== user.uid) {
+        // And it's NOT theirs. Error.
+        throw new Error('This handle is already taken. Please choose another.');
+      }
+      // If it IS theirs, we just let the transaction proceed idempotently. No error.
+    } else if (!userHandleSnap.empty) {
+      // The handle they are trying to claim is free.
+      // But we must check if they already have another handle.
+      throw new Error(`You already have a handle (${userHandleSnap.docs[0].id}). You can only have one.`);
     }
 
     const now = serverTimestamp();
 
+    // Set handle doc (idempotent)
     transaction.set(newHandleRef, {
       uid: user.uid,
       handle,
-      createdAt: now,
+      createdAt: asRecord(newHandleSnap.data()).createdAt || now,
       updatedAt: now,
-    });
+    }, { merge: true });
 
+    // Set public boutique doc (idempotent)
     transaction.set(publicBoutiqueRef, {
       uid: user.uid,
       handle,
-      enabled: false,
+      enabled: false, // Always default to false on claim/re-claim
       updatedAt: now,
-    });
+    }, { merge: true });
   });
 
   await setDoc(settingsRef, { handle }, { merge: true });
@@ -227,12 +236,12 @@ export const updateHandleTransaction = async (
       throw new Error('You do not own the handle you are trying to update.');
     }
 
-    // FIX: Only throw error if the new handle exists AND is owned by another user.
+    // Only throw error if the new handle exists AND is owned by another user.
     if (newHandleSnap.exists() && asRecord(newHandleSnap.data()).uid !== user.uid) {
       throw new Error('This handle is already taken. Please choose another.');
     }
 
-    // If the user is just re-saving their existing handle, do nothing.
+    // If the user is just re-saving their existing handle, do nothing inside the transaction.
     if (newHandle === oldHandle) {
         return;
     }
@@ -266,8 +275,12 @@ export const updateHandleTransaction = async (
     }
   });
 
-  await setDoc(settingsRef, { handle: newHandle }, { merge: true });
-  await setDoc(userProfileRef, { handle: newHandle }, { merge: true });
+  // These updates can happen outside the transaction if the transaction succeeds.
+  // No need to run them if the handle hasn't changed.
+  if (newHandle !== oldHandle) {
+    await setDoc(settingsRef, { handle: newHandle }, { merge: true });
+    await setDoc(userProfileRef, { handle: newHandle }, { merge: true });
+  }
 };
 
 export const updateBoutiqueSettings = async (
