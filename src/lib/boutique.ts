@@ -227,8 +227,14 @@ export const updateHandleTransaction = async (
       throw new Error('You do not own the handle you are trying to update.');
     }
 
-    if (newHandleSnap.exists()) {
+    // FIX: Only throw error if the new handle exists AND is owned by another user.
+    if (newHandleSnap.exists() && asRecord(newHandleSnap.data()).uid !== user.uid) {
       throw new Error('This handle is already taken. Please choose another.');
+    }
+
+    // If the user is just re-saving their existing handle, do nothing.
+    if (newHandle === oldHandle) {
+        return;
     }
 
     const now = serverTimestamp();
