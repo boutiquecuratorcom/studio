@@ -35,6 +35,7 @@ import {
   AlertTitle,
 } from '@/components/ui/alert';
 import {
+  AlertTriangle,
   ArrowRight,
   Copy,
   ExternalLink,
@@ -139,40 +140,60 @@ const BoutiqueLivePreview = ({
 };
 
 export default function MyBoutiquePage() {
-  const { user } = useUser();
+  const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const { data: boutiqueSettings, loading: settingsLoading } =
+  const { data: boutiqueSettings, loading: settingsLoading, error: settingsError } =
     useBoutiqueSettings(user?.uid || null);
-  const { data: brandProfile, loading: brandLoading } = useDoc<any>(
+  const { data: brandProfile, loading: brandLoading, error: brandError } = useDoc<any>(
     user && firestore ? doc(firestore, `users/${user.uid}/brandProfile/main`) : null
   );
-  const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
+  const { outfits, loading: outfitsLoading, error: outfitsError } = useOutfits(user?.uid || null);
 
-  const [isEnabled, setIsEnabled] = useState(false);
-  const [featuredOutfitId, setFeaturedOutfitId] = useState('auto');
-  const [stylePreset, setStylePreset] = useState<
-    'magazine' | 'modern' | 'classic'
-  >('magazine');
-
+  const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
   const [isSavingEnabled, setIsSavingEnabled] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (boutiqueSettings) {
-      setIsEnabled(boutiqueSettings.enabled);
-      setFeaturedOutfitId(boutiqueSettings.featuredOutfitId || 'auto');
-      setStylePreset(boutiqueSettings.stylePreset || 'magazine');
-    }
-  }, [boutiqueSettings]);
+    if (userLoading || settingsLoading) return;
+    if (!user) return;
 
-  const loading = settingsLoading || brandLoading || outfitsLoading;
+    const initialize = async () => {
+      if (boutiqueSettings) {
+        setLocalSettings({
+          enabled: boutiqueSettings.enabled,
+          featuredOutfitId: boutiqueSettings.featuredOutfitId || 'auto',
+          stylePreset: boutiqueSettings.stylePreset || 'magazine',
+        });
+        setIsInitialized(true);
+      } else if (!settingsError) {
+        try {
+          if (!firestore) throw new Error("Firestore not available");
+          const defaultAccent = brandProfile?.brandColors?.[0] || null;
+          const defaults: Partial<BoutiqueSettings> = {
+            enabled: false,
+            featuredOutfitId: null,
+            accentColor: defaultAccent,
+            stylePreset: 'magazine',
+          };
+          await updateBoutiqueSettings(firestore, user.uid, defaults);
+          // The useBoutiqueSettings hook will re-run and provide the new data
+        } catch (e: any) {
+          console.error('[MyBoutique] Failed to create default settings:', e);
+          toast({ variant: 'destructive', title: 'Initialization Failed', description: e.message });
+        }
+      }
+    };
+    initialize();
+  }, [user, userLoading, firestore, boutiqueSettings, settingsLoading, settingsError, brandProfile, toast]);
 
   const handleEnabledToggle = async (enabled: boolean) => {
     if (!user || !firestore) return;
     setIsSavingEnabled(true);
-    setIsEnabled(enabled); // Optimistic update
+    setLocalSettings(prev => ({ ...prev, enabled })); // Optimistic update
+
     try {
       await updateBoutiqueSettings(firestore, user.uid, { enabled });
       toast({
@@ -180,7 +201,8 @@ export default function MyBoutiquePage() {
         description: `Your boutique is now ${enabled ? 'live' : 'private'}.`,
       });
     } catch (e: any) {
-      setIsEnabled(!enabled); // Revert on error
+      setLocalSettings(prev => ({ ...prev, enabled: !enabled })); // Revert on error
+      console.error('[MyBoutique] Failed to toggle status:', e);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
@@ -197,12 +219,13 @@ export default function MyBoutiquePage() {
     try {
       const settingsToSave: Partial<BoutiqueSettings> = {
         featuredOutfitId:
-          featuredOutfitId === 'auto' ? null : featuredOutfitId,
-        stylePreset,
+          localSettings.featuredOutfitId === 'auto' ? null : localSettings.featuredOutfitId,
+        stylePreset: localSettings.stylePreset as any,
       };
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
       toast({ title: 'Configuration Saved!' });
     } catch (e: any) {
+      console.error('[MyBoutique] Failed to save config:', e);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
@@ -223,28 +246,69 @@ export default function MyBoutiquePage() {
     });
   };
 
+  const loading = userLoading || !isInitialized || outfitsLoading || brandLoading;
+  const anyError = settingsError || brandError || outfitsError;
+
   const featuredOutfit = useMemo(() => {
-    if (featuredOutfitId === 'auto') {
-      return outfits?.[0]; // Default to newest if 'auto'
+    if (!outfits) return undefined;
+    if (localSettings.featuredOutfitId === 'auto') {
+      return outfits[0];
     }
-    return outfits?.find((o) => o.id === featuredOutfitId);
-  }, [featuredOutfitId, outfits]);
+    return outfits.find((o) => o.id === localSettings.featuredOutfitId);
+  }, [localSettings.featuredOutfitId, outfits]);
 
-  const accentColor =
-    boutiqueSettings?.accentColor || brandProfile?.brandColors?.[0] || '#111827';
+  const accentColor = useMemo(() => 
+    boutiqueSettings?.accentColor || brandProfile?.brandColors?.[0] || '#111827',
+    [boutiqueSettings, brandProfile]
+  );
   
-  const isConfigDirty = boutiqueSettings ? 
-    (featuredOutfitId !== (boutiqueSettings.featuredOutfitId || 'auto')) || (stylePreset !== boutiqueSettings.stylePreset)
-    : true;
+  const isConfigDirty = useMemo(() => boutiqueSettings ? 
+    (localSettings.featuredOutfitId !== (boutiqueSettings.featuredOutfitId || 'auto')) || 
+    (localSettings.stylePreset !== (boutiqueSettings.stylePreset || 'magazine'))
+    : false,
+    [localSettings, boutiqueSettings]
+  );
 
+  const renderHeader = () => (
+     <header className="mb-12">
+        <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
+          My Boutique
+        </h1>
+        <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
+          Your personal boutique showcase. When you're ready, share it with the world.
+        </p>
+      </header>
+  );
 
+  if (userLoading) {
+    return (
+        <div className="flex-1 flex items-center justify-center p-8">
+            <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
+        </div>
+    );
+  }
+
+  if (anyError) {
+    console.error("[MyBoutique] Rendering error state:", anyError);
+    return (
+      <div className="flex-1 p-8 sm:p-10 lg:p-12">
+        {renderHeader()}
+        <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertTitle>Error Loading Boutique Data</AlertTitle>
+          <AlertDescription>
+            <p>There was a problem loading your data. Please try refreshing the page.</p>
+            <pre className="mt-2 text-xs bg-destructive/10 p-2 rounded">{anyError.message}</pre>
+          </AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
+  
   if (loading) {
     return (
        <div className="flex-1 p-8 sm:p-10 lg:p-12">
-            <header className="mb-12">
-                <Skeleton className="h-12 w-72" />
-                <Skeleton className="h-6 w-full max-w-lg mt-4" />
-            </header>
+            {renderHeader()}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
                 <div className="lg:col-span-1 space-y-6">
                     <Skeleton className="h-32 w-full" />
@@ -255,20 +319,12 @@ export default function MyBoutiquePage() {
                 </div>
             </div>
        </div>
-    )
+    );
   }
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
-      <header className="mb-12">
-        <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
-          My Boutique
-        </h1>
-        <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
-          Your personal boutique showcase. When you&apos;re ready, share it with the world.
-        </p>
-      </header>
-
+      {renderHeader()}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-1 space-y-6">
           <Card>
@@ -282,16 +338,16 @@ export default function MyBoutiquePage() {
                 ) : (
                     <Switch
                         id="boutique-enabled"
-                        checked={isEnabled}
+                        checked={localSettings.enabled ?? false}
                         onCheckedChange={handleEnabledToggle}
                     />
                 )}
                 <Label htmlFor="boutique-enabled" className="flex-grow">
-                  Boutique is {isEnabled ? 'Live' : 'Private'}
+                  Boutique is {localSettings.enabled ? 'Live' : 'Private'}
                 </Label>
               </div>
                <p className="text-sm text-muted-foreground mt-3 px-1">
-                {isEnabled ? 'Your boutique is public and can be viewed by anyone with the link.' : 'Your boutique is currently private. Only you can see it.'}
+                {localSettings.enabled ? 'Your boutique is public and can be viewed by anyone with the link.' : 'Your boutique is currently private. Only you can see it.'}
             </p>
             </CardContent>
           </Card>
@@ -306,7 +362,7 @@ export default function MyBoutiquePage() {
             <CardContent className="space-y-6">
                 <div className="space-y-2">
                     <Label>Featured Outfit</Label>
-                    <Select value={featuredOutfitId} onValueChange={setFeaturedOutfitId}>
+                    <Select value={localSettings.featuredOutfitId || 'auto'} onValueChange={(v) => setLocalSettings(prev => ({...prev, featuredOutfitId: v}))}>
                         <SelectTrigger>
                             <SelectValue placeholder="Select an outfit..." />
                         </SelectTrigger>
@@ -320,7 +376,7 @@ export default function MyBoutiquePage() {
                 </div>
                  <div className="space-y-2">
                     <Label>Style Preset</Label>
-                    <Select value={stylePreset} onValueChange={(v) => setStylePreset(v as any)}>
+                    <Select value={localSettings.stylePreset || 'magazine'} onValueChange={(v) => setLocalSettings(prev => ({...prev, stylePreset: v as any}))}>
                         <SelectTrigger><SelectValue /></SelectTrigger>
                         <SelectContent>
                             <SelectItem value="magazine">Magazine</SelectItem>
@@ -336,7 +392,7 @@ export default function MyBoutiquePage() {
             </CardContent>
           </Card>
           
-            {!brandProfile && (
+            {!brandProfile && !brandLoading && (
                  <Alert>
                     <Info className="h-4 w-4" />
                     <AlertTitle>Complete Your Brand Profile</AlertTitle>
