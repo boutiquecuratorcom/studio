@@ -1,179 +1,153 @@
-# Boutique Curator - Feature Map
+# Boutique Curator - Master System Blueprint
 
-This document provides a high-level overview of the existing features in the Boutique Curator application, their primary entry points, dependencies, and data sources.
-
----
-
-### 1. Authentication
-
-The entry gate for the application, handling user sign-up and sign-in.
-
-| Property | Value |
-| --- | --- |
-| **Feature Name** | Authentication |
-| **Entry Route(s)** | `/` |
-| **Main Component(s)** | `src/app/page.tsx`, `src/components/AuthForm.tsx` |
-| **Firestore Collections**| `/users/{userId}` |
-| **Storage Paths** | None |
-| **Dependencies** | Firebase Authentication |
-| **Notes** | Creates a `UserProfile` document in Firestore on new user sign-up. Redirects authenticated users to `/dashboard`. |
+This document provides a comprehensive overview of the Boutique Curator system architecture, data models, core logic, and design principles. It serves as both an internal blueprint for development and an external-ready overview for strategic planning.
 
 ---
 
-### 2. Dashboard
+## CORE POSITIONING
 
-The main landing page for authenticated users, providing a welcome message and a summary of recent activity.
+Boutique Curator is an AI-powered **DISCOVERY** and **MARKETING** platform for boutiques and stylists.
 
-| Property | Value |
-| --- | --- |
-| **Feature Name** | Dashboard |
-| **Entry Route(s)** | `/dashboard` |
-| **Main Component(s)** | `src/app/(app)/dashboard/page.tsx`, `src/components/MyUploads.tsx` |
-| **Firestore Collections**| `users/{userId}/uploads` |
-| **Storage Paths** | Reads from `uploads/{userId}/` |
-| **Dependencies** | Firebase Authentication |
-| **Notes** | Displays the 6 most recent AI-enhanced images ("Glow-Ups") from the user's library. |
+It is **NOT** an ecommerce processor.
 
----
+#### Primary Purpose:
+- Drive product discovery
+- Generate demand
+- Enable outfit-based marketing
+- Create shareable boutique pages
+- Power AI-driven customer engagement
 
-### 3. My Rack (Inventory Management)
-
-The core feature for managing a user's clothing inventory. Includes adding, editing, viewing, and deleting items.
-
-| Property | Value |
-| --- | --- |
-| **Feature Name** | My Rack |
-| **Entry Route(s)** | `/inventory`, `/inventory/add`, `/inventory/edit/[id]`, `/inventory/view/[id]` |
-| **Main Component(s)** | `src/app/(app)/inventory/**/*.tsx`, `src/components/inventory/InventoryList.tsx`, `src/components/inventory/InventoryForm.tsx` |
-| **Firestore Collections**| `/inventory/{itemId}`, `users/{userId}/glowUps/{glowUpId}` |
-| **Storage Paths** | `inventory/{userId}/{itemId}/`, `glowUps/{userId}/{glowUpId}/` |
-| **Dependencies** | Firebase Auth, Firestore, Storage, `analyzeInventoryImage` AI flow. |
-| **Notes** | This is a full CRUD interface for inventory. Triggers AI analysis on item creation, which populates search keywords and descriptive metadata. |
+Transactions happen externally (Shopify, Stripe, in-store, etc). Boutique Curator powers the journey from **DISCOVERY → ENGAGEMENT → CONVERSION**.
 
 ---
 
-### 4. Glow-Up Studio
+## CORE LIVE SYSTEMS (CONFIRMED WORKING)
 
-The AI-powered image enhancement engine. Users can transform basic product photos into premium marketing assets.
+### 1. Authentication System
+- **Technology**: Firebase Authentication
+- **Providers**: Email/Password, Google Sign-In
+- **Function**: Protects all dashboard and management routes. Unauthenticated users are redirected to public-facing login/signup pages. Public boutique pages remain accessible to everyone.
+- **Dependency**: Required for all boutique ownership features.
 
-| Property | Value |
-| --- | --- |
-| **Feature Name** | Glow-Up Studio |
-| **Entry Route(s)** | `/editor` |
-| **Main Component(s)** | `src/app/(app)/editor/page.tsx`, `src/components/GlowUpStudio.tsx` |
-| **Firestore Collections**| `users/{userId}/uploads`, `users/{userId}/glowUps`, `inventory` |
-| **Storage Paths** | Reads from `uploads/{userId}/`. Writes to `glowUps/{userId}/{glowUpId}/`. |
-| **Dependencies** | Firebase Auth, `enhanceImage` AI flow. |
-| **Notes** | Can be initiated from a "My Rack" item or a direct file upload. All successful enhancements create a document in the `/glowUps` subcollection. |
+### 2. Boutique Identity System
+- **Description**: Each user can establish a unique brand identity that powers AI generation and public-facing pages.
+- **Components**:
+    - **Brand Profile**: Defines brand voice, vibe, colors, fonts, and target customer.
+    - **Boutique Settings**: Manages public visibility, featured content, and style presets.
+    - **Public Handle**: The user's unique, shareable URL slug.
+- **Firestore Structure**:
+    - `users/{uid}`
+    - `users/{uid}/brandProfile/main`
+    - `users/{uid}/boutiqueSettings/main`
 
----
+### 3. Handle + Public URL System
+- **Description**: Each boutique can claim one unique, human-readable handle, which forms their public URL.
+- **Public URL Format**: `https://<domain>/boutique/{handle}`
+- **Core Collections**:
+    - `handles/{handle}`: Globally unique document mapping a handle to an owner `uid`. Enforces ownership.
+    - `publicBoutiques/{handle}`: Publicly readable, denormalized document containing the boutique's live profile.
+- **Handle Rules**:
+    - Must be unique.
+    - Owned by a single user `uid`.
+    - Transferable via a secure Firestore transaction (`updateHandleTransaction`).
+    - Cannot be duplicated.
+    - **Required before a boutique can go live.**
+- **Key Transactions**: `claimHandleTransaction`, `updateHandleTransaction`
 
-### 5. My Brand
+### 4. Public Boutique Page System
+- **Description**: A server-rendered, dynamic public route that showcases a seller's brand and featured look.
+- **Route**: `/boutique/[handle]`
+- **Data Source**: Loads **ONLY** from the `publicBoutiques` collection for security and performance. It never reads from private user documents.
+- **Visibility**: The page is only visible to the public if `publicBoutiques/{handle}.enabled == true`. Otherwise, it displays a "Boutique Not Available" message.
+- **Displayed Data**:
+    - Brand name, logo, tagline, accent color
+    - Featured outfit summary (image, title, description)
+    - "Claim a Look" CTA
 
-A centralized profile where users define their brand's identity, voice, and visual style to personalize AI-generated content.
+### 5. Boutique Publishing System
+- **Description**: The authenticated workflow for a user to configure and launch their public boutique page.
+- **Location**: Dashboard → My Boutique (`/my-boutique`)
+- **User Flow**:
+    1. Claim a unique handle.
+    2. Configure boutique settings (style, featured content).
+    3. Toggle "Boutique is Live" to publish.
+- **Core Logic**: `syncPublicBoutiqueData()`
+    - This function is the **SINGLE SOURCE OF TRUTH** for generating the public boutique document.
+    - When triggered, it pulls from the user's private data (`brandProfile`, `boutiqueSettings`, `outfits`), builds the public-safe `publicBoutiques` document, and updates the `enabled` flag.
 
-| Property | Value |
-| --- | --- |
-| **Feature Name** | My Brand |
-| **Entry Route(s)** | `/my-brand` |
-| **Main Component(s)** | `src/app/(app)/my-brand/page.tsx` |
-| **Firestore Collections**| `users/{userId}/brandProfile/main` |
-| **Storage Paths** | `brandAssets/{userId}/` (for logo) |
-| **Dependencies** | Firebase Auth |
-| **Notes** | A critical dependency for the Post Creator and Engagement Machine. Stores fonts, colors, tone, etc. |
+### 6. Outfit System
+- **Description**: Allows users to create curated "looks" by linking multiple items from their inventory.
+- **Function**: Outfits are central to the marketing and discovery experience.
+- **Data Includes**:
+    - Cover Image (manually uploaded or AI-generated)
+    - Linked Inventory Items
+    - AI-generated descriptions and social captions
+    - A "Claim" CTA (can be for the whole outfit or per-item)
+    - Publish status (`draft` vs. `published`)
+- **Featured Role**: The selected "Featured Outfit" is prominently displayed on the user's public boutique page.
 
----
+### 7. Security Architecture
+- **Foundation**: Firestore Security Rules
+- **User Data Isolation**:
+    - Users can only read/write their own documents within the `users/{uid}` path (e.g., `brandProfile`, `boutiqueSettings`, `uploads`).
+    - Users can only manage inventory items (`inventory/{itemId}`) and outfits (`outfits/{outfitId}`) where `ownerId == auth.uid`.
+- **Public Data Access**:
+    - The `publicBoutiques` collection is publicly readable **ONLY IF** `resource.data.enabled == true`. This prevents private or draft boutiques from being exposed.
+- **Handle Protection**:
+    - **Unique Ownership**: The `handles` collection ensures a handle is mapped to a single `uid`.
+    - **Collision Prevention**: Firestore transactions are used for all handle creation and update operations, guaranteeing atomic writes and preventing race conditions where two users might claim the same handle simultaneously.
 
-### 6. Engagement Machine
-
-An AI-powered idea generator for daily social media content.
-
-| Property | Value |
-| --- | --- |
-| **Feature Name** | Engagement Machine |
-| **Entry Route(s)** | `/engagement-machine` |
-| **Main Component(s)** | `src/app/(app)/engagement-machine/page.tsx` |
-| **Firestore Collections**| `users/{userId}/engagementDrops`, `users/{userId}/brandProfile` |
-| **Storage Paths** | None |
-| **Dependencies** | `generateEngagementIdeas` AI flow, My Brand profile. |
-| **Notes** | Relies heavily on a completed "My Brand" profile for quality output. Caches the 5 generated ideas for the current day. |
-
----
-
-### 7. Post Creator
-
-A visual editor for creating social media post graphics from enhanced images.
-
-| Property | Value |
-| --- | --- |
-| **Feature Name** | Post Creator |
-| **Entry Route(s)** | `/post-creator` |
-| **Main Component(s)** | `src/components/post-creator/PostCreatorClient.tsx`, `src/components/post-creator/PostPreview.tsx`, `src/components/post-creator/PostControls.tsx` |
-| **Firestore Collections**| `users/{userId}/posts` (drafts), `users/{userId}/uploads` (image selection), `users/{userId}/brandProfile` |
-| **Storage Paths** | Reads from `uploads/{userId}/` |
-| **Dependencies** | My Brand profile, an enhanced image from Library/Glow-Up Studio. |
-| **Notes** | Allows users to apply templates, frames, and custom text to an image. Can be pre-filled from the Engagement Machine. |
-
----
-
-### 8. My Library
-
-A gallery view of all original and AI-enhanced images uploaded by the user.
-
-| Property | Value |
-| --- | --- |
-| **Feature Name** | My Library |
-| **Entry Route(s)** | `/uploads` |
-| **Main Component(s)** | `src/app/(app)/uploads/page.tsx`, `src/components/MyUploads.tsx` |
-| **Firestore Collections**| `users/{userId}/uploads` |
-| **Storage Paths** | Reads from `uploads/{userId}/` |
-| **Dependencies** | Firebase Auth |
-| **Notes** | Separates "Originals" from "Glow-Ups" for clarity. |
-
----
-
-### 9. Placeholder Pages
-
-These routes exist but contain no functional logic. They are stubs for future features.
-
-| Property | Value |
-| --- | --- |
-| **Feature Name** | Profile, Settings, Looks (Stubs) |
-| **Entry Route(s)** | `/profile`, `/settings`, `/looks` |
-| **Main Component(s)** | `src/app/(app)/profile/page.tsx`, `src/app/(app)/settings/page.tsx`, `src/app/(app)/looks/page.tsx` |
-| **Dependencies** | None |
-| **Notes** | These pages currently display a "Coming Soon" message. |
+### 8. Admin + Testing System
+- **Description**: A suite of tools visible only to admin users for verifying system health.
+- **Core Tool**: "Run Boutique Self-Test" button on the `/my-boutique` page.
+- **Function**: Executes an end-to-end, non-destructive test of the entire boutique publishing flow in the production environment.
+- **Self-Test Verification Steps**:
+    1.  Handle Claim (with a temporary, random handle)
+    2.  Settings Creation
+    3.  Public Data Sync
+    4.  Enable Boutique
+    5.  Verify Live Status
+    6.  Disable Boutique
+    7.  Cleanup all test data
+- **Purpose**: Ensures the core user journey works automatically for all future users and provides a rapid diagnostic tool.
 
 ---
 
-### 10. Outfits
+## DEPENDENCY MAP
 
-A feature for creating, viewing, and managing styled outfits from a user's inventory.
-
-| Property | Value |
-| --- | --- |
-| **Feature Name** | Outfits |
-| **Entry Route(s)** | `/outfits`, `/outfits/create`, `/outfits/view/[id]`, `/outfits/edit/[id]` |
-| **Main Component(s)** | `src/app/(app)/outfits/**/*.tsx`, `src/components/outfits/OutfitList.tsx`, `src/components/outfits/LinkedItemsList.tsx`, `src/components/outfits/AddItemsFromRackModal.tsx` |
-| **Firestore Collections**| `outfits/{outfitId}` |
-| **Storage Paths** | `outfits/{outfitId}` (for cover images) |
-| **Dependencies** | Firebase Authentication, My Rack |
-| **Notes** | Full CRUD interface for outfits. Supports linking existing rack items or creating new ones. Includes AI generation for descriptions and cover images if outfit has 2+ items. |
+- A **Handle** is required before a **Boutique can go live**.
+- A **Boutique can go live** is required before a **Public Page exists**.
+- **Boutique Settings** are required before a **Public Sync** can run.
+- An **Outfit** is required for a **Featured Display** on the public page.
+- The **Public Boutique Page** depends entirely on the output of `syncPublicBoutiqueData()`.
 
 ---
 
-### 11. My Boutique
+## FUTURE SYSTEMS (PLANNING ONLY)
 
-A private dashboard for sellers to configure and preview their public-facing boutique showcase page.
+- Discovery Feed
+- AI Stylist Engine
+- Automated Social Posting
+- Customer Profiles
+- Lead Capture System
+- DM Automation
+- Trend Engine
+- Multi-boutique Management
+- Marketplace Mode
+- Creator Collaborations
+- Paid Promotion Tools
 
-| Property | Value |
-| --- | --- |
-| **Feature Name** | My Boutique |
-| **Entry Route(s)** | `/my-boutique` |
-| **Main Component(s)** | `src/app/(app)/my-boutique/page.tsx` |
-| **Firestore Collections**| `users/{userId}/brandProfile/main`, `users/{userId}/boutiqueSettings/main`, `/outfits` |
-| **Storage Paths** | None directly, reads from outfit covers. |
-| **Dependencies** | Firebase Auth, My Brand, Outfits |
-| **Notes** | Allows sellers to enable/disable their public page, select a featured outfit, and customize appearance. Provides a live preview of the public page. |
+*Each future system must be designed to be modular and toggleable.*
 
 ---
+
+## SYSTEM DESIGN PRINCIPLES
+
+1.  **Discovery-First, Not Checkout-First**: The platform's primary goal is to surface products and brands, not to process sales.
+2.  **AI Marketing Engine at Core**: Generative AI is a core competency, used to create assets, descriptions, and engagement ideas.
+3.  **Modular Feature Toggles**: New features should be built in a way that they can be enabled or disabled without breaking core functionality.
+4.  **Public Pages are Marketing Assets**: Public-facing content (like boutique pages) are treated as shareable, high-quality marketing materials.
+5.  **Boutique = Growth Engine, Not Store**: The language and features are oriented around brand growth, visibility, and audience engagement.
+6.  **Clean Separation of Private vs. Public Data**: A clear, secure boundary exists between a user's private data and the denormalized, public-safe data shown on their boutique page.
+7.  **Sync Engine Controls Public Output**: A dedicated sync process is the sole gatekeeper for what becomes public, ensuring consistency and security.
+8.  **Safe Scaling Without Breaking Core**: The architecture is designed to accommodate thousands of boutiques by isolating user data and using efficient, scalable Firestore queries.
