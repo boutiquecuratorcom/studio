@@ -43,8 +43,6 @@ export const BoutiqueRenderer = ({
   
   const buttonStyle = {
     fontFamily: getFontFamily(fonts?.button, 'Inter, sans-serif'),
-    backgroundColor: 'var(--boutique-accent)',
-    color: 'var(--boutique-accent-text)',
   };
 
   const buttonRadiusClass = {
@@ -88,6 +86,7 @@ export const BoutiqueRenderer = ({
                 accentColor={palette?.accent || '#C6A15B'}
                 buttonStyle={buttons?.style || 'solid'}
                 className={buttonRadiusClass}
+                style={buttonStyle}
               />
             )}
           </header>
@@ -130,3 +129,5 @@ export const BoutiqueRenderer = ({
     </div>
   );
 };
+
+    

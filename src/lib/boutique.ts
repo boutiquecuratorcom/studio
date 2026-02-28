@@ -177,7 +177,10 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
         throw new Error('This handle is already taken. Please choose another.');
       }
     } else if (!userHandleSnap.empty) {
-      throw new Error(`You already have a handle (${userHandleSnap.docs[0].id}). You can only have one.`);
+        const existingHandle = userHandleSnap.docs[0].id;
+        if (existingHandle !== handle) {
+           throw new Error(`You already have a handle (${existingHandle}). You can only have one.`);
+        }
     }
 
     const now = serverTimestamp();
@@ -354,3 +357,5 @@ export const syncPublicBoutiqueData = async (
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
   await setDoc(publicBoutiqueRef, { ...publicData, updatedAt: serverTimestamp() }, { merge: true });
 };
+
+    

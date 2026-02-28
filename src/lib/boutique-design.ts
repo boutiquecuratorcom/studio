@@ -1,4 +1,3 @@
-
 'use client';
 
 import { doc, serverTimestamp, setDoc, getDoc, type Firestore } from 'firebase/firestore';
@@ -220,3 +219,5 @@ export const updateBoutiqueDesign = async (firestore: Firestore, userId: string,
   const designRef = doc(firestore, `users/${userId}/boutiqueDesign/main`);
   await setDoc(designRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
 };
+
+    
