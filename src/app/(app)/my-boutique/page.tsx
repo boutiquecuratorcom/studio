@@ -20,6 +20,7 @@ import {
   PublicBoutiqueProfile,
 } from '@/lib/boutique';
 import { useToast } from '@/hooks/use-toast';
+import { isAdminEmail } from '@/lib/admin';
 
 import {
   Card,
@@ -63,7 +64,7 @@ import {
   Save,
   XCircle,
 } from 'lucide-react';
-import { doc, setDoc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, updateDoc, getDoc, deleteDoc } from 'firebase/firestore';
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
@@ -97,6 +98,11 @@ export default function MyBoutiquePage() {
     resolver: zodResolver(handleSchema),
     defaultValues: { handle: '' },
   });
+  
+  const isAdmin = isAdminEmail(user?.email);
+  const [isTesting, setIsTesting] = useState(false);
+  const [selfTestResults, setSelfTestResults] = useState<{ step: string; ok: boolean; error?: string }[]>([]);
+
 
   // --- Effects ---
   useEffect(() => {
@@ -223,6 +229,8 @@ export default function MyBoutiquePage() {
             toast({ title: 'Handle Updated!', description: `Your new public URL is /boutique/${newHandle}` });
         } else {
             await claimHandleTransaction(firestore, user, newHandle);
+            // After a successful claim, we must also write the handle to the private settings doc
+            await updateBoutiqueSettings(firestore, user.uid, { handle: newHandle });
             toast({ title: 'Handle Claimed!', description: `Your boutique is now ready to go live at /boutique/${newHandle}` });
         }
     } catch (e: any) {
@@ -231,6 +239,71 @@ export default function MyBoutiquePage() {
     }
   };
   
+  const handleSelfTest = async () => {
+    if (!firestore || !user) return;
+    
+    setIsTesting(true);
+    setSelfTestResults([]);
+    
+    const randomHandle = `test-${Date.now()}`;
+    const steps: { step: string; ok: boolean; error?: string }[] = [];
+    const addResult = (result: { step: string; ok: boolean; error?: string }) => {
+        steps.push(result);
+        setSelfTestResults([...steps]);
+    };
+
+    try {
+        // Step 1: Claim Handle
+        await claimHandleTransaction(firestore, user, randomHandle);
+        addResult({ step: '1. Claim Handle (public & handles docs)', ok: true });
+        
+        await updateBoutiqueSettings(firestore, user.uid, { handle: randomHandle });
+        addResult({ step: '2. Update Private Settings', ok: true });
+
+        // Step 3: Sync Public Data
+        await syncPublicBoutiqueData(firestore, user.uid, randomHandle);
+        addResult({ step: '3. Sync Public Data', ok: true });
+
+        // Step 4: Enable Boutique
+        const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
+        await updateDoc(publicBoutiqueRef, { enabled: true, updatedAt: serverTimestamp() });
+        await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
+        addResult({ step: '4. Enable Boutique', ok: true });
+
+        // Step 5: Verify Live Status
+        const liveDocSnap = await getDoc(publicBoutiqueRef);
+        if (!liveDocSnap.exists() || !liveDocSnap.data()?.enabled) {
+            throw new Error('Verification failed: Public document is not enabled.');
+        }
+        addResult({ step: '5. Verify Live Status', ok: true });
+        
+        // Step 6: Disable Boutique
+        await updateDoc(publicBoutiqueRef, { enabled: false, updatedAt: serverTimestamp() });
+        await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
+        addResult({ step: '6. Disable Boutique', ok: true });
+
+        // Step 7: Cleanup
+        const handleRef = doc(firestore, 'handles', randomHandle);
+        await deleteDoc(publicBoutiqueRef);
+        await deleteDoc(handleRef);
+        // Reset user's handle in settings back to original
+        await updateBoutiqueSettings(firestore, user.uid, { handle: handle?.handle || null });
+        addResult({ step: '7. Cleanup', ok: true });
+
+        toast({ title: 'Self-Test Passed!', description: 'All steps completed successfully.' });
+
+    } catch (e: any) {
+        const lastStep = steps.length > 0 ? steps[steps.length - 1] : { step: '0. Initializing', ok: false };
+        const stepNum = steps.findIndex(s => !s.ok);
+        const failedStepName = stepNum !== -1 ? `Step ${stepNum + 1}` : `Step ${steps.length + 1}`;
+        
+        addResult({ step: `${failedStepName}: ${lastStep.step.split('.')[1]?.trim() || 'Execution'}`, ok: false, error: e.message });
+        toast({ variant: 'destructive', title: `Self-Test Failed at ${failedStepName}`, description: e.message });
+    } finally {
+        setIsTesting(false);
+    }
+};
+
   // --- Derived State & Memos ---
   const loading = userLoading || !isInitialized || outfitsLoading || brandLoading || handleLoading;
   const anyError = settingsError || brandError || outfitsError || handleEror;
@@ -456,6 +529,35 @@ export default function MyBoutiquePage() {
                 </Button>
             </CardContent>
           </Card>
+
+          {isAdmin && (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Admin Tools</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Button onClick={handleSelfTest} disabled={isTesting} className="w-full">
+                        {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                        Run Boutique Self-Test
+                    </Button>
+                    {selfTestResults.length > 0 && (
+                        <div className="p-3 border rounded-md bg-muted/50 space-y-2">
+                            <p className="text-sm font-medium">Test Results:</p>
+                            <ul className="text-xs space-y-1">
+                                {selfTestResults.map((result, i) => (
+                                    <li key={i} className={`flex items-center gap-2 ${!result.ok ? 'text-destructive' : ''}`}>
+                                        {result.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : <XCircle className="h-3.5 w-3.5" />}
+                                        <span>{result.step}</span>
+                                        {result.error && <span className="font-mono text-destructive/80">- {result.error}</span>}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+        )}
+
         </div>
         <div className="lg:col-span-2 lg:sticky top-12">
             <Card>
