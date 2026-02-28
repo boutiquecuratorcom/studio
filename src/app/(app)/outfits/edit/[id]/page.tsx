@@ -1,8 +1,47 @@
 'use client';
 
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import Image from 'next/image';
+import { useParams, useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import { doc, serverTimestamp } from 'firebase/firestore';
+import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Cpu,
+  ImageIcon,
+  Info,
+  Layers,
+  Link as LinkIcon,
+  Loader2,
+  Plus,
+  Save,
+  Sparkles,
+  UploadCloud,
+  Wand2,
+} from 'lucide-react';
+
+import { useUser, useFirestore, useStorage, useDoc } from '@/firebase';
+import { useToast } from '@/hooks/use-toast';
+import {
+  useOutfit,
+  updateOutfit,
+  type Outfit,
+  type OutfitClaim,
+  useInventoryItemsByIds,
+  type CoverPreferences,
+} from '@/lib/outfits';
+import { resizeImage } from '@/lib/image-utils';
+import { enhanceImage, EnhanceImageInput } from '@/ai/flows/enhance-image-flow';
+import { generateOutfitDescriptions, SimplifiedItem } from '@/ai/flows/generate-outfit-descriptions-flow';
+
+import { AddItemsFromRackModal } from '@/components/outfits/AddItemsFromRackModal';
+import { GenerateCoverModal } from '@/components/outfits/GenerateCoverModal';
+import { LinkedItemsList } from '@/components/outfits/LinkedItemsList';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -30,40 +69,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
-import { useOutfit, updateOutfit, type Outfit, type OutfitClaim, useInventoryItemsByIds, type CoverPreferences } from '@/lib/outfits';
-import { useUser, useFirestore, useStorage, useDoc } from '@/firebase';
-import {
-  AlertTriangle,
-  ArrowLeft,
-  ImageIcon,
-  Layers,
-  Link as LinkIcon,
-  Loader2,
-  Plus,
-  Save,
-  UploadCloud,
-  Wand2,
-  Sparkles,
-  Info,
-  Cpu,
-} from 'lucide-react';
-import { useParams, useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
-import { LinkedItemsList } from '@/components/outfits/LinkedItemsList';
-import Link from 'next/link';
-import Image from 'next/image';
-import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import { AddItemsFromRackModal } from '@/components/outfits/AddItemsFromRackModal';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { serverTimestamp, doc } from 'firebase/firestore';
 import { Badge } from '@/components/ui/badge';
-import { generateOutfitDescriptions } from '@/ai/flows/generate-outfit-descriptions-flow';
-import { SimplifiedItem } from '@/ai/flows/generate-outfit-descriptions-flow';
-import { enhanceImage, EnhanceImageInput } from '@/ai/flows/enhance-image-flow';
-import { resizeImage } from '@/lib/image-utils';
-import { GenerateCoverModal } from '@/components/outfits/GenerateCoverModal';
+
 
 const claimMethods = [
   { value: 'none', label: 'None' },
@@ -336,7 +345,8 @@ export default function EditOutfitPage() {
 
             const dataUri = result.enhancedImageDataUri;
             const blob = await (await fetch(dataUri)).blob();
-            const thumbResult = await resizeImage(new File([blob], 'cover.png'), 400);
+            const file = new File([blob], 'cover.png');
+            const thumbResult = await resizeImage(file, 400);
 
             const coverPath = `outfits/${user.uid}/${outfit.id}/cover-${Date.now()}.png`;
             const thumbPath = `outfits/${user.uid}/${outfit.id}/thumb-${Date.now()}.png`;
@@ -449,7 +459,7 @@ export default function EditOutfitPage() {
               </h1>
             </div>
             <Button type="submit" size="lg" disabled={!formState.isDirty || isSaving || isUploading || outfit.cover?.status === 'generating' || isGeneratingDesc}>
-              {isSaving || isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
+              {isUploading ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : isSaving ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Save className="mr-2 h-5 w-5" />}
               {isUploading ? 'Uploading...' : isSaving ? 'Saving...' : 'Save Outfit'}
             </Button>
           </header>
