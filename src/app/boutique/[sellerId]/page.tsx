@@ -1,21 +1,39 @@
 import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { getAdminInstances } from '@/firebase/admin';
-import type { BoutiqueSettings } from '@/lib/boutique';
+import type { BoutiqueSettings, PublicBoutique } from '@/lib/boutique';
 import type { Outfit } from '@/lib/outfits';
 import { Card } from '@/components/ui/card';
 import { Store, ImageIcon } from 'lucide-react';
 import { PublicClaimButton } from '@/components/boutique/PublicClaimButton';
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 
-async function getBoutiqueData(sellerId: string) {
+async function getBoutiqueDataByHandle(handle: string) {
   const { db } = getAdminInstances();
   if (!db) {
-    console.error("Admin DB not initialized for SSR.");
-    return null;
+    console.error("[Boutique SSR] Admin DB not initialized.");
+    // This will be caught by Next.js and show an error page in production.
+    throw new Error("Server configuration error.");
   }
 
-  const settingsRef = db.collection('users').doc(sellerId).collection('boutiqueSettings').doc('main');
-  const brandRef = db.collection('users').doc(sellerId).collection('brandProfile').doc('main');
+  // 1. Look up handle in publicBoutiques collection
+  const publicBoutiqueRef = db.collection('publicBoutiques').doc(handle);
+  const publicBoutiqueSnap = await publicBoutiqueRef.get();
+
+  if (!publicBoutiqueSnap.exists) {
+    return null; // Triggers notFound()
+  }
+
+  const ownerId = (publicBoutiqueSnap.data() as PublicBoutique)?.ownerId;
+  if (!ownerId) {
+    console.warn(`[Boutique SSR] Handle '${handle}' exists but has no ownerId.`);
+    return null; // Invalid mapping document
+  }
+  
+  // 2. Fetch boutique settings and brand profile using the resolved ownerId
+  const settingsRef = db.collection('users').doc(ownerId).collection('boutiqueSettings').doc('main');
+  const brandRef = db.collection('users').doc(ownerId).collection('brandProfile').doc('main');
   
   const [settingsSnap, brandSnap] = await Promise.all([
     settingsRef.get(),
@@ -25,10 +43,12 @@ async function getBoutiqueData(sellerId: string) {
   const settings = settingsSnap.exists ? settingsSnap.data() as BoutiqueSettings : null;
   const brandProfile = brandSnap.exists ? brandSnap.data() : null;
 
+  // 3. Check if the boutique is live
   if (!settings || !settings.enabled) {
     return { isLive: false };
   }
 
+  // 4. Fetch the featured outfit
   let featuredOutfit: Outfit | null = null;
   
   if (settings.featuredOutfitId && settings.featuredOutfitId !== 'auto') {
@@ -37,9 +57,9 @@ async function getBoutiqueData(sellerId: string) {
         featuredOutfit = { id: outfitSnap.id, ...outfitSnap.data() } as Outfit;
     }
   } else {
-    // Fetch newest published outfit for this user
+    // Fetch the newest published outfit for this user
     const outfitsQuery = db.collection('outfits')
-        .where('ownerId', '==', sellerId)
+        .where('ownerId', '==', ownerId)
         .where('status', '==', 'published')
         .orderBy('createdAt', 'desc')
         .limit(1);
@@ -59,15 +79,22 @@ async function getBoutiqueData(sellerId: string) {
 }
 
 export default async function PublicBoutiquePage({ params }: { params: { sellerId: string } }) {
-  const { sellerId } = params;
-  const data = await getBoutiqueData(sellerId);
+  const { sellerId: handle } = params;
+  const data = await getBoutiqueDataByHandle(handle);
 
-  if (!data || !data.isLive) {
+  if (!data) {
+    notFound();
+  }
+
+  if (!data.isLive) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-muted text-center p-4">
         <Store className="h-16 w-16 text-muted-foreground mb-4" />
         <h1 className="text-2xl font-bold">Boutique Not Available</h1>
-        <p className="text-muted-foreground">This seller's boutique is not currently live.</p>
+        <p className="text-muted-foreground">This boutique is not public yet. Check back soon.</p>
+         <Button asChild variant="link" className="mt-4">
+            <Link href="/">Back to Boutique Curator</Link>
+        </Button>
       </div>
     );
   }
@@ -139,6 +166,12 @@ export default async function PublicBoutiquePage({ params }: { params: { sellerI
               </div>
             )}
           </section>
+
+          <footer className="text-center border-t pt-4">
+            <p className="text-xs text-muted-foreground">
+              Boutique owner? <Link href="/login" className="underline hover:text-primary">Log in</Link>
+            </p>
+          </footer>
 
         </div>
       </div>

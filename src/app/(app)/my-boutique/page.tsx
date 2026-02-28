@@ -2,14 +2,22 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useDoc } from '@/firebase';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+
+import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
 import { useOutfits, type Outfit } from '@/lib/outfits';
 import {
   BoutiqueSettings,
   useBoutiqueSettings,
   updateBoutiqueSettings,
+  usePublicBoutique,
+  claimBoutiqueHandle,
+  handleSchema,
 } from '@/lib/boutique';
 import { useToast } from '@/hooks/use-toast';
+
 import {
   Card,
   CardContent,
@@ -28,6 +36,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import {
   Alert,
   AlertDescription,
@@ -42,10 +59,12 @@ import {
   Info,
   Loader2,
   Save,
-  Sparkles,
 } from 'lucide-react';
 import { doc } from 'firebase/firestore';
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
+
+
+type HandleFormValues = z.infer<typeof handleSchema>;
 
 export default function MyBoutiquePage() {
   const { user, loading: userLoading } = useUser();
@@ -54,6 +73,8 @@ export default function MyBoutiquePage() {
 
   const { data: boutiqueSettings, loading: settingsLoading, error: settingsError } =
     useBoutiqueSettings(user?.uid || null);
+
+  const { publicBoutique, loading: publicBoutiqueLoading, error: publicBoutiqueError } = usePublicBoutique(user?.uid || null);
 
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
@@ -67,7 +88,13 @@ export default function MyBoutiquePage() {
   const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
   const [isSavingEnabled, setIsSavingEnabled] = useState(false);
   const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [isClaiming, setIsClaiming] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+
+  const handleForm = useForm<HandleFormValues>({
+    resolver: zodResolver(z.object({ handle: handleSchema })),
+    defaultValues: { handle: '' },
+  });
 
   useEffect(() => {
     if (userLoading || settingsLoading) return;
@@ -149,9 +176,30 @@ export default function MyBoutiquePage() {
     }
   };
 
+  const onClaimSubmit = async (values: HandleFormValues) => {
+    if (!user || !firestore) return;
+    setIsClaiming(true);
+    try {
+        await claimBoutiqueHandle(firestore, user, values.handle, brandProfile);
+        toast({ title: 'Handle Claimed!', description: `Your boutique is now live at /boutique/${values.handle}` });
+        handleForm.reset();
+    } catch (e: any) {
+        toast({ variant: 'destructive', title: 'Claim Failed', description: e.message });
+    } finally {
+        setIsClaiming(false);
+    }
+  };
+
   const handleCopyLink = () => {
-    if (!user) return;
-    const link = `${window.location.origin}/boutique/${user.uid}`;
+    if (!publicBoutique) {
+      toast({
+        variant: 'destructive',
+        title: 'No Handle Claimed',
+        description: 'Please claim a handle for your boutique first.',
+      });
+      return;
+    }
+    const link = `${window.location.origin}/boutique/${publicBoutique.handle}`;
     navigator.clipboard.writeText(link);
     toast({
       title: 'Link Copied!',
@@ -159,8 +207,8 @@ export default function MyBoutiquePage() {
     });
   };
 
-  const loading = userLoading || !isInitialized || outfitsLoading || brandLoading;
-  const anyError = settingsError || brandError || outfitsError;
+  const loading = userLoading || !isInitialized || outfitsLoading || brandLoading || publicBoutiqueLoading;
+  const anyError = settingsError || brandError || outfitsError || publicBoutiqueError;
 
   const featuredOutfit = useMemo(() => {
     if (!outfits) return undefined;
@@ -192,6 +240,70 @@ export default function MyBoutiquePage() {
         </p>
       </header>
   );
+
+  const renderHandleCard = () => {
+    if (publicBoutique) {
+      const publicUrl = `${window.location.origin}/boutique/${publicBoutique.handle}`;
+      return (
+        <Card>
+          <CardHeader>
+            <CardTitle>Your Public URL</CardTitle>
+            <CardDescription>This is the shareable link to your public boutique page.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center space-x-2 rounded-lg border p-2 pl-3 bg-muted/50">
+              <p className="text-sm text-muted-foreground font-mono flex-grow truncate">{`/boutique/${publicBoutique.handle}`}</p>
+              <Button type="button" size="sm" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: 'Full Link Copied!' }); }}>
+                <Copy className="h-4 w-4" />
+              </Button>
+              <Button asChild size="sm" variant="secondary">
+                <Link href={publicUrl} target="_blank">
+                  <ExternalLink className="mr-2 h-4 w-4" /> Visit
+                </Link>
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Claim Your Public Handle</CardTitle>
+          <CardDescription>Choose a unique, permanent URL for your boutique showcase.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Form {...handleForm}>
+            <form onSubmit={handleForm.handleSubmit(onClaimSubmit)} className="space-y-4">
+              <FormField
+                control={handleForm.control}
+                name="handle"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Boutique Handle</FormLabel>
+                    <div className="flex items-center">
+                      <span className="text-sm text-muted-foreground bg-muted border border-r-0 rounded-l-md px-3 h-10 flex items-center">
+                        .../boutique/
+                      </span>
+                      <FormControl>
+                        <Input placeholder="your-name" {...field} className="rounded-l-none" />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <Button type="submit" disabled={isClaiming}>
+                {isClaiming && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Claim Handle
+              </Button>
+            </form>
+          </Form>
+        </CardContent>
+      </Card>
+    );
+  };
 
   if (userLoading) {
     return (
@@ -265,6 +377,8 @@ export default function MyBoutiquePage() {
             </CardContent>
           </Card>
           
+          {renderHandleCard()}
+
           <Card>
             <CardHeader>
               <CardTitle>Configuration</CardTitle>
@@ -321,13 +435,13 @@ export default function MyBoutiquePage() {
             <Card>
                 <CardHeader><CardTitle>Actions</CardTitle></CardHeader>
                 <CardContent className="space-y-3">
-                     <Button variant="outline" className="w-full justify-between" asChild>
-                       <Link href="/boutique-preview" target="_blank">
-                            Open Full Preview
+                     <Button variant="outline" className="w-full justify-between" asChild disabled={!publicBoutique}>
+                       <Link href={publicBoutique ? `/boutique/${publicBoutique.handle}` : '#'} target="_blank">
+                            Open Public Page
                             <ExternalLink />
                        </Link>
                     </Button>
-                     <Button variant="outline" className="w-full justify-between" onClick={handleCopyLink}>
+                     <Button variant="outline" className="w-full justify-between" onClick={handleCopyLink} disabled={!publicBoutique}>
                         Copy My Boutique Link
                         <Copy />
                     </Button>

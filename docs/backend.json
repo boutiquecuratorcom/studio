@@ -116,6 +116,39 @@
         }
       }
     },
+    "PublicBoutique": {
+      "title": "Public Boutique Mapping",
+      "description": "Maps a public handle to a user's ownerId.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The Firebase Auth UID of the boutique owner."
+        },
+        "handle": {
+          "type": "string",
+          "description": "The public, URL-friendly handle for the boutique."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "A snapshot of the boutique's display name for quick lookups."
+        },
+        "logoUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "A snapshot of the boutique's logo URL."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["ownerId", "handle", "createdAt", "updatedAt"]
+    },
     "InventoryItem": {
       "title": "Inventory Item",
       "description": "Represents a single item in the user's inventory.",
@@ -595,6 +628,12 @@
         "$ref": "#/entities/Post"
       },
       "description": "Stores saved post drafts for a user."
+    },
+    "/publicBoutiques/{handle}": {
+      "schema": {
+        "$ref": "#/entities/PublicBoutique"
+      },
+      "description": "Stores the public mapping from a handle to an ownerId."
     },
     "/inventory/{itemId}": {
       "schema": {

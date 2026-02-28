@@ -46,5 +46,21 @@ service cloud.firestore {
       // Allow a user to create an outfit if the ownerId matches their own
       allow create: if isOwner(request.resource.data.ownerId);
     }
+
+    // Rules for the 'publicBoutiques' collection
+    match /publicBoutiques/{handle} {
+      // Anyone can read to resolve a handle to an ownerId
+      allow read: if true;
+
+      // An authenticated user can create a mapping for themselves,
+      // but only if a mapping for that handle doesn't already exist.
+      // The transaction in the client will handle the existence check.
+      allow create: if request.auth != null &&
+                    request.resource.data.ownerId == request.auth.uid &&
+                    request.resource.data.handle == handle;
+
+      // Updates and deletes are disallowed for now to prevent handle hijacking.
+      allow update, delete: if false;
+    }
   }
 }
