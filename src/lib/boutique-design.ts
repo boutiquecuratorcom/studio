@@ -133,6 +133,14 @@ export const getFontFamily = (fontName: string | undefined, defaultFont: string)
     { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
     { name: 'Dancing Script', family: "'Dancing Script', cursive" },
     { name: 'Quicksand', family: 'Quicksand, sans-serif' },
+    { name: 'Cinzel', family: "'Cinzel', serif" },
+    { name: 'Josefin Sans', family: "'Josefin Sans', sans-serif" },
+    { name: 'Merriweather', family: "'Merriweather', serif" },
+    { name: 'Abril Fatface', family: "'Abril Fatface', cursive" },
+    { name: 'Urbanist', family: 'Urbanist, sans-serif' },
+    { name: 'Manrope', family: 'Manrope, sans-serif' },
+    { name: 'Tenor Sans', family: "'Tenor Sans', sans-serif" },
+    { name: 'Plus Jakarta Sans', family: "'Plus Jakarta Sans', sans-serif" },
   ];
   return fontOptions.find(f => f.name === fontName)?.family || defaultFont;
 };
@@ -201,5 +209,3 @@ export const updateBoutiqueDesign = async (firestore: Firestore, userId: string,
   const designRef = doc(firestore, `users/${userId}/boutiqueDesign/main`);
   await setDoc(designRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
 };
-
-    

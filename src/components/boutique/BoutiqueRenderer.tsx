@@ -121,7 +121,7 @@ export const BoutiqueRenderer = ({
 
           <footer className="text-center border-t pt-4" style={{ borderColor: 'var(--boutique-surface)'}}>
             <p className="text-xs" style={{ color: 'var(--boutique-muted)'}}>
-              Boutique owner? <Link href="/login" className="underline hover:text-primary">Log in</Link>
+              Powered by Boutique Curator
             </p>
           </footer>
         </div>
@@ -129,5 +129,3 @@ export const BoutiqueRenderer = ({
     </div>
   );
 };
-
-    
