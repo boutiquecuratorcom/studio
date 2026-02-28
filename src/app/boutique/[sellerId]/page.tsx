@@ -6,6 +6,7 @@ import { BoutiqueRenderer } from '@/components/boutique/BoutiqueRenderer';
 import { Store, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { defaultDesign } from '@/lib/boutique-design';
 
 function BoutiqueLoading() {
   return (
@@ -53,7 +54,7 @@ export default function PublicBoutiquePage() {
     <BoutiqueRenderer
       brandProfile={{ brandName, tagline, logoUrl }}
       featuredOutfit={featuredOutfit}
-      design={design}
+      design={design || defaultDesign}
     />
   );
 }

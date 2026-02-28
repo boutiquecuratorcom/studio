@@ -1,8 +1,5 @@
 'use client';
 
-import { doc, serverTimestamp, setDoc, getDoc, type Firestore } from 'firebase/firestore';
-import { useDoc, useFirestore } from '@/firebase';
-import { useMemo } from 'react';
 import type { BrandProfile } from '@/ai/flows/schemas';
 
 // --- Interfaces ---
@@ -23,7 +20,6 @@ export interface BoutiqueFonts {
 }
 
 export interface BoutiqueDesign {
-  id: string;
   templateId: 'editorial-chic' | 'modern-minimal' | 'soft-feminine' | 'bold-luxury' | 'playful-boutique';
   palette: BoutiquePalette;
   fonts: BoutiqueFonts;
@@ -176,48 +172,22 @@ export const getContrastingTextColor = (bgHex: string): string => {
     return luma > 140 ? '#111827' : '#FFFFFF';
 }
 
-export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): Omit<BoutiqueDesign, 'id' | 'updatedAt'> => {
-  const defaultTemplate = boutiqueTemplates['editorial-chic'];
-  const accentColor = (brandProfile?.brandColors && brandProfile.brandColors[0]) || defaultTemplate.palette.accent;
+export const defaultDesign: Omit<BoutiqueDesign, 'updatedAt'> = {
+  ...boutiqueTemplates['editorial-chic'],
+  welcomeMessage: null,
+};
+
+export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): Omit<BoutiqueDesign, 'updatedAt'> => {
+  const template = boutiqueTemplates['editorial-chic'];
+  const accentColor = (brandProfile?.brandColors && brandProfile.brandColors[0]) || template.palette.accent;
 
   return {
-    ...defaultTemplate,
+    ...template,
     palette: {
-      ...defaultTemplate.palette,
+      ...template.palette,
       accent: accentColor,
       accentText: getContrastingTextColor(accentColor),
     },
     welcomeMessage: null,
   };
 };
-
-// --- Hooks and Data Functions ---
-
-export const useBoutiqueDesign = (userId: string | null) => {
-  const firestore = useFirestore();
-  const docRef = useMemo(() => {
-    if (!userId || !firestore) return null;
-    return doc(firestore, `users/${userId}/boutiqueDesign/main`);
-  }, [userId, firestore]);
-
-  return useDoc<BoutiqueDesign>(docRef as any);
-};
-
-export const initializeBoutiqueDesign = async (firestore: Firestore, userId: string, brandProfile?: BrandProfile | null) => {
-  const designRef = doc(firestore, `users/${userId}/boutiqueDesign/main`);
-  const docSnap = await getDoc(designRef);
-
-  if (!docSnap.exists()) {
-    const defaults = getBoutiqueDesignDefaults(brandProfile);
-    await setDoc(designRef, { ...defaults, updatedAt: serverTimestamp() });
-    return { ...defaults, id: 'main' };
-  }
-  return docSnap.data();
-};
-
-export const updateBoutiqueDesign = async (firestore: Firestore, userId: string, data: Partial<Omit<BoutiqueDesign, 'id'>>) => {
-  const designRef = doc(firestore, `users/${userId}/boutiqueDesign/main`);
-  await setDoc(designRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
-};
-
-    

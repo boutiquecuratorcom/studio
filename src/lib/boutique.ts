@@ -24,7 +24,7 @@ import type { User } from 'firebase/auth';
 import { z } from 'zod';
 import type { BrandProfile } from '@/ai/flows/schemas';
 import { useOutfits, type Outfit, type OutfitClaim } from './outfits';
-import { type BoutiqueDesign } from './boutique-design';
+import { type BoutiqueDesign, defaultDesign } from './boutique-design';
 
 // ---- Helpers ----
 type AnyRecord = Record<string, any>;
@@ -40,34 +40,13 @@ type BrandProfilePublicBits = Partial<BrandProfile> & {
 };
 
 // --- Interfaces ---
-export interface BoutiqueDesignSettings {
-  template: string;
-  headerBackground: string;
-  bodyBackground: string;
-  accentColor: string;
-  fontPair: {
-    heading: string;
-    body: string;
-  };
-  buttonStyle: string;
-  cardStyle: string;
-  pattern: {
-    type: string;
-    color: string;
-    opacity: number;
-    scale: number;
-  };
-  frameStyle: string;
-  vibe: string;
-  updatedAt?: any;
-}
 export interface BoutiqueSettings extends DocumentData {
   id: string;
   enabled: boolean;
   featuredOutfitId: string | null;
   handle: string | null;
   updatedAt?: any;
-  design?: BoutiqueDesignSettings;
+  design?: BoutiqueDesign;
 }
 
 export interface HandleMapping {
@@ -290,27 +269,6 @@ export const updateHandleTransaction = async (
   await setDoc(userProfileRef, { handle: newHandle }, { merge: true });
 };
 
-const defaultDesign: Omit<BoutiqueDesignSettings, 'updatedAt'> = {
-  template: 'editorial',
-  headerBackground: '#f8f6f2',
-  bodyBackground: '#ffffff',
-  accentColor: '#111111',
-  fontPair: {
-    heading: 'Playfair Display',
-    body: 'Inter',
-  },
-  buttonStyle: 'soft-rounded',
-  cardStyle: 'elevated',
-  pattern: {
-    type: 'none',
-    color: '#000000',
-    opacity: 0.08,
-    scale: 1,
-  },
-  frameStyle: 'none',
-  vibe: 'elevated',
-};
-
 export const updateBoutiqueSettings = async (
   firestore: Firestore,
   userId: string,
@@ -318,27 +276,26 @@ export const updateBoutiqueSettings = async (
 ) => {
   const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   const docSnap = await getDoc(settingsRef);
+  
   if (!docSnap.exists()) {
     await setDoc(settingsRef, {
-      ...data,
       enabled: false,
       featuredOutfitId: null,
       handle: null,
+      ...data,
+      design: data.design || defaultDesign,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
-      design: {
-        ...defaultDesign,
-        updatedAt: serverTimestamp(),
-      },
     });
   } else {
-    const updateData = { ...data, updatedAt: serverTimestamp() };
+    const updateData: any = { ...data, updatedAt: serverTimestamp() };
     if (data.design) {
-      (updateData.design as BoutiqueDesignSettings).updatedAt = serverTimestamp();
+      updateData['design.updatedAt'] = serverTimestamp();
     }
     await setDoc(settingsRef, updateData, { merge: true });
   }
 };
+
 
 export const syncPublicBoutiqueData = async (
   firestore: Firestore,
@@ -351,25 +308,22 @@ export const syncPublicBoutiqueData = async (
 
   const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   const brandRef = doc(firestore, `users/${userId}/brandProfile/main`);
-  const designRef = doc(firestore, `users/${userId}/boutiqueDesign/main`);
-
+  
   const outfitsQuery = query(
     collection(firestore, 'outfits'),
     where('ownerId', '==', userId),
     orderBy('createdAt', 'desc')
   );
 
-  const [settingsSnap, brandSnap, designSnap, outfitsSnap] = await Promise.all([
+  const [settingsSnap, brandSnap, outfitsSnap] = await Promise.all([
     getDoc(settingsRef),
     getDoc(brandRef),
-    getDoc(designRef),
     getDocs(outfitsQuery),
   ]);
 
   const settings = (settingsSnap.data() ?? {}) as Partial<BoutiqueSettings>;
   const brandProfile = (brandSnap.data() ?? {}) as BrandProfilePublicBits;
-  const designProfile = (designSnap.data() ?? {}) as Partial<BoutiqueDesign>;
-
+  
   let featuredOutfit: Outfit | null = null;
   const outfitDocs = outfitsSnap.docs;
 
@@ -402,7 +356,7 @@ export const syncPublicBoutiqueData = async (
           outfitClaim: featuredOutfit.outfitClaim ?? null,
         }
       : null,
-    design: designProfile,
+    design: settings.design ?? defaultDesign,
   };
 
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
