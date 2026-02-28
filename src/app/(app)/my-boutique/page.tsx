@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-import { useUser, useFirestore, useDoc, useCollection } from '@/firebase';
+import { useUser, useFirestore, useDoc } from '@/firebase';
 import { useOutfits, type Outfit } from '@/lib/outfits';
 import {
   BoutiqueSettings,
@@ -17,8 +17,8 @@ import {
   updateHandleTransaction,
   syncPublicBoutiqueData,
   handleSchema,
-  PublicBoutiqueProfile,
 } from '@/lib/boutique';
+import { useBoutiqueDesign, initializeBoutiqueDesign, updateBoutiqueDesign, boutiqueTemplates, BoutiqueDesign, getContrastingTextColor } from '@/lib/boutique-design';
 import { useToast } from '@/hooks/use-toast';
 import { isAdminEmail } from '@/lib/admin';
 
@@ -44,7 +44,6 @@ import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -53,19 +52,20 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertTriangle,
-  ArrowRight,
   CheckCircle2,
   Copy,
   ExternalLink,
   Eye,
   Globe,
-  Info,
   Loader2,
+  Palette,
   Save,
+  Settings2,
   XCircle,
 } from 'lucide-react';
 import { doc, setDoc, serverTimestamp, updateDoc, getDoc, deleteDoc, runTransaction } from 'firebase/firestore';
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -74,22 +74,22 @@ export default function MyBoutiquePage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const { handle, loading: handleLoading, error: handleEror } = useUserHandle(user?.uid || null);
-
-  const { data: boutiqueSettings, loading: settingsLoading, error: settingsError } =
-    useBoutiqueSettings(user?.uid || null);
+  const { handle, loading: handleLoading } = useUserHandle(user?.uid || null);
+  const { data: boutiqueSettings, loading: settingsLoading } = useBoutiqueSettings(user?.uid || null);
+  const { data: boutiqueDesign, loading: designLoading } = useBoutiqueDesign(user?.uid || null);
 
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
   }, [user, firestore]);
-
-  const { data: brandProfile, loading: brandLoading, error: brandError } = useDoc<any>(brandProfileRef);
+  const { data: brandProfile, loading: brandLoading } = useDoc<any>(brandProfileRef);
   
-  const { outfits, loading: outfitsLoading, error: outfitsError } = useOutfits(user?.uid || null);
+  const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
 
   const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [localDesign, setLocalDesign] = useState<Partial<BoutiqueDesign> | null>(null);
+
+  const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
@@ -116,37 +116,32 @@ export default function MyBoutiquePage() {
   
 
   useEffect(() => {
-    if (userLoading || settingsLoading) return;
-    if (!user) return;
+    if (userLoading || settingsLoading || designLoading || brandLoading) return;
+    if (!user || !firestore) return;
 
-    if (boutiqueSettings) {
-      setLocalSettings({
-        enabled: boutiqueSettings.enabled,
-        featuredOutfitId: boutiqueSettings.featuredOutfitId || 'auto',
-        stylePreset: boutiqueSettings.stylePreset || 'magazine',
-        accentColor: boutiqueSettings.accentColor || brandProfile?.brandColors?.[0] || null,
-      });
+    const performInitialization = async () => {
+      // Initialize settings if they don't exist
+      if (!boutiqueSettings) {
+        await updateBoutiqueSettings(firestore, user.uid, { enabled: false, featuredOutfitId: null });
+      } else {
+        setLocalSettings({
+          enabled: boutiqueSettings.enabled,
+          featuredOutfitId: boutiqueSettings.featuredOutfitId || 'auto',
+        });
+      }
+
+      // Initialize design if it doesn't exist
+      if (!boutiqueDesign) {
+        const initializedDesign = await initializeBoutiqueDesign(firestore, user.uid, brandProfile);
+        setLocalDesign(initializedDesign);
+      } else {
+        setLocalDesign(boutiqueDesign);
+      }
       setIsInitialized(true);
-    } else if (!settingsError) {
-      // If settings are missing, create them.
-      (async () => {
-        try {
-          if (!firestore) throw new Error('Firestore not available');
-          const defaults = {
-            enabled: false,
-            featuredOutfitId: null,
-            accentColor: brandProfile?.brandColors?.[0] || null,
-            stylePreset: 'magazine',
-            handle: null,
-          };
-          await updateBoutiqueSettings(firestore, user.uid, defaults);
-        } catch (e: any) {
-          console.error('[MyBoutique] Failed to create default settings:', e);
-          toast({ variant: 'destructive', title: 'Initialization Failed', description: e.message });
-        }
-      })();
-    }
-  }, [user, userLoading, firestore, boutiqueSettings, settingsLoading, settingsError, brandProfile, toast]);
+    };
+
+    performInitialization();
+  }, [user, firestore, userLoading, settingsLoading, designLoading, brandLoading, boutiqueSettings, boutiqueDesign, brandProfile]);
 
   // --- Handlers ---
   
@@ -160,13 +155,8 @@ export default function MyBoutiquePage() {
     toast({ title: 'Updating boutique status...', description: 'Please wait.' });
 
     try {
-        if (enabled) {
-            await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
-        }
-        
-        const publicBoutiqueRef = doc(firestore, "publicBoutiques", handle.handle);
-        await updateDoc(publicBoutiqueRef, { enabled, updatedAt: serverTimestamp() });
         await updateBoutiqueSettings(firestore, user.uid, { enabled });
+        await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
       
         toast({
             title: 'Boutique Status Updated',
@@ -174,11 +164,7 @@ export default function MyBoutiquePage() {
         });
     } catch (e: any) {
       console.error('[MyBoutique] Failed to toggle status:', e);
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: e.message,
-      });
+      toast({ variant: 'destructive', title: 'Update Failed', description: e.message });
     } finally {
       setIsSyncing(false);
     }
@@ -186,16 +172,20 @@ export default function MyBoutiquePage() {
 
   const handleConfigSave = async () => {
     if (!user || !firestore) return;
-    setIsSavingConfig(true);
+    setIsSaving(true);
     try {
+      // Save boutique settings (featured outfit)
       const settingsToSave: Partial<BoutiqueSettings> = {
-        featuredOutfitId:
-          localSettings.featuredOutfitId === 'auto' ? null : localSettings.featuredOutfitId,
-        stylePreset: localSettings.stylePreset as any,
-        accentColor: localSettings.accentColor
+        featuredOutfitId: localSettings.featuredOutfitId === 'auto' ? null : localSettings.featuredOutfitId,
       };
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
 
+      // Save design settings
+      if (localDesign) {
+        await updateBoutiqueDesign(firestore, user.uid, localDesign);
+      }
+
+      // If live, re-sync public data
       if (boutiqueSettings?.enabled && handle) {
         await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
       }
@@ -205,7 +195,7 @@ export default function MyBoutiquePage() {
       console.error('[MyBoutique] Failed to save config:', e);
       toast({ variant: 'destructive', title: 'Save Failed', description: e.message });
     } finally {
-      setIsSavingConfig(false);
+      setIsSaving(false);
     }
   };
 
@@ -229,7 +219,6 @@ export default function MyBoutiquePage() {
             toast({ title: 'Handle Updated!', description: `Your new public URL is /boutique/${newHandle}` });
         } else {
             await claimHandleTransaction(firestore, user, newHandle);
-            // After a successful claim, we must also write the handle to the private settings doc
             await updateBoutiqueSettings(firestore, user.uid, { handle: newHandle });
             toast({ title: 'Handle Claimed!', description: `Your boutique is now ready to go live at /boutique/${newHandle}` });
         }
@@ -251,50 +240,38 @@ export default function MyBoutiquePage() {
         steps.push(result);
         setSelfTestResults([...steps]);
     };
-    // Store original state to restore it later
     const originalSettings = {
         handle: handle?.handle || null,
         enabled: boutiqueSettings?.enabled ?? false,
     };
 
     try {
-        // Step 1: Claim Test Handle (Transactionally)
         await runTransaction(firestore, async (transaction) => {
             const testHandleRef = doc(firestore, 'handles', randomHandle);
             const testPublicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
-
             const testHandleSnap = await transaction.get(testHandleRef);
-            if (testHandleSnap.exists()) {
-                throw new Error(`Test handle '${randomHandle}' already exists.`);
-            }
+            if (testHandleSnap.exists()) throw new Error(`Test handle '${randomHandle}' already exists.`);
             const now = serverTimestamp();
             transaction.set(testHandleRef, { uid: user.uid, handle: randomHandle, createdAt: now, updatedAt: now });
             transaction.set(testPublicBoutiqueRef, { uid: user.uid, handle: randomHandle, enabled: false, updatedAt: now });
         });
         addResult({ step: '1. Claim Test Handle', ok: true });
         
-        // Step 2: Update Private Settings to use the test handle
         await updateBoutiqueSettings(firestore, user.uid, { handle: randomHandle });
         addResult({ step: '2. Update Private Settings', ok: true });
 
-        // Step 3: Sync Public Data
         await syncPublicBoutiqueData(firestore, user.uid, randomHandle);
         addResult({ step: '3. Sync Public Data', ok: true });
 
-        // Step 4: Enable Boutique
         const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
         await updateDoc(publicBoutiqueRef, { enabled: true });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
         addResult({ step: '4. Enable Boutique', ok: true });
 
-        // Step 5: Verify Live Status
         const liveDocSnap = await getDoc(publicBoutiqueRef);
-        if (!liveDocSnap.exists() || !liveDocSnap.data()?.enabled) {
-            throw new Error('Verification failed: Public document is not enabled.');
-        }
+        if (!liveDocSnap.exists() || !liveDocSnap.data()?.enabled) throw new Error('Verification failed: Public document is not enabled.');
         addResult({ step: '5. Verify Live Status', ok: true });
         
-        // Step 6: Disable Boutique
         await updateDoc(publicBoutiqueRef, { enabled: false });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
         addResult({ step: '6. Disable Boutique', ok: true });
@@ -302,41 +279,53 @@ export default function MyBoutiquePage() {
         toast({ title: 'Self-Test Passed!', description: 'All steps completed successfully.' });
 
     } catch (e: any) {
-        const lastStep = steps.length > 0 ? steps[steps.length - 1] : { step: '0. Initializing', ok: false };
-        const stepNum = steps.findIndex(s => !s.ok);
-        const failedStepName = stepNum !== -1 ? `Step ${stepNum + 1}` : `Step ${steps.length + 1}`;
-        
-        addResult({ step: `${failedStepName}: ${lastStep.step.split('.')[1]?.trim() || 'Execution'}`, ok: false, error: e.message });
+        const stepNum = steps.findIndex(s => !s.ok) + 1 || steps.length + 1;
+        const failedStepName = `Step ${stepNum}`;
+        addResult({ step: `${failedStepName}`, ok: false, error: e.message });
         toast({ variant: 'destructive', title: `Self-Test Failed at ${failedStepName}`, description: e.message });
     } finally {
-        // Final Cleanup step (runs on success or failure after catch)
         try {
-            const handleRef = doc(firestore, 'handles', randomHandle);
-            const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
-            const handleSnap = await getDoc(handleRef);
-            const publicSnap = await getDoc(publicBoutiqueRef);
-
-            if (handleSnap.exists()) await deleteDoc(handleRef);
-            if (publicSnap.exists()) await deleteDoc(publicBoutiqueRef);
-            
-            // Restore original settings
+            await deleteDoc(doc(firestore, 'handles', randomHandle));
+            await deleteDoc(doc(firestore, 'publicBoutiques', randomHandle));
             await updateBoutiqueSettings(firestore, user.uid, originalSettings);
-            
             addResult({ step: '7. Cleanup & Restore', ok: true });
-
         } catch (cleanupError: any) {
              addResult({ step: '7. Cleanup & Restore', ok: false, error: cleanupError.message });
-             console.error("Critical: Failed to cleanup test data or restore settings:", cleanupError);
              toast({ variant: 'destructive', title: 'Cleanup Failed', description: 'Test data may not have been fully removed.' });
         }
-        
         setIsTesting(false);
     }
 };
 
+  const handleTemplateSelect = (templateId: BoutiqueDesign['templateId']) => {
+    const template = boutiqueTemplates[templateId];
+    if (!template) return;
+    setLocalDesign(prev => ({
+      ...prev,
+      templateId,
+      palette: template.palette,
+      fonts: template.fonts,
+      buttons: template.buttons,
+      frames: template.frames,
+      accentColor: template.palette.accent,
+    }));
+  };
+
+  const handleAccentColorChange = (color: string) => {
+    if (!localDesign) return;
+    setLocalDesign({
+      ...localDesign,
+      accentColor: color,
+      palette: {
+        ...localDesign.palette!,
+        accent: color,
+        accentText: getContrastingTextColor(color),
+      },
+    });
+  }
+
   // --- Derived State & Memos ---
-  const loading = userLoading || !isInitialized || outfitsLoading || brandLoading || handleLoading;
-  const anyError = settingsError || brandError || outfitsError || handleEror;
+  const loading = userLoading || !isInitialized || outfitsLoading || brandLoading || handleLoading || designLoading;
 
   const featuredOutfit = useMemo(() => {
     if (!outfits) return undefined;
@@ -347,96 +336,20 @@ export default function MyBoutiquePage() {
     return outfits.find((o) => o.id === featuredId);
   }, [localSettings.featuredOutfitId, outfits]);
   
-  const isConfigDirty = useMemo(() => boutiqueSettings ? 
-    (localSettings.featuredOutfitId !== (boutiqueSettings.featuredOutfitId || 'auto')) || 
-    (localSettings.stylePreset !== (boutiqueSettings.stylePreset || 'magazine')) ||
-    (localSettings.accentColor !== (boutiqueSettings.accentColor || brandProfile?.brandColors?.[0] || null))
-    : false,
-    [localSettings, boutiqueSettings, brandProfile]
-  );
+  const isConfigDirty = useMemo(() => {
+    const settingsDirty = boutiqueSettings ? (localSettings.featuredOutfitId !== (boutiqueSettings.featuredOutfitId || 'auto')) : false;
+    const designDirty = boutiqueDesign ? JSON.stringify(localDesign) !== JSON.stringify(boutiqueDesign) : false;
+    return settingsDirty || designDirty;
+  }, [localSettings, boutiqueSettings, localDesign, boutiqueDesign]);
   
   // --- Render Functions ---
 
   const renderHeader = () => (
      <header className="mb-12">
-        <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
-          My Boutique
-        </h1>
-        <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
-          Your personal boutique showcase. When you're ready, share it with the world.
-        </p>
+        <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">My Boutique</h1>
+        <p className="text-xl text-muted-foreground mt-3 max-w-2xl">Your personal boutique showcase. When you're ready, share it with the world.</p>
       </header>
   );
-
-  const renderHandleCard = () => {
-    const isLive = boutiqueSettings?.enabled;
-
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Public Handle</CardTitle>
-          <CardDescription>This becomes your public link: /boutique/your-handle</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...handleForm}>
-            <form onSubmit={handleForm.handleSubmit(onClaimSubmit)} className="space-y-4">
-              <FormField
-                control={handleForm.control}
-                name="handle"
-                render={({ field }) => (
-                  <FormItem>
-                    <div className="flex items-center">
-                      <span className="text-sm text-muted-foreground bg-muted border border-r-0 rounded-l-md px-3 h-10 flex items-center">
-                        .../boutique/
-                      </span>
-                      <FormControl>
-                        <Input placeholder="your-handle" {...field} className="rounded-l-none" disabled={isLive || handleForm.formState.isSubmitting} />
-                      </FormControl>
-                    </div>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <div className="flex flex-col gap-4">
-                <Button type="submit" disabled={isLive || handleForm.formState.isSubmitting || !handleForm.formState.isDirty}>
-                  {handleForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                  {handle ? 'Update Handle' : 'Claim Handle'}
-                </Button>
-                {isLive && (
-                    <p className="text-xs text-muted-foreground text-center">Disable "Boutique is Live" to change your handle.</p>
-                )}
-              </div>
-            </form>
-          </Form>
-        </CardContent>
-      </Card>
-    );
-  };
-  
-  if (userLoading) {
-    return (
-        <div className="flex-1 flex items-center justify-center p-8">
-            <Loader2 className="h-10 w-10 animate-spin text-muted-foreground" />
-        </div>
-    );
-  }
-
-  if (anyError) {
-    console.error("[MyBoutique] Rendering error state:", anyError);
-    return (
-      <div className="flex-1 p-8 sm:p-10 lg:p-12">
-        {renderHeader()}
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Error Loading Boutique Data</AlertTitle>
-          <AlertDescription>
-            <p>There was a problem loading your data. Please try refreshing the page.</p>
-            <pre className="mt-2 text-xs bg-destructive/10 p-2 rounded">{anyError.message}</pre>
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
   
   if (loading) {
     return (
@@ -462,131 +375,62 @@ export default function MyBoutiquePage() {
         <div className="lg:col-span-1 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Boutique Status</CardTitle>
+              <CardTitle>Publishing</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <div className="flex items-center space-x-4 rounded-lg border p-4">
-                {isSyncing ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                ) : (
-                    <Switch
-                        id="boutique-enabled"
-                        checked={boutiqueSettings?.enabled ?? false}
-                        onCheckedChange={handleEnabledToggle}
-                        disabled={!handle}
-                    />
-                )}
-                <Label htmlFor="boutique-enabled" className="flex-grow">
-                  Boutique is {boutiqueSettings?.enabled ? 'Live' : 'Private'}
-                </Label>
+                {isSyncing ? <Loader2 className="h-5 w-5 animate-spin" /> : <Switch id="boutique-enabled" checked={boutiqueSettings?.enabled ?? false} onCheckedChange={handleEnabledToggle} disabled={!handle} />}
+                <Label htmlFor="boutique-enabled" className="flex-grow">Boutique is {boutiqueSettings?.enabled ? 'Live' : 'Private'}</Label>
               </div>
-               <p className="text-sm text-muted-foreground mt-3 px-1">
-                {boutiqueSettings?.enabled ? 'Your boutique is public and can be viewed by anyone with the link.' : 'Your boutique is currently private. Only you can see it.'}
-            </p>
-            {!handle && (
-                <Alert variant="destructive" className="mt-4">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertTitle>Handle Required</AlertTitle>
-                    <AlertDescription>You must claim a public handle before your boutique can go live.</AlertDescription>
-                </Alert>
-            )}
+              <p className="text-sm text-muted-foreground mt-3 px-1">{boutiqueSettings?.enabled ? 'Your boutique is public.' : 'Your boutique is private.'}</p>
+              {!handle && <Alert variant="destructive" className="mt-4"><AlertTriangle className="h-4 w-4" /><AlertTitle>Handle Required</AlertTitle><AlertDescription>You must claim a public handle before your boutique can go live.</AlertDescription></Alert>}
             </CardContent>
           </Card>
-          
-          {renderHandleCard()}
-          
-          {publicUrl && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Your Public URL</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-3">
-                     <div className="flex items-center space-x-2 rounded-lg border p-2 pl-3 bg-muted/50">
-                        <Globe className="h-4 w-4 text-muted-foreground" />
-                        <p className="text-sm text-muted-foreground font-mono flex-grow truncate">
-  {new URL(publicUrl).pathname}
-</p>
 
+          <Card><CardHeader><CardTitle>Public Handle</CardTitle><CardDescription>This becomes your public link: /boutique/your-handle</CardDescription></CardHeader><CardContent>
+            <Form {...handleForm}><form onSubmit={handleForm.handleSubmit(onClaimSubmit)} className="space-y-4"><FormField control={handleForm.control} name="handle" render={({ field }) => (<FormItem><div className="flex items-center"><span className="text-sm text-muted-foreground bg-muted border border-r-0 rounded-l-md px-3 h-10 flex items-center">.../boutique/</span><FormControl><Input placeholder="your-handle" {...field} className="rounded-l-none" disabled={boutiqueSettings?.enabled || handleForm.formState.isSubmitting} /></FormControl></div><FormMessage /></FormItem>)} /><div className="flex flex-col gap-4"><Button type="submit" disabled={boutiqueSettings?.enabled || handleForm.formState.isSubmitting || !handleForm.formState.isDirty}>{handleForm.formState.isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}{handle ? 'Update Handle' : 'Claim Handle'}</Button>{boutiqueSettings?.enabled && (<p className="text-xs text-muted-foreground text-center">Disable "Boutique is Live" to change your handle.</p>)}</div></form></Form>
+          </CardContent></Card>
+          
+          {publicUrl && <Card><CardHeader><CardTitle>Your Public URL</CardTitle></CardHeader><CardContent className="space-y-3"><div className="flex items-center space-x-2 rounded-lg border p-2 pl-3 bg-muted/50"><Globe className="h-4 w-4 text-muted-foreground" /><p className="text-sm text-muted-foreground font-mono flex-grow truncate">{new URL(publicUrl).pathname}</p></div><Button variant="outline" className="w-full justify-between" asChild><Link href={publicUrl} target="_blank">Visit Public Page <ExternalLink className="h-4 w-4"/></Link></Button><Button variant="outline" className="w-full justify-between" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: 'Link Copied!' }); }}>Copy Link <Copy className="h-4 w-4"/></Button></CardContent></Card>}
+
+          <Accordion type="multiple" defaultValue={['design']} className="w-full">
+            <AccordionItem value="design" className="border-none">
+              <Card>
+                <AccordionTrigger className="p-6 border-b"><CardHeader className="p-0 flex-row items-center gap-4 text-left"><Palette className="h-6 w-6 text-accent" /><div><CardTitle>Boutique Design</CardTitle><CardDescription className="mt-1">Customize the look and feel of your public page.</CardDescription></div></CardHeader></AccordionTrigger>
+                <AccordionContent className="p-6 space-y-6">
+                  <div>
+                    <Label className="font-semibold">Template</Label>
+                    <div className="grid grid-cols-3 gap-2 mt-2">
+                      {Object.values(boutiqueTemplates).map(t => (
+                        <button key={t.templateId} type="button" onClick={() => handleTemplateSelect(t.templateId)} className={`aspect-square rounded-md border-2 p-1 ${localDesign?.templateId === t.templateId ? 'border-primary' : 'border-border'}`}>
+                          <div className="w-full h-full rounded-sm" style={{ backgroundColor: t.palette.background }}></div>
+                        </button>
+                      ))}
                     </div>
-                     <Button variant="outline" className="w-full justify-between" asChild>
-                       <Link href={publicUrl} target="_blank">
-                            Visit Public Page <ExternalLink className="h-4 w-4"/>
-                       </Link>
-                    </Button>
-                     <Button variant="outline" className="w-full justify-between" onClick={() => { navigator.clipboard.writeText(publicUrl); toast({ title: 'Link Copied!' }); }}>
-                        Copy Link <Copy className="h-4 w-4"/>
-                    </Button>
-                </CardContent>
-            </Card>
-          )}
+                  </div>
+                  <div>
+                    <Label className="font-semibold">Accent Color</Label>
+                    <Input type="color" value={localDesign?.palette?.accent || '#000000'} onChange={(e) => handleAccentColorChange(e.target.value)} className="w-full h-10 mt-2 p-1" />
+                  </div>
+                </AccordionContent>
+              </Card>
+            </AccordionItem>
+          </Accordion>
 
           <Card>
-            <CardHeader>
-              <CardTitle>Configuration</CardTitle>
-              <CardDescription>
-                Choose what to feature on your boutique page.
-              </CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Page Content</CardTitle><CardDescription>Choose what to feature on your boutique page.</CardDescription></CardHeader>
             <CardContent className="space-y-6">
-                <div className="space-y-2">
-                    <Label>Featured Outfit</Label>
-                    <Select value={localSettings.featuredOutfitId || 'auto'} onValueChange={(v) => setLocalSettings(prev => ({...prev, featuredOutfitId: v}))}>
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select an outfit..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="auto">Auto (newest published look)</SelectItem>
-                            {outfits?.map(outfit => (
-                                <SelectItem key={outfit.id} value={outfit.id}>{outfit.title}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-                 <div className="space-y-2">
-                    <Label>Style Preset</Label>
-                    <Select value={localSettings.stylePreset || 'magazine'} onValueChange={(v) => setLocalSettings(prev => ({...prev, stylePreset: v as any}))}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="magazine">Magazine</SelectItem>
-                            <SelectItem value="modern">Modern</SelectItem>
-                            <SelectItem value="classic">Classic</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <Button onClick={handleConfigSave} disabled={isSavingConfig || !isConfigDirty} className="w-full">
-                    {isSavingConfig ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-                    Save Configuration
-                </Button>
+              <div className="space-y-2"><Label>Featured Outfit</Label><Select value={localSettings.featuredOutfitId || 'auto'} onValueChange={(v) => setLocalSettings(prev => ({...prev, featuredOutfitId: v}))}><SelectTrigger><SelectValue placeholder="Select an outfit..." /></SelectTrigger><SelectContent><SelectItem value="auto">Auto (newest published look)</SelectItem>{outfits?.map(outfit => (<SelectItem key={outfit.id} value={outfit.id}>{outfit.title}</SelectItem>))}</SelectContent></Select></div>
+              <Button onClick={handleConfigSave} disabled={isSaving || !isConfigDirty} className="w-full">{isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />} Save Configuration</Button>
             </CardContent>
           </Card>
 
           {isAdmin && (
-            <Card>
-                <CardHeader>
-                    <CardTitle>Admin Tools</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Button onClick={handleSelfTest} disabled={isTesting} className="w-full">
-                        {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                        Run Boutique Self-Test
-                    </Button>
-                    {selfTestResults.length > 0 && (
-                        <div className="p-3 border rounded-md bg-muted/50 space-y-2">
-                            <p className="text-sm font-medium">Test Results:</p>
-                            <ul className="text-xs space-y-1">
-                                {selfTestResults.map((result, i) => (
-                                    <li key={i} className={`flex items-center gap-2 ${!result.ok ? 'text-destructive' : ''}`}>
-                                        {result.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : <XCircle className="h-3.5 w-3.5" />}
-                                        <span>{result.step}</span>
-                                        {result.error && <span className="font-mono text-destructive/80">- {result.error}</span>}
-                                    </li>
-                                ))}
-                            </ul>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        )}
+            <Card><CardHeader><CardTitle>Admin Tools</CardTitle></CardHeader><CardContent className="space-y-4">
+              <Button onClick={handleSelfTest} disabled={isTesting} className="w-full">{isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null} Run Boutique Self-Test</Button>
+              {selfTestResults.length > 0 && (<div className="p-3 border rounded-md bg-muted/50 space-y-2"><p className="text-sm font-medium">Test Results:</p><ul className="text-xs space-y-1">{selfTestResults.map((result, i) => (<li key={i} className={`flex items-center gap-2 ${!result.ok ? 'text-destructive' : ''}`}>{result.ok ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600" /> : <XCircle className="h-3.5 w-3.5" />}<span>{result.step}</span>{result.error && <span className="font-mono text-destructive/80">- {result.error}</span>}</li>))}</ul></div>)}
+            </CardContent></Card>
+          )}
 
         </div>
         <div className="lg:col-span-2 lg:sticky top-12">
@@ -595,7 +439,11 @@ export default function MyBoutiquePage() {
                     <CardTitle className="flex items-center gap-2"><Eye className="h-5 w-5" /> Live Preview</CardTitle>
                 </CardHeader>
                 <CardContent>
-                    <BoutiqueLivePreview brandProfile={brandProfile} featuredOutfit={featuredOutfit} accentColor={localSettings.accentColor || '#111827'} />
+                    {localDesign ? (
+                      <BoutiqueLivePreview brandProfile={brandProfile} featuredOutfit={featuredOutfit} design={localDesign} />
+                    ) : (
+                      <Skeleton className="h-[700px] w-full" />
+                    )}
                 </CardContent>
             </Card>
         </div>

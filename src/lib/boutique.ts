@@ -24,6 +24,7 @@ import type { User } from 'firebase/auth';
 import { z } from 'zod';
 import type { BrandProfile } from '@/ai/flows/schemas';
 import { useOutfits, type Outfit, type OutfitClaim } from './outfits';
+import { type BoutiqueDesign } from './boutique-design';
 
 // ---- Helpers ----
 type AnyRecord = Record<string, any>;
@@ -43,8 +44,8 @@ export interface BoutiqueSettings extends DocumentData {
   id: string;
   enabled: boolean;
   featuredOutfitId: string | null;
-  accentColor: string | null;
-  stylePreset: 'magazine' | 'modern' | 'classic';
+  accentColor: string | null; // This is now legacy, replaced by boutiqueDesign
+  stylePreset: 'magazine' | 'modern' | 'classic'; // This is now legacy, replaced by boutiqueDesign
   handle: string | null;
   updatedAt?: any;
 }
@@ -65,7 +66,6 @@ export interface PublicBoutiqueProfile {
   brandName: string | null;
   tagline: string | null;
   logoUrl: string | null;
-  accentColor: string | null;
   featuredOutfit: {
     id: string;
     title: string | null;
@@ -74,6 +74,7 @@ export interface PublicBoutiqueProfile {
     itemCount: number | null;
     outfitClaim: OutfitClaim | null;
   } | null;
+  design: Partial<BoutiqueDesign>;
   updatedAt: any;
 }
 
@@ -283,6 +284,7 @@ export const syncPublicBoutiqueData = async (
 
   const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   const brandRef = doc(firestore, `users/${userId}/brandProfile/main`);
+  const designRef = doc(firestore, `users/${userId}/boutiqueDesign/main`);
 
   const outfitsQuery = query(
     collection(firestore, 'outfits'),
@@ -290,14 +292,16 @@ export const syncPublicBoutiqueData = async (
     orderBy('createdAt', 'desc')
   );
 
-  const [settingsSnap, brandSnap, outfitsSnap] = await Promise.all([
+  const [settingsSnap, brandSnap, designSnap, outfitsSnap] = await Promise.all([
     getDoc(settingsRef),
     getDoc(brandRef),
+    getDoc(designRef),
     getDocs(outfitsQuery),
   ]);
 
   const settings = (settingsSnap.data() ?? {}) as Partial<BoutiqueSettings>;
   const brandProfile = (brandSnap.data() ?? {}) as BrandProfilePublicBits;
+  const designProfile = (designSnap.data() ?? {}) as Partial<BoutiqueDesign>;
 
   let featuredOutfit: Outfit | null = null;
   const outfitDocs = outfitsSnap.docs;
@@ -314,9 +318,6 @@ export const syncPublicBoutiqueData = async (
     else if (outfitDocs.length > 0) featuredOutfit = pickOutfitFromDoc(outfitDocs[0]);
   }
 
-  const brandColors = Array.isArray(brandProfile.brandColors) ? brandProfile.brandColors : [];
-  const accentColor = settings.accentColor || (brandColors.length > 0 ? brandColors[0] : null);
-
   const publicData: Omit<PublicBoutiqueProfile, 'id' | 'updatedAt'> = {
     uid: userId,
     handle,
@@ -324,7 +325,6 @@ export const syncPublicBoutiqueData = async (
     brandName: brandProfile.brandName ?? null,
     tagline: brandProfile.tagline ?? null,
     logoUrl: brandProfile.logoUrl ?? null,
-    accentColor,
     featuredOutfit: featuredOutfit
       ? {
           id: featuredOutfit.id,
@@ -335,6 +335,7 @@ export const syncPublicBoutiqueData = async (
           outfitClaim: featuredOutfit.outfitClaim ?? null,
         }
       : null,
+    design: designProfile,
   };
 
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);

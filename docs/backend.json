@@ -120,6 +120,56 @@
         }
       }
     },
+    "BoutiqueDesign": {
+      "title": "Boutique Design",
+      "description": "Stores the complete visual design settings for a user's public boutique page.",
+      "type": "object",
+      "properties": {
+        "templateId": { "type": "string" },
+        "accentColor": { "type": "string" },
+        "palette": {
+          "type": "object",
+          "properties": {
+            "background": { "type": "string" },
+            "surface": { "type": "string" },
+            "text": { "type": "string" },
+            "muted": { "type": "string" },
+            "accent": { "type": "string" },
+            "accentText": { "type": "string" }
+          }
+        },
+        "fonts": {
+          "type": "object",
+          "properties": {
+            "heading": { "type": "string" },
+            "body": { "type": "string" },
+            "button": { "type": "string" }
+          }
+        },
+        "buttons": {
+          "type": "object",
+          "properties": {
+            "radius": { "type": "string" },
+            "style": { "type": "string" }
+          }
+        },
+        "frames": {
+          "type": "object",
+          "properties": {
+            "outfitFrameStyle": { "type": "string" }
+          }
+        },
+        "background": {
+          "type": "object",
+          "properties": {
+            "patternId": { "type": "string" },
+            "intensity": { "type": "number" }
+          }
+        },
+        "welcomeMessage": { "type": ["string", "null"] },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
     "HandleMapping": {
       "title": "Handle-to-UID Mapping",
       "description": "Maps a unique, public handle to a Firebase Auth UID.",
@@ -177,12 +227,6 @@
           ],
           "format": "uri"
         },
-        "accentColor": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
         "featuredOutfit": {
           "type": [
             "object",
@@ -223,6 +267,46 @@
                 "null"
               ]
             }
+          }
+        },
+        "design": {
+          "type": "object",
+          "description": "The denormalized design settings for the boutique.",
+          "properties": {
+            "templateId": { "type": "string" },
+            "palette": {
+              "type": "object",
+              "properties": {
+                "background": { "type": "string" },
+                "surface": { "type": "string" },
+                "text": { "type": "string" },
+                "muted": { "type": "string" },
+                "accent": { "type": "string" },
+                "accentText": { "type": "string" }
+              }
+            },
+            "fonts": {
+              "type": "object",
+              "properties": {
+                "heading": { "type": "string" },
+                "body": { "type": "string" },
+                "button": { "type": "string" }
+              }
+            },
+            "buttons": {
+              "type": "object",
+              "properties": {
+                "radius": { "type": "string" },
+                "style": { "type": "string" }
+              }
+            },
+            "frames": {
+              "type": "object",
+              "properties": {
+                "outfitFrameStyle": { "type": "string" }
+              }
+            },
+            "welcomeMessage": { "type": ["string", "null"] }
           }
         },
         "updatedAt": {
@@ -704,6 +788,12 @@
         "$ref": "#/entities/BoutiqueSettings"
       },
       "description": "Stores the user's public boutique settings. Expect a single document named 'main'."
+    },
+    "/users/{userId}/boutiqueDesign/{designId}": {
+      "schema": {
+        "$ref": "#/entities/BoutiqueDesign"
+      },
+      "description": "Stores the user's public boutique design settings. Expect a single document named 'main'."
     },
     "/users/{userId}/posts/{postId}": {
       "schema": {
