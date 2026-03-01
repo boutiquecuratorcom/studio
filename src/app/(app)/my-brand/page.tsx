@@ -250,8 +250,6 @@ export default function MyBrandPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    // This effect now correctly syncs data from Firestore to the form.
-    // It runs whenever the data from the database changes.
     if (brandProfileData) {
       const data: any = brandProfileData;
       const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
@@ -762,7 +760,7 @@ export default function MyBrandPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Primary Font (Headings)</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                              <Select onValueChange={field.onChange} value={field.value ?? ''} key={field.value ?? 'primaryFont'}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a font" />
@@ -794,7 +792,7 @@ export default function MyBrandPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Secondary Font (Body)</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                              <Select onValueChange={field.onChange} value={field.value ?? ''} key={field.value ?? 'secondaryFont'}>
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a font" />
