@@ -91,10 +91,26 @@ import {
 type HandleFormValues = z.infer<typeof handleSchema>;
 
 const fontOptions = [
-    'Inter', 'Playfair Display', 'Lora', 'Poppins', 'Raleway', 'DM Serif Display', 
-    'Montserrat', 'Merriweather', 'Oswald', 'Nunito', 'Quicksand', 'Source Sans 3', 
-    'Roboto Slab', 'Libre Baskerville', 'Work Sans', 'Figtree', 'Manrope', 'Caveat', 
-    'Abril Fatface', 'Cormorant Garamond'
+    { name: 'Inter', family: 'Inter, sans-serif' },
+    { name: 'Playfair Display', family: "'Playfair Display', serif" },
+    { name: 'Lora', family: "'Lora', serif" },
+    { name: 'Poppins', family: 'Poppins, sans-serif' },
+    { name: 'Raleway', family: 'Raleway, sans-serif' },
+    { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
+    { name: 'Montserrat', family: 'Montserrat, sans-serif' },
+    { name: 'Merriweather', family: "'Merriweather', serif" },
+    { name: 'Oswald', family: 'Oswald, sans-serif' },
+    { name: 'Nunito', family: 'Nunito, sans-serif' },
+    { name: 'Quicksand', family: 'Quicksand, sans-serif' },
+    { name: 'Source Sans 3', family: "'Source Sans 3', sans-serif" },
+    { name: 'Roboto Slab', family: "'Roboto Slab', serif" },
+    { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
+    { name: 'Work Sans', family: "'Work Sans', sans-serif" },
+    { name: 'Figtree', family: "'Figtree', sans-serif" },
+    { name: 'Manrope', family: 'Manrope, sans-serif' },
+    { name: 'Caveat', family: "'Caveat', cursive" },
+    { name: 'Abril Fatface', family: "'Abril Fatface', cursive" },
+    { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
 ];
 
 
@@ -753,7 +769,11 @@ export default function MyBoutiquePage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {fontOptions.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                                    {fontOptions.map(font => (
+                                        <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
+                                            {font.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -767,7 +787,11 @@ export default function MyBoutiquePage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {fontOptions.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                                    {fontOptions.map(font => (
+                                        <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
+                                            {font.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
@@ -781,7 +805,11 @@ export default function MyBoutiquePage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {fontOptions.map(font => <SelectItem key={font} value={font}>{font}</SelectItem>)}
+                                    {fontOptions.map(font => (
+                                        <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
+                                            {font.name}
+                                        </SelectItem>
+                                    ))}
                                 </SelectContent>
                             </Select>
                         </div>
