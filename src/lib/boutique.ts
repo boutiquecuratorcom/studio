@@ -24,7 +24,7 @@ import type { User } from 'firebase/auth';
 import { z } from 'zod';
 import type { BrandProfile } from '@/ai/flows/schemas';
 import { useOutfits, type Outfit, type OutfitClaim } from './outfits';
-import { type BoutiqueDesign, defaultDesign } from './boutique-design';
+import { type BoutiqueDesign, defaultDesign, getBoutiqueDesignDefaults } from './boutique-design';
 
 // ---- Helpers ----
 type AnyRecord = Record<string, any>;
@@ -46,7 +46,7 @@ export interface BoutiqueSettings extends DocumentData {
   featuredOutfitId: string | null;
   handle: string | null;
   updatedAt?: any;
-  design?: BoutiqueDesign;
+  design: BoutiqueDesign;
 }
 
 export interface HandleMapping {
@@ -290,7 +290,7 @@ export const updateBoutiqueSettings = async (
   } else {
     const updateData: any = { ...data, updatedAt: serverTimestamp() };
     if (data.design) {
-      updateData['design.updatedAt'] = serverTimestamp();
+      updateData.design = { ...data.design, updatedAt: serverTimestamp() };
     }
     await setDoc(settingsRef, updateData, { merge: true });
   }

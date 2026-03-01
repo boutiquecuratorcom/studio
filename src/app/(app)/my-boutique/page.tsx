@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -21,10 +22,10 @@ import {
 } from '@/lib/boutique';
 
 import {
-  boutiqueTemplates,
   type BoutiqueDesign,
   getContrastingTextColor,
   defaultDesign,
+  getBoutiqueDesignDefaults,
 } from '@/lib/boutique-design';
 
 import { useToast } from '@/hooks/use-toast';
@@ -68,7 +69,11 @@ import {
   Loader2,
   Palette,
   Save,
+  Settings2,
   XCircle,
+  Heart,
+  Type,
+  CaseSensitive,
 } from 'lucide-react';
 
 import {
@@ -87,10 +92,12 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import { cn } from '@/lib/utils';
+import { Separator } from '@/components/ui/separator';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
-const fontOptions = [
+const allFonts = [
     { name: 'Inter', family: 'Inter, sans-serif' },
     { name: 'Playfair Display', family: "'Playfair Display', serif" },
     { name: 'Lora', family: "'Lora', serif" },
@@ -113,6 +120,7 @@ const fontOptions = [
     { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
 ];
 
+const buttonSafeFonts = allFonts.filter(f => !f.family.includes('serif') && !f.family.includes('cursive'));
 
 export default function MyBoutiquePage() {
   const { user, loading: userLoading } = useUser();
@@ -153,25 +161,11 @@ export default function MyBoutiquePage() {
     { step: string; ok: boolean; error?: string }[]
   >([]);
 
-  const normalizeDesign = (d: any): BoutiqueDesign => {
-    if (
-      d &&
-      typeof d === 'object' &&
-      typeof d.templateId === 'string' &&
-      d.palette &&
-      typeof d.palette === 'object'
-    ) {
-      return d as BoutiqueDesign;
-    }
-    return defaultDesign;
-  };
-  
-  const designForUI: BoutiqueDesign = normalizeDesign((localSettings as any).design);
-
+  const hasBrandColors = useMemo(() => brandProfile?.brandColors && brandProfile.brandColors.length > 0, [brandProfile]);
 
   const updateDesign = (newDesignPartial: Partial<BoutiqueDesign>) => {
     setLocalSettings(prev => {
-        const currentDesign = normalizeDesign(prev.design as any);
+        const currentDesign = prev.design || defaultDesign;
 
         const mergedDesign: BoutiqueDesign = {
             ...currentDesign,
@@ -184,18 +178,6 @@ export default function MyBoutiquePage() {
                 ...currentDesign.fonts,
                 ...newDesignPartial.fonts,
             },
-            buttons: {
-                ...currentDesign.buttons,
-                ...newDesignPartial.buttons,
-            },
-            frames: {
-                ...currentDesign.frames,
-                ...newDesignPartial.frames,
-            },
-            background: {
-                ...currentDesign.background,
-                ...newDesignPartial.background,
-            }
         };
 
         return {
@@ -203,6 +185,15 @@ export default function MyBoutiquePage() {
             design: mergedDesign,
         };
     });
+  };
+  
+  const updatePalette = (newPalette: Partial<BoutiqueDesign['palette']>) => {
+     updateDesign({
+        palette: {
+            ...((localSettings.design as any)?.palette || defaultDesign.palette),
+            ...newPalette
+        }
+     })
   };
 
   // --- Effects ---
@@ -224,21 +215,31 @@ export default function MyBoutiquePage() {
 
       if (!currentSettings) {
         // Create settings if they don't exist
+        const initialDesign = getBoutiqueDesignDefaults(brandProfile);
         const newSettingsData = {
           enabled: false,
           featuredOutfitId: null,
           handle: null,
-          design: defaultDesign,
+          design: initialDesign,
         };
 
         await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
         currentSettings = newSettingsData as unknown as BoutiqueSettings;
       }
-
+      
+      const designToUse = currentSettings.design 
+        ? {
+            ...defaultDesign,
+            ...currentSettings.design,
+            palette: { ...defaultDesign.palette, ...currentSettings.design.palette },
+            fonts: { ...defaultDesign.fonts, ...currentSettings.design.fonts },
+          }
+        : getBoutiqueDesignDefaults(brandProfile);
+        
       setLocalSettings({
         enabled: currentSettings.enabled,
         featuredOutfitId: currentSettings.featuredOutfitId || 'auto',
-        design: normalizeDesign((currentSettings as any).design),
+        design: designToUse,
       });
 
       setIsInitialized(true);
@@ -251,6 +252,7 @@ export default function MyBoutiquePage() {
     userLoading,
     settingsLoading,
     brandLoading,
+    brandProfile,
     boutiqueSettings,
   ]);
 
@@ -475,29 +477,10 @@ export default function MyBoutiquePage() {
     }
   };
   
-  const handleTemplateSelect = (templateId: BoutiqueDesign['templateId']) => {
-    const template = boutiqueTemplates[templateId];
-    if (!template) return;
-
-    const currentDesign = normalizeDesign(localSettings.design as any);
-    const keepAccent = currentDesign.palette?.accent || template.palette.accent;
-
-    updateDesign({
-      ...template,
-      palette: {
-        ...template.palette,
-        accent: keepAccent,
-        accentText: getContrastingTextColor(keepAccent),
-      },
-    });
-  };
-
   const handleAccentColorChange = (color: string) => {
-    updateDesign({
-        palette: {
-            accent: color,
-            accentText: getContrastingTextColor(color),
-        },
+    updatePalette({
+        accent: color,
+        accentText: getContrastingTextColor(color),
     });
   };
 
@@ -517,15 +500,15 @@ export default function MyBoutiquePage() {
   }, [localSettings.featuredOutfitId, outfits]);
 
   const isConfigDirty = useMemo(() => {
-    if (!boutiqueSettings || !localSettings) return false;
+    if (!boutiqueSettings || !localSettings?.design) return false;
 
     const settingsDirty =
       (localSettings.featuredOutfitId || 'auto') !==
       (boutiqueSettings.featuredOutfitId || 'auto');
 
     const designDirty =
-      JSON.stringify(normalizeDesign((localSettings as any).design)) !==
-      JSON.stringify(normalizeDesign((boutiqueSettings as any).design));
+      JSON.stringify(localSettings.design) !==
+      JSON.stringify(boutiqueSettings.design);
 
     return settingsDirty || designDirty;
   }, [localSettings, boutiqueSettings]);
@@ -556,6 +539,8 @@ export default function MyBoutiquePage() {
       </div>
     );
   }
+
+  const designForUI = localSettings.design || defaultDesign;
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -699,68 +684,72 @@ export default function MyBoutiquePage() {
               <Card>
                 <AccordionTrigger className="p-6 border-b">
                   <CardHeader className="p-0 flex-row items-center gap-4 text-left">
-                    <Palette className="h-6 w-6 text-accent" />
+                    <Settings2 className="h-6 w-6 text-accent" />
                     <div>
-                      <CardTitle>Boutique Design</CardTitle>
+                      <CardTitle>Boutique Style Foundation</CardTitle>
                       <CardDescription className="mt-1">
-                        Customize the look and feel of your public page.
+                        Define your brand's visual identity.
                       </CardDescription>
                     </div>
                   </CardHeader>
                 </AccordionTrigger>
 
                 <AccordionContent className="p-6 space-y-6">
-                  <div>
-                    <Label className="font-semibold">Template</Label>
-                    <div className="grid grid-cols-3 gap-2 mt-2">
-                      {Object.values(boutiqueTemplates).map((t) => (
-                        <button
-                          key={t.templateId}
-                          type="button"
-                          onClick={() => handleTemplateSelect(t.templateId)}
-                          className={`aspect-[4/3] rounded-md border-2 p-1 ${
-                            designForUI.templateId === t.templateId
-                              ? 'border-primary ring-2 ring-primary/50'
-                              : 'border-border'
-                          }`}
-                        >
-                          <div
-                            className="w-full h-full rounded-sm flex flex-col gap-1 p-1"
-                            style={{ backgroundColor: t.palette.background }}
-                          >
-                            <div
-                              className="h-2 w-1/2 rounded-full"
-                              style={{ backgroundColor: t.palette.accent }}
-                            />
-                            <div
-                              className="h-1 w-2/3 rounded-full"
-                              style={{ backgroundColor: t.palette.text }}
-                            />
-                            <div
-                              className="h-1 w-1/3 rounded-full"
-                              style={{ backgroundColor: t.palette.muted }}
-                            />
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+                    {!hasBrandColors && (
+                        <Alert>
+                          <Heart className="h-4 w-4" />
+                          <AlertTitle>Personalize Your Boutique</AlertTitle>
+                          <AlertDescription>
+                            Complete your Brand Profile for a design that truly reflects you.
+                            <Button asChild variant="link" className="p-0 h-auto ml-1">
+                                <Link href="/my-brand">Go to My Brand</Link>
+                            </Button>
+                          </AlertDescription>
+                        </Alert>
+                    )}
 
                   <div>
-                    <Label className="font-semibold">Accent Color</Label>
-                    <Input
-                      type="color"
-                      value={designForUI.palette?.accent || '#000000'}
-                      onChange={(e) => handleAccentColorChange(e.target.value)}
-                      className="w-full h-10 mt-2 p-1"
-                    />
+                    <Label className="font-semibold text-base">Boutique Colors</Label>
+                     {hasBrandColors && (
+                        <p className="text-sm text-muted-foreground mt-1 mb-3">Loaded from your Brand Profile.</p>
+                     )}
+                     <div className="space-y-4 mt-4">
+                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 items-center">
+                            <Label htmlFor="bg-color">Background</Label>
+                            <Input
+                                id="bg-color"
+                                type="color"
+                                value={designForUI.palette.background}
+                                onChange={(e) => updatePalette({ background: e.target.value })}
+                                className="w-full h-10 p-1"
+                            />
+                             <Label htmlFor="surface-color">Surface</Label>
+                            <Input
+                                id="surface-color"
+                                type="color"
+                                value={designForUI.palette.surface}
+                                onChange={(e) => updatePalette({ surface: e.target.value })}
+                                className="w-full h-10 p-1"
+                            />
+                            <Label htmlFor="accent-color">Accent</Label>
+                            <Input
+                                id="accent-color"
+                                type="color"
+                                value={designForUI.palette.accent}
+                                onChange={(e) => handleAccentColorChange(e.target.value)}
+                                className="w-full h-10 p-1"
+                            />
+                        </div>
+                     </div>
                   </div>
                   
-                  <div className="space-y-4 border-t pt-6">
-                    <Label className="font-semibold">Fonts</Label>
-                    <div className="space-y-4">
+                  <Separator />
+
+                  <div>
+                    <Label className="font-semibold text-base">Typography</Label>
+                    <div className="space-y-4 mt-4">
                         <div>
-                            <Label htmlFor="heading-font" className="text-sm text-muted-foreground">Heading Font</Label>
+                            <Label htmlFor="heading-font" className="text-sm text-muted-foreground flex items-center gap-2"><CaseSensitive className="h-4 w-4" />Heading Font</Label>
                             <Select
                                 value={designForUI.fonts.heading}
                                 onValueChange={(value) => updateDesign({ fonts: { ...designForUI.fonts, heading: value }})}
@@ -769,7 +758,7 @@ export default function MyBoutiquePage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {fontOptions.map(font => (
+                                    {allFonts.map(font => (
                                         <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
                                             {font.name}
                                         </SelectItem>
@@ -778,7 +767,7 @@ export default function MyBoutiquePage() {
                             </Select>
                         </div>
                         <div>
-                            <Label htmlFor="body-font" className="text-sm text-muted-foreground">Body Font</Label>
+                            <Label htmlFor="body-font" className="text-sm text-muted-foreground flex items-center gap-2"><Type className="h-4 w-4" />Body Font</Label>
                             <Select
                                 value={designForUI.fonts.body}
                                 onValueChange={(value) => updateDesign({ fonts: { ...designForUI.fonts, body: value }})}
@@ -787,7 +776,7 @@ export default function MyBoutiquePage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {fontOptions.map(font => (
+                                    {allFonts.map(font => (
                                         <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
                                             {font.name}
                                         </SelectItem>
@@ -796,7 +785,7 @@ export default function MyBoutiquePage() {
                             </Select>
                         </div>
                         <div>
-                            <Label htmlFor="button-font" className="text-sm text-muted-foreground">Button Font</Label>
+                            <Label htmlFor="button-font" className="text-sm text-muted-foreground flex items-center gap-2"><Type className="h-4 w-4" />Button Font</Label>
                             <Select
                                 value={designForUI.fonts.button}
                                 onValueChange={(value) => updateDesign({ fonts: { ...designForUI.fonts, button: value }})}
@@ -805,7 +794,7 @@ export default function MyBoutiquePage() {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {fontOptions.map(font => (
+                                    {buttonSafeFonts.map(font => (
                                         <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
                                             {font.name}
                                         </SelectItem>

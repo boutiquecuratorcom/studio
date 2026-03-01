@@ -20,7 +20,6 @@ export interface BoutiqueFonts {
 }
 
 export interface BoutiqueDesign {
-  templateId: 'editorial-chic' | 'modern-minimal' | 'soft-feminine' | 'bold-luxury' | 'playful-boutique';
   palette: BoutiquePalette;
   fonts: BoutiqueFonts;
   buttons: {
@@ -37,87 +36,6 @@ export interface BoutiqueDesign {
   welcomeMessage: string | null;
   updatedAt?: any;
 }
-
-
-// --- Templates Definition ---
-
-export const boutiqueTemplates: Record<BoutiqueDesign['templateId'], Omit<BoutiqueDesign, 'id' | 'updatedAt' | 'welcomeMessage'>> = {
-  'editorial-chic': {
-    templateId: 'editorial-chic',
-    palette: {
-      background: '#FDFCF9',
-      surface: '#FFFFFF',
-      text: '#1F1C17',
-      muted: '#A8A29A',
-      accent: '#C6A15B',
-      accentText: '#FFFFFF',
-    },
-    fonts: { heading: 'Playfair Display', body: 'Inter', button: 'Inter' },
-    buttons: { radius: 'md', style: 'solid' },
-    frames: { outfitFrameStyle: 'soft-border' },
-    background: { patternId: 'none', intensity: 0 },
-  },
-  'modern-minimal': {
-    templateId: 'modern-minimal',
-    palette: {
-      background: '#F7FAFC',
-      surface: '#FFFFFF',
-      text: '#1A202C',
-      muted: '#718096',
-      accent: '#4A5568',
-      accentText: '#FFFFFF',
-    },
-    fonts: { heading: 'Montserrat', body: 'Inter', button: 'Inter' },
-    buttons: { radius: 'sm', style: 'solid' },
-    frames: { outfitFrameStyle: 'none' },
-    background: { patternId: 'none', intensity: 0 },
-  },
-  'soft-feminine': {
-    templateId: 'soft-feminine',
-    palette: {
-      background: '#FFF9F9',
-      surface: '#FFFFFF',
-      text: '#5B4242',
-      muted: '#C7BABA',
-      accent: '#E6A8A8',
-      accentText: '#5B4242',
-    },
-    fonts: { heading: 'Lora', body: 'Lato', button: 'Lato' },
-    buttons: { radius: 'full', style: 'solid' },
-    frames: { outfitFrameStyle: 'shadow' },
-    background: { patternId: 'flowers', intensity: 0.05 },
-  },
-  'bold-luxury': {
-    templateId: 'bold-luxury',
-    palette: {
-      background: '#0B0F17',
-      surface: '#111827',
-      text: '#F8FAFC',
-      muted: '#94A3B8',
-      accent: '#D4AF37',
-      accentText: '#0B0F17',
-    },
-    fonts: { heading: 'DM Serif Display', body: 'Raleway', button: 'Raleway' },
-    buttons: { radius: 'none', style: 'outline' },
-    frames: { outfitFrameStyle: 'thick-border' },
-    background: { patternId: 'none', intensity: 0 },
-  },
-   'playful-boutique': {
-    templateId: 'playful-boutique',
-    palette: {
-      background: '#FEFCE8',
-      surface: '#FFFFFF',
-      text: '#44403C',
-      muted: '#A8A29E',
-      accent: '#FB923C',
-      accentText: '#FFFFFF',
-    },
-    fonts: { heading: 'Poppins', body: 'Quicksand', button: 'Poppins' },
-    buttons: { radius: 'full', style: 'solid' },
-    frames: { outfitFrameStyle: 'shadow' },
-    background: { patternId: 'sparkle', intensity: 0.08 },
-  },
-};
 
 
 // --- Helper Functions ---
@@ -148,6 +66,11 @@ export const getFontFamily = (fontName: string | undefined, defaultFont: string)
     { name: 'Open Sans', family: "'Open Sans', sans-serif" },
     { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
     { name: 'Dancing Script', family: "'Dancing Script', cursive" },
+    { name: 'Work Sans', family: "'Work Sans', sans-serif" },
+    { name: 'Figtree', family: "'Figtree', sans-serif" },
+    { name: 'Caveat', family: "'Caveat', cursive" },
+    { name: 'Source Sans 3', family: "'Source Sans 3', sans-serif" },
+    { name: 'Roboto Slab', family: "'Roboto Slab', serif" },
   ];
   return fontOptions.find(f => f.name === fontName)?.family || defaultFont;
 };
@@ -173,20 +96,35 @@ export const getContrastingTextColor = (bgHex: string): string => {
 }
 
 export const defaultDesign: Omit<BoutiqueDesign, 'updatedAt'> = {
-  ...boutiqueTemplates['editorial-chic'],
+  palette: {
+      background: '#f8f6f2',
+      surface: '#ffffff',
+      text: '#111111',
+      muted: '#A8A29A',
+      accent: '#d4af37',
+      accentText: '#111111',
+  },
+  fonts: { heading: 'Playfair Display', body: 'Inter', button: 'Inter' },
+  buttons: { radius: 'md', style: 'solid' },
+  frames: { outfitFrameStyle: 'soft-border' },
+  background: { patternId: 'none', intensity: 0 },
   welcomeMessage: null,
 };
 
 export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): Omit<BoutiqueDesign, 'updatedAt'> => {
-  const template = boutiqueTemplates['editorial-chic'];
-  const accentColor = (brandProfile?.brandColors && brandProfile.brandColors[0]) || template.palette.accent;
+  const accentColor = (brandProfile?.brandColors && brandProfile.brandColors[0]) || defaultDesign.palette.accent;
 
   return {
-    ...template,
+    ...defaultDesign,
     palette: {
-      ...template.palette,
-      accent: accentColor,
-      accentText: getContrastingTextColor(accentColor),
+        ...defaultDesign.palette,
+        accent: accentColor,
+        accentText: getContrastingTextColor(accentColor),
+    },
+    fonts: {
+        heading: brandProfile?.primaryFont || defaultDesign.fonts.heading,
+        body: brandProfile?.secondaryFont || defaultDesign.fonts.body,
+        button: brandProfile?.secondaryFont || defaultDesign.fonts.button,
     },
     welcomeMessage: null,
   };
