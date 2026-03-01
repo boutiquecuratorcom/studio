@@ -18,23 +18,17 @@ import {
   syncPublicBoutiqueData,
   handleSchema,
 } from '@/lib/boutique';
+
 import {
   type BoutiqueDesign,
   getContrastingTextColor,
   defaultDesign,
   getBoutiqueDesignDefaults,
 } from '@/lib/boutique-design';
-import {
-  ALL_FONTS,
-  BUTTON_SAFE_FONTS,
-  DEFAULT_FONTS,
-  FontDefinition,
-  getNormalizedFonts,
-  normalizeFontName,
-} from '@/lib/fonts';
 
 import { useToast } from '@/hooks/use-toast';
 import { isAdminEmail } from '@/lib/admin';
+import { ALL_FONTS, BUTTON_SAFE_FONTS } from '@/lib/fonts';
 
 import {
   Card,
@@ -100,6 +94,62 @@ import { Separator } from '@/components/ui/separator';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
+// IMPORTANT: "sans-serif" contains the substring "serif", so we must whitelist sans-serif and exclude cursive.
+const hasBrandData = (brandProfile: any | null | undefined) => {
+  return !!(
+    brandProfile &&
+    ((Array.isArray(brandProfile.brandColors) && brandProfile.brandColors.length > 0) ||
+      !!brandProfile.primaryFont ||
+      !!brandProfile.secondaryFont)
+  );
+};
+
+/**
+ * Key behavior:
+ * - We ALWAYS start from the brand-derived base design if brand exists.
+ * - If a saved boutique design exists, we merge it on top (so user customizations win).
+ * - BUT: if the saved design is still “default-like” for specific fields, we overwrite those
+ *   fields with brand values (so “defaults” stay synced to Brand).
+ */
+const applyBrandToDefaultDesign = (
+  savedDesign: any | undefined,
+  brandBase: Omit<BoutiqueDesign, 'updatedAt'>,
+  brandExists: boolean
+): Omit<BoutiqueDesign, 'updatedAt'> => {
+  const base = brandExists ? brandBase : (defaultDesign as any);
+
+  const merged: any = savedDesign
+    ? {
+        ...base,
+        ...savedDesign,
+        palette: { ...(base as any).palette, ...(savedDesign.palette ?? {}) },
+        fonts: { ...(base as any).fonts, ...(savedDesign.fonts ?? {}) },
+      }
+    : { ...base };
+
+  if (!brandExists) return merged;
+
+  // If user never customized away from defaults, keep these synced with Brand.
+  if ((savedDesign?.palette?.accent ?? defaultDesign.palette.accent) === defaultDesign.palette.accent) {
+    merged.palette.accent = (brandBase as any).palette.accent;
+    merged.palette.accentText = (brandBase as any).palette.accentText;
+  }
+
+  if ((savedDesign?.fonts?.heading ?? defaultDesign.fonts.heading) === defaultDesign.fonts.heading) {
+    merged.fonts.heading = (brandBase as any).fonts.heading;
+  }
+
+  if ((savedDesign?.fonts?.body ?? defaultDesign.fonts.body) === defaultDesign.fonts.body) {
+    merged.fonts.body = (brandBase as any).fonts.body;
+  }
+
+  if ((savedDesign?.fonts?.button ?? defaultDesign.fonts.button) === defaultDesign.fonts.button) {
+    merged.fonts.button = (brandBase as any).fonts.button;
+  }
+
+  return merged;
+};
+
 export default function MyBoutiquePage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
@@ -116,6 +166,7 @@ export default function MyBoutiquePage() {
 
   const { data: brandProfile, loading: brandLoading } = useDoc<any>(brandProfileRef);
 
+  // useDoc typically returns undefined while loading; null when doc doesn't exist.
   const brandResolved = brandProfile !== undefined;
 
   const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
@@ -124,7 +175,6 @@ export default function MyBoutiquePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
-  const [isBrandDataApplied, setIsBrandDataApplied] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
 
   const handleForm = useForm<HandleFormValues>({
@@ -137,7 +187,7 @@ export default function MyBoutiquePage() {
   const [selfTestResults, setSelfTestResults] = useState<
     { step: string; ok: boolean; error?: string }[]
   >([]);
-  
+
   const updateDesign = (newDesignPartial: Partial<BoutiqueDesign>) => {
     setLocalSettings((prev) => {
       const currentDesign = (prev.design as any) || defaultDesign;
@@ -180,54 +230,66 @@ export default function MyBoutiquePage() {
       setPublicUrl('');
     }
   }, [handle, handleForm]);
-  
+
   useEffect(() => {
+    // Wait until brand is resolved to avoid initializing with defaults and then never re-running.
     if (userLoading || settingsLoading || brandLoading || !brandResolved || isInitialized) return;
     if (!user || !firestore) return;
 
     const performInitialization = async () => {
-        let currentSettings = boutiqueSettings;
-        let designToUse: BoutiqueDesign;
+      let currentSettings = boutiqueSettings;
 
-        const designSourceIsBrand = !!(brandProfile && (brandProfile.brandColors?.length || brandProfile.primaryFont || brandProfile.secondaryFont));
-        setIsBrandDataApplied(designSourceIsBrand);
-        
-        const brandBase = getBoutiqueDesignDefaults(brandProfile);
+      const brandExists = hasBrandData(brandProfile);
+      const brandBase = getBoutiqueDesignDefaults(brandProfile);
 
-        if (currentSettings?.design) {
-            designToUse = {
-                ...brandBase,
-                ...currentSettings.design,
-                palette: { ...brandBase.palette, ...currentSettings.design.palette },
-                fonts: { ...brandBase.fonts, ...currentSettings.design.fonts },
-            };
-        } else {
-            designToUse = brandBase as BoutiqueDesign;
+      const savedDesign = currentSettings?.design as any | undefined;
+
+      // Compute final design for UI (brand defaults + saved customizations; brand overwrites only default-like fields)
+      const designToUse = applyBrandToDefaultDesign(savedDesign, brandBase, brandExists);
+
+      // If no settings doc exists, create one
+      if (!currentSettings) {
+        const newSettingsData = {
+          enabled: false,
+          featuredOutfitId: null,
+          handle: null,
+          design: designToUse,
+        };
+        await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
+        currentSettings = newSettingsData as unknown as BoutiqueSettings;
+      } else {
+        // If a saved design exists but is default-like, migrate it once so it stops reverting on reload.
+        if (savedDesign && JSON.stringify(savedDesign) !== JSON.stringify(designToUse)) {
+          await updateBoutiqueSettings(firestore, user.uid, { design: designToUse });
         }
 
-        if (!currentSettings) {
-            const newSettingsData = {
-                enabled: false,
-                featuredOutfitId: null,
-                handle: null,
-                design: designToUse,
-            };
-            await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
-            currentSettings = newSettingsData as unknown as BoutiqueSettings;
+        // If settings exist but design missing, set it
+        if (!currentSettings.design) {
+          await updateBoutiqueSettings(firestore, user.uid, { design: designToUse });
         }
+      }
 
-        setLocalSettings({
-            enabled: currentSettings?.enabled ?? false,
-            featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
-            design: designToUse,
-        });
+      setLocalSettings({
+        enabled: currentSettings?.enabled ?? false,
+        featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
+        design: designToUse as any,
+      });
 
-        setIsInitialized(true);
+      setIsInitialized(true);
     };
 
     performInitialization();
-  }, [user, firestore, userLoading, settingsLoading, brandLoading, brandResolved, brandProfile, boutiqueSettings, isInitialized]);
-
+  }, [
+    user,
+    firestore,
+    userLoading,
+    settingsLoading,
+    brandLoading,
+    brandResolved,
+    brandProfile,
+    boutiqueSettings,
+    isInitialized,
+  ]);
 
   // --- Handlers ---
   const handleEnabledToggle = async (enabled: boolean) => {
@@ -516,7 +578,7 @@ export default function MyBoutiquePage() {
   }
 
   const designForUI = (localSettings.design as any) || defaultDesign;
-  const normalizedFonts = getNormalizedFonts(designForUI.fonts);
+  const brandExists = hasBrandData(brandProfile);
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -676,8 +738,8 @@ export default function MyBoutiquePage() {
                 <AccordionContent className="p-6 space-y-6">
                   <div>
                     <Label className="font-semibold text-base">Boutique Colors</Label>
-                    
-                    {isBrandDataApplied ? (
+
+                    {brandExists ? (
                       <p className="text-sm text-muted-foreground mt-1 mb-3">
                         Defaults loaded from your Brand Profile.
                       </p>
@@ -740,7 +802,7 @@ export default function MyBoutiquePage() {
                           Heading Font
                         </Label>
                         <Select
-                          value={normalizedFonts.heading}
+                          value={designForUI.fonts.heading}
                           onValueChange={(value) =>
                             updateDesign({ fonts: { ...designForUI.fonts, heading: value } })
                           }
@@ -771,7 +833,7 @@ export default function MyBoutiquePage() {
                           Body Font
                         </Label>
                         <Select
-                          value={normalizedFonts.body}
+                          value={designForUI.fonts.body}
                           onValueChange={(value) =>
                             updateDesign({ fonts: { ...designForUI.fonts, body: value } })
                           }
@@ -802,7 +864,7 @@ export default function MyBoutiquePage() {
                           Button Font
                         </Label>
                         <Select
-                          value={normalizedFonts.button}
+                          value={designForUI.fonts.button}
                           onValueChange={(value) =>
                             updateDesign({ fonts: { ...designForUI.fonts, button: value } })
                           }

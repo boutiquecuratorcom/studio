@@ -4,6 +4,7 @@ import React, { useMemo } from 'react';
 import Image from 'next/image';
 import { cn } from '@/lib/utils';
 import type { PlatformFormat, TemplateId, TextLayerStyle, FrameStyle } from './PostCreatorClient';
+import { getFontByName } from '@/lib/fonts';
 
 type TextLayer = {
     text: string;
@@ -27,26 +28,8 @@ interface PostPreviewProps {
   brandProfile?: BrandProfile | null;
 }
 
-const fontOptions: { name: string, family: string }[] = [
-    { name: 'Inter', family: 'Inter, sans-serif' },
-    { name: 'Playfair Display', family: "'Playfair Display', serif" },
-    { name: 'Lora', family: "'Lora', serif" },
-    { name: 'Montserrat', family: 'Montserrat, sans-serif' },
-    { name: 'Lato', family: 'Lato, sans-serif' },
-    { name: 'Raleway', family: 'Raleway, sans-serif' },
-    { name: 'Poppins', family: 'Poppins, sans-serif' },
-    { name: 'Open Sans', family: "'Open Sans', sans-serif" },
-    { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
-    { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
-    { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
-    { name: 'Dancing Script', family: "'Dancing Script', cursive" },
-    { name: 'Great Vibes', family: "'Great Vibes', cursive" },
-    { name: 'Pacifico', family: "'Pacifico', cursive" },
-    { name: 'Lobster', family: "'Lobster', cursive" },
-];
-
 const getFontFamily = (fontName: string | undefined, defaultFont: string) => {
-  return fontOptions.find(f => f.name === fontName)?.family || defaultFont;
+  return getFontByName(fontName)?.cssFamily || defaultFont;
 };
 
 const aspectRatios: Record<PlatformFormat, string> = {

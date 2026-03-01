@@ -1,7 +1,7 @@
 'use client';
 
 import type { BrandProfile } from '@/ai/flows/schemas';
-import { DEFAULT_FONTS, getFontByName } from '@/lib/fonts';
+import { DEFAULT_FONTS, getFontByName, isButtonSafeFont } from '@/lib/fonts';
 
 // --- Interfaces ---
 
@@ -87,6 +87,9 @@ export const defaultDesign: Omit<BoutiqueDesign, 'updatedAt'> = {
 
 export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): Omit<BoutiqueDesign, 'updatedAt'> => {
   const accentColor = (brandProfile?.brandColors && brandProfile.brandColors[0]) || defaultDesign.palette.accent;
+  
+  const secondaryFont = brandProfile?.secondaryFont || DEFAULT_FONTS.body;
+  const buttonFont = isButtonSafeFont(secondaryFont) ? secondaryFont : DEFAULT_FONTS.button;
 
   return {
     ...defaultDesign,
@@ -97,8 +100,8 @@ export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): O
     },
     fonts: {
         heading: brandProfile?.primaryFont || DEFAULT_FONTS.heading,
-        body: brandProfile?.secondaryFont || DEFAULT_FONTS.body,
-        button: brandProfile?.secondaryFont || DEFAULT_FONTS.button,
+        body: secondaryFont,
+        button: buttonFont,
     },
   };
 };
