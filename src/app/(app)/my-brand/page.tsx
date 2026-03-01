@@ -210,17 +210,14 @@ function FontSelectField({
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select
-            onValueChange={(v) => field.onChange(v)}
-            value={field.value ?? ''}
-          >
+          <Select onValueChange={field.onChange} value={field.value}>
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {fonts.map((font) => (
+              {fonts.map((font: FontDefinition) => (
                 <SelectItem
                   key={font.name}
                   value={font.name}
@@ -242,6 +239,7 @@ function FontSelectField({
   );
 }
 
+
 export default function MyBrandPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
@@ -250,6 +248,7 @@ export default function MyBrandPage() {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isFormInitialized, setIsFormInitialized] = useState(false);
 
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
@@ -273,8 +272,8 @@ export default function MyBrandPage() {
       primaryGoal: undefined,
       logoUrl: '',
       brandColors: ['', '', ''],
-      primaryFont: DEFAULT_FONTS.heading,
-      secondaryFont: DEFAULT_FONTS.body,
+      primaryFont: undefined,
+      secondaryFont: undefined,
       primaryPlatform: undefined,
       postingFrequency: undefined,
       promoStyle: undefined,
@@ -282,7 +281,7 @@ export default function MyBrandPage() {
     mode: 'onSubmit',
   });
 
-  const { watch, reset, handleSubmit, formState } = form;
+  const { watch, reset, handleSubmit } = form;
   const watchedValues = watch();
 
   const completionPercent = useMemo(() => {
@@ -303,35 +302,42 @@ export default function MyBrandPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    if (brandProfileData === undefined) return; // Wait for data to be loaded
-    if (formState.isDirty) return; // Don't overwrite user edits with incoming data
+    // Only run this once, after data has loaded and the form hasn't been initialized yet.
+    if (brandProfileData !== undefined && !isFormInitialized) {
+      const data: any = brandProfileData || {};
+      const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
+      const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
+      
+      const allFontNames = new Set(ALL_FONTS.map((f) => f.name));
 
-    const data: any = brandProfileData || {};
-    const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
-    const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
+      const initialPrimaryFont = normalizeFontName(data.primaryFont, allFontNames, DEFAULT_FONTS.heading);
+      const initialSecondaryFont = normalizeFontName(data.secondaryFont, allFontNames, DEFAULT_FONTS.body);
 
-    const allFontNames = new Set(ALL_FONTS.map((f) => f.name));
+      reset({
+        brandName: data.brandName || '',
+        tagline: data.tagline || '',
+        location: data.location || '',
+        websiteUrl: data.websiteUrl || '',
+        instagramUrl: data.instagramUrl || '',
+        facebookUrl: data.facebookUrl || '',
+        toneOfVoice: data.toneOfVoice || undefined,
+        brandVibe: data.brandVibe || undefined,
+        targetCustomer: data.targetCustomer || undefined,
+        primaryGoal: data.primaryGoal || undefined,
+        logoUrl: data.logoUrl || '',
+        brandColors: paddedColors,
+        primaryFont: initialPrimaryFont,
+        secondaryFont: initialSecondaryFont,
+        primaryPlatform: data.primaryPlatform || undefined,
+        postingFrequency: data.postingFrequency || undefined,
+        promoStyle: data.promoStyle || undefined,
+      });
 
-    reset({
-      brandName: data.brandName || '',
-      tagline: data.tagline || '',
-      location: data.location || '',
-      websiteUrl: data.websiteUrl || '',
-      instagramUrl: data.instagramUrl || '',
-      facebookUrl: data.facebookUrl || '',
-      toneOfVoice: data.toneOfVoice || undefined,
-      brandVibe: data.brandVibe || undefined,
-      targetCustomer: data.targetCustomer || undefined,
-      primaryGoal: data.primaryGoal || undefined,
-      logoUrl: data.logoUrl || '',
-      brandColors: paddedColors,
-      primaryFont: normalizeFontName(data.primaryFont, allFontNames, DEFAULT_FONTS.heading),
-      secondaryFont: normalizeFontName(data.secondaryFont, allFontNames, DEFAULT_FONTS.body),
-      primaryPlatform: data.primaryPlatform || undefined,
-      postingFrequency: data.postingFrequency || undefined,
-      promoStyle: data.promoStyle || undefined,
-    });
-  }, [brandProfileData, reset, formState.isDirty]);
+      // Mark the form as initialized so this effect doesn't run again.
+      setIsFormInitialized(true);
+    }
+  }, [brandProfileData, isFormInitialized, reset]);
+
 
   // --- Handlers ---
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -384,30 +390,21 @@ export default function MyBrandPage() {
     }
 
     setIsSaving(true);
-
-    const allFontNames = new Set(ALL_FONTS.map((f) => f.name));
-    const normalizedPrimaryFont = normalizeFontName(
-      data.primaryFont,
-      allFontNames,
-      DEFAULT_FONTS.heading
-    );
-    const normalizedSecondaryFont = normalizeFontName(
-      data.secondaryFont,
-      allFontNames,
-      DEFAULT_FONTS.body
-    );
-
+    
+    // Normalize colors before saving
     const normalizedColors = (data.brandColors || [])
       .map((c) => normalizeHexColor(c))
       .filter((c) => !!c);
 
+    // Create a payload that only includes defined values to avoid overwriting with undefined
     const payload: Record<string, any> = {};
     Object.entries(data).forEach(([key, value]) => {
-      if (value !== undefined) payload[key] = value;
+      if (value !== undefined) {
+        payload[key] = value;
+      }
     });
 
-    payload.primaryFont = normalizedPrimaryFont;
-    payload.secondaryFont = normalizedSecondaryFont;
+    // Ensure the cleaned color array is in the payload
     payload.brandColors = normalizedColors;
 
     try {
@@ -421,6 +418,11 @@ export default function MyBrandPage() {
         title: 'My Brand Saved!',
         description: 'Your changes have been saved.',
       });
+
+      // After successful save, reset the form with the data that was just saved
+      // This marks the form as "clean" and aligns its state with the database
+      form.reset(data);
+
     } catch (error: any) {
       console.error('Firestore save error:', error);
       toast({
@@ -434,7 +436,7 @@ export default function MyBrandPage() {
   };
 
 
-  if (userLoading || dataLoading) {
+  if (userLoading || dataLoading || !isFormInitialized) {
     return (
       <div className="flex-1 p-8 sm:p-10 lg:p-12">
         <header className="mb-12">
