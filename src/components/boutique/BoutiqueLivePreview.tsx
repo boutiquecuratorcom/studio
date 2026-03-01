@@ -1,17 +1,14 @@
 'use client';
 
 import { type Outfit } from '@/lib/outfits';
-import { type BoutiqueDesign } from '@/lib/boutique-design';
 import { BoutiqueRenderer } from './BoutiqueRenderer';
 
 export const BoutiqueLivePreview = ({
   brandProfile,
   featuredOutfit,
-  design,
 }: {
   brandProfile: any;
   featuredOutfit: Outfit | undefined;
-  design: Partial<BoutiqueDesign>;
 }) => {
   
   const featuredOutfitSummary = featuredOutfit ? {
@@ -27,7 +24,6 @@ export const BoutiqueLivePreview = ({
     <BoutiqueRenderer
       brandProfile={brandProfile}
       featuredOutfit={featuredOutfitSummary}
-      design={design}
     />
   );
 };

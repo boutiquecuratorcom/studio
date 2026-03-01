@@ -19,22 +19,8 @@ import {
   handleSchema,
 } from '@/lib/boutique';
 
-import {
-  type BoutiqueDesign,
-  getContrastingTextColor,
-  defaultDesign,
-  getBoutiqueDesignDefaults,
-} from '@/lib/boutique-design';
-
 import { useToast } from '@/hooks/use-toast';
 import { isAdminEmail } from '@/lib/admin';
-import {
-  ALL_FONTS,
-  BUTTON_SAFE_FONTS,
-  DEFAULT_FONTS,
-  getNormalizedFonts,
-  isButtonSafeFont,
-} from '@/lib/fonts';
 
 import {
   Card,
@@ -75,9 +61,6 @@ import {
   Save,
   Settings2,
   XCircle,
-  Heart,
-  Type,
-  CaseSensitive,
 } from 'lucide-react';
 
 import {
@@ -90,105 +73,8 @@ import {
 } from 'firebase/firestore';
 
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Separator } from '@/components/ui/separator';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
-
-const hasBrandData = (brandProfile: any | null | undefined) => {
-  return !!(
-    brandProfile &&
-    ((Array.isArray(brandProfile.brandColors) && brandProfile.brandColors.length > 0) ||
-      !!brandProfile.primaryFont ||
-      !!brandProfile.secondaryFont)
-  );
-};
-
-const normalizeDesignFonts = (
-  design: Omit<BoutiqueDesign, 'updatedAt'>
-): Omit<BoutiqueDesign, 'updatedAt'> => {
-  const normalized = getNormalizedFonts(design.fonts);
-  const safeButton = isButtonSafeFont(normalized.button)
-    ? normalized.button
-    : DEFAULT_FONTS.button;
-
-  return {
-    ...design,
-    fonts: {
-      heading: normalized.heading,
-      body: normalized.body,
-      button: safeButton,
-    },
-  };
-};
-
-/**
- * Key behavior:
- * - We start from brand-derived base design if brand exists, else defaultDesign.
- * - If a saved boutique design exists, merge it on top (user customizations win).
- * - BUT: for "default-like" fields, keep them synced to Brand (so Brand updates flow through).
- * - Always normalize fonts so selects never go blank.
- */
-const applyBrandToDefaultDesign = (
-  savedDesign: any | undefined,
-  brandBase: Omit<BoutiqueDesign, 'updatedAt'>,
-  brandExists: boolean
-): Omit<BoutiqueDesign, 'updatedAt'> => {
-  const base = brandExists ? brandBase : (defaultDesign as any);
-
-  const merged: any = savedDesign
-    ? {
-        ...base,
-        ...savedDesign,
-        palette: { ...(base as any).palette, ...(savedDesign.palette ?? {}) },
-        fonts: { ...(base as any).fonts, ...(savedDesign.fonts ?? {}) },
-      }
-    : { ...base };
-
-  if (!brandExists) {
-    return normalizeDesignFonts(merged);
-  }
-
-  // Keep these synced with Brand only if user never customized away from defaults.
-  if (
-    (savedDesign?.palette?.accent ?? defaultDesign.palette.accent) ===
-    defaultDesign.palette.accent
-  ) {
-    merged.palette.accent = (brandBase as any).palette.accent;
-    merged.palette.accentText = (brandBase as any).palette.accentText;
-  }
-
-  if (
-    (savedDesign?.fonts?.heading ?? defaultDesign.fonts.heading) ===
-    defaultDesign.fonts.heading
-  ) {
-    merged.fonts.heading = (brandBase as any).fonts.heading;
-  }
-
-  if (
-    (savedDesign?.fonts?.body ?? defaultDesign.fonts.body) ===
-    defaultDesign.fonts.body
-  ) {
-    merged.fonts.body = (brandBase as any).fonts.body;
-  }
-
-  // Button font: if default-like OR invalid/not-safe, keep it synced to brandBase's button (which we will normalize)
-  const savedButton = savedDesign?.fonts?.button;
-  const isDefaultLikeButton =
-    (savedButton ?? defaultDesign.fonts.button) === defaultDesign.fonts.button;
-  const isInvalidOrUnsafeButton = !savedButton || !isButtonSafeFont(savedButton);
-
-  if (isDefaultLikeButton || isInvalidOrUnsafeButton) {
-    merged.fonts.button = (brandBase as any).fonts.button;
-  }
-
-  return normalizeDesignFonts(merged);
-};
 
 export default function MyBoutiquePage() {
   const { user, loading: userLoading } = useUser();
@@ -204,23 +90,16 @@ export default function MyBoutiquePage() {
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
   }, [user, firestore]);
 
-  const { data: brandProfile, loading: brandLoading } =
-    useDoc<any>(brandProfileRef);
-
-  // useDoc typically returns undefined while loading; null when doc doesn't exist.
-  const brandResolved = brandProfile !== undefined;
+  const { data: brandProfile, loading: brandLoading } = useDoc<any>(brandProfileRef);
 
   const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
 
-  const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>(
-    {}
-  );
+  const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
 
-  // HARD guard against async re-entry / double init (prevents the “fonts flicker then revert” issue)
   const initStartedRef = useRef(false);
   const isMountedRef = useRef(true);
 
@@ -242,51 +121,6 @@ export default function MyBoutiquePage() {
     { step: string; ok: boolean; error?: string }[]
   >([]);
 
-  const updateDesign = (newDesignPartial: Partial<BoutiqueDesign>) => {
-    setLocalSettings((prev) => {
-      const currentDesign = (prev.design as any) || defaultDesign;
-
-      const mergedDesign: BoutiqueDesign = {
-        ...currentDesign,
-        ...newDesignPartial,
-        palette: {
-          ...currentDesign.palette,
-          ...(newDesignPartial as any).palette,
-        },
-        fonts: {
-          ...currentDesign.fonts,
-          ...(newDesignPartial as any).fonts,
-        },
-      };
-
-      // Ensure fonts never become invalid/blank
-      const normalizedFonts = getNormalizedFonts(mergedDesign.fonts);
-      mergedDesign.fonts = {
-        heading: normalizedFonts.heading,
-        body: normalizedFonts.body,
-        button: isButtonSafeFont(normalizedFonts.button)
-          ? normalizedFonts.button
-          : DEFAULT_FONTS.button,
-      };
-
-      return {
-        ...prev,
-        design: mergedDesign,
-      };
-    });
-  };
-
-  const updatePalette = (newPalette: Partial<BoutiqueDesign['palette']>) => {
-    updateDesign({
-      palette: {
-        ...(((localSettings.design as any)?.palette ||
-          defaultDesign.palette) as any),
-        ...newPalette,
-      } as any,
-    });
-  };
-
-  // --- Effects ---
   useEffect(() => {
     if (handle?.handle) {
       handleForm.reset({ handle: handle.handle });
@@ -297,59 +131,24 @@ export default function MyBoutiquePage() {
   }, [handle, handleForm]);
 
   useEffect(() => {
-    // Wait until all sources are resolved
-    if (userLoading || settingsLoading || brandLoading || !brandResolved) return;
+    if (userLoading || settingsLoading || brandLoading) return;
     if (!user || !firestore) return;
-
-    // HARD guard: never allow init to run twice (even while async work is in-flight)
     if (initStartedRef.current) return;
+
     initStartedRef.current = true;
 
     const performInitialization = async () => {
       try {
         let currentSettings = boutiqueSettings;
 
-        const brandExists = hasBrandData(brandProfile);
-
-        // brandBase comes from boutique-design.ts; normalize fonts afterward
-        const rawBrandBase = getBoutiqueDesignDefaults(brandProfile);
-        const brandBase = normalizeDesignFonts(rawBrandBase as any);
-
-        const savedDesign = currentSettings?.design as any | undefined;
-
-        const designToUse = applyBrandToDefaultDesign(
-          savedDesign,
-          brandBase,
-          brandExists
-        );
-
-        // If no settings doc exists, create one
         if (!currentSettings) {
           const newSettingsData = {
             enabled: false,
             featuredOutfitId: null,
             handle: null,
-            design: designToUse,
           };
           await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
           currentSettings = newSettingsData as unknown as BoutiqueSettings;
-        } else {
-          // If a saved design exists but differs from computed designToUse, migrate it once
-          if (
-            savedDesign &&
-            JSON.stringify(savedDesign) !== JSON.stringify(designToUse)
-          ) {
-            await updateBoutiqueSettings(firestore, user.uid, {
-              design: designToUse,
-            });
-          }
-
-          // If settings exist but design missing, set it
-          if (!currentSettings.design) {
-            await updateBoutiqueSettings(firestore, user.uid, {
-              design: designToUse,
-            });
-          }
         }
 
         if (!isMountedRef.current) return;
@@ -357,12 +156,10 @@ export default function MyBoutiquePage() {
         setLocalSettings({
           enabled: currentSettings?.enabled ?? false,
           featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
-          design: designToUse as any,
         });
 
         setIsInitialized(true);
       } catch (e) {
-        // If init fails, allow retry on next render
         initStartedRef.current = false;
         throw e;
       }
@@ -375,12 +172,9 @@ export default function MyBoutiquePage() {
     userLoading,
     settingsLoading,
     brandLoading,
-    brandResolved,
-    brandProfile,
     boutiqueSettings,
   ]);
 
-  // --- Handlers ---
   const handleEnabledToggle = async (enabled: boolean) => {
     if (!user || !firestore) return;
 
@@ -390,7 +184,6 @@ export default function MyBoutiquePage() {
         title: 'Cannot go live',
         description: 'You must claim a public handle first.',
       });
-      console.error('Attempted to go live without a handle.');
       return;
     }
 
@@ -420,14 +213,11 @@ export default function MyBoutiquePage() {
         description: `Your boutique is now ${enabled ? 'live' : 'private'}.`,
       });
     } catch (e: any) {
-      console.error('[MyBoutique] Failed to toggle status:', e);
       toast({
         variant: 'destructive',
         title: 'Update Failed',
         description: e.message,
       });
-
-      // Revert local state if toggle failed
       setLocalSettings((prev) => ({ ...prev, enabled: !enabled }));
     } finally {
       setIsSyncing(false);
@@ -439,16 +229,11 @@ export default function MyBoutiquePage() {
 
     setIsSaving(true);
     try {
-      const designNormalized = normalizeDesignFonts(
-        ((localSettings.design as any) || defaultDesign) as any
-      );
-
       const settingsToSave: Partial<BoutiqueSettings> = {
         featuredOutfitId:
           localSettings.featuredOutfitId === 'auto'
             ? null
             : (localSettings.featuredOutfitId as any),
-        design: designNormalized as any,
       };
 
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
@@ -459,7 +244,6 @@ export default function MyBoutiquePage() {
 
       toast({ title: 'Configuration Saved!' });
     } catch (e: any) {
-      console.error('[MyBoutique] Failed to save config:', e);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
@@ -495,7 +279,6 @@ export default function MyBoutiquePage() {
         });
       }
     } catch (e: any) {
-      console.error('Handle transaction failed:', e);
       handleForm.setError('handle', { type: 'manual', message: e.message });
     }
   };
@@ -522,11 +305,7 @@ export default function MyBoutiquePage() {
     try {
       await runTransaction(firestore, async (transaction) => {
         const testHandleRef = doc(firestore, 'handles', randomHandle);
-        const testPublicBoutiqueRef = doc(
-          firestore,
-          'publicBoutiques',
-          randomHandle
-        );
+        const testPublicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
 
         const testHandleSnap = await transaction.get(testHandleRef);
         if (testHandleSnap.exists())
@@ -605,14 +384,6 @@ export default function MyBoutiquePage() {
     }
   };
 
-  const handleAccentColorChange = (color: string) => {
-    updatePalette({
-      accent: color,
-      accentText: getContrastingTextColor(color),
-    });
-  };
-
-  // --- Derived State & Memos ---
   const loading =
     userLoading || !isInitialized || outfitsLoading || brandLoading || handleLoading;
 
@@ -628,26 +399,16 @@ export default function MyBoutiquePage() {
   }, [localSettings.featuredOutfitId, outfits]);
 
   const isConfigDirty = useMemo(() => {
-    if (!boutiqueSettings || !localSettings?.design) return false;
-
-    const settingsDirty =
-      (localSettings.featuredOutfitId || 'auto') !==
+    if (!boutiqueSettings) return false;
+    return (localSettings.featuredOutfitId || 'auto') !==
       (boutiqueSettings.featuredOutfitId || 'auto');
-
-    const designDirty =
-      JSON.stringify(localSettings.design) !== JSON.stringify(boutiqueSettings.design);
-
-    return settingsDirty || designDirty;
   }, [localSettings, boutiqueSettings]);
 
   const renderHeader = () => (
     <header className="mb-12">
-      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
-        My Boutique
-      </h1>
+      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">My Boutique</h1>
       <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
-        Your personal boutique showcase. When you&apos;re ready, share it with the
-        world.
+        Your personal boutique showcase. When you&apos;re ready, share it with the world.
       </p>
     </header>
   );
@@ -668,11 +429,6 @@ export default function MyBoutiquePage() {
       </div>
     );
   }
-
-  const designForUI = normalizeDesignFonts(
-    ((localSettings.design as any) || defaultDesign) as any
-  );
-  const brandExists = hasBrandData(brandProfile);
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -701,9 +457,7 @@ export default function MyBoutiquePage() {
               </div>
 
               <p className="text-sm text-muted-foreground mt-3 px-1">
-                {localSettings.enabled
-                  ? 'Your boutique is public.'
-                  : 'Your boutique is private.'}
+                {localSettings.enabled ? 'Your boutique is public.' : 'Your boutique is private.'}
               </p>
 
               {!handle && (
@@ -711,8 +465,7 @@ export default function MyBoutiquePage() {
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Handle Required</AlertTitle>
                   <AlertDescription>
-                    You must claim a public handle before your boutique can go
-                    live.
+                    You must claim a public handle before your boutique can go live.
                   </AlertDescription>
                 </Alert>
               )}
@@ -721,312 +474,8 @@ export default function MyBoutiquePage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Public Handle</CardTitle>
-              <CardDescription>
-                This becomes your public link: /boutique/your-handle
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Form {...handleForm}>
-                <form
-                  onSubmit={handleForm.handleSubmit(onClaimSubmit)}
-                  className="space-y-4"
-                >
-                  <FormField
-                    control={handleForm.control}
-                    name="handle"
-                    render={({ field }) => (
-                      <FormItem>
-                        <div className="flex items-center">
-                          <span className="text-sm text-muted-foreground bg-muted border border-r-0 rounded-l-md px-3 h-10 flex items-center">
-                            .../boutique/
-                          </span>
-                          <FormControl>
-                            <Input
-                              placeholder="your-handle"
-                              {...field}
-                              className="rounded-l-none"
-                              disabled={
-                                !!localSettings.enabled ||
-                                handleForm.formState.isSubmitting
-                              }
-                            />
-                          </FormControl>
-                        </div>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-
-                  <div className="flex flex-col gap-4">
-                    <Button
-                      type="submit"
-                      disabled={
-                        !!localSettings.enabled ||
-                        handleForm.formState.isSubmitting ||
-                        !handleForm.formState.isDirty
-                      }
-                    >
-                      {handleForm.formState.isSubmitting ? (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      ) : null}
-                      {handle ? 'Update Handle' : 'Claim Handle'}
-                    </Button>
-
-                    {localSettings.enabled && (
-                      <p className="text-xs text-muted-foreground text-center">
-                        Disable &quot;Boutique is Live&quot; to change your
-                        handle.
-                      </p>
-                    )}
-                  </div>
-                </form>
-              </Form>
-            </CardContent>
-          </Card>
-
-          {publicUrl && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Public URL</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center space-x-2 rounded-lg border p-2 pl-3 bg-muted/50">
-                  <Globe className="h-4 w-4 text-muted-foreground" />
-                  <p className="text-sm text-muted-foreground font-mono flex-grow truncate">
-                    {new URL(publicUrl).pathname}
-                  </p>
-                </div>
-
-                <Button
-                  variant="outline"
-                  className="w-full justify-between"
-                  asChild
-                >
-                  <Link href={publicUrl} target="_blank">
-                    Visit Public Page <ExternalLink className="h-4 w-4" />
-                  </Link>
-                </Button>
-
-                <Button
-                  variant="outline"
-                  className="w-full justify-between"
-                  onClick={() => {
-                    navigator.clipboard.writeText(publicUrl);
-                    toast({ title: 'Link Copied!' });
-                  }}
-                >
-                  Copy Link <Copy className="h-4 w-4" />
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          <Accordion type="multiple" defaultValue={['design']} className="w-full">
-            <AccordionItem value="design" className="border-none">
-              <Card>
-                <AccordionTrigger className="p-6 border-b">
-                  <CardHeader className="p-0 flex-row items-center gap-4 text-left">
-                    <Settings2 className="h-6 w-6 text-accent" />
-                    <div>
-                      <CardTitle>Boutique Style Foundation</CardTitle>
-                      <CardDescription className="mt-1">
-                        Define your brand&apos;s visual identity.
-                      </CardDescription>
-                    </div>
-                  </CardHeader>
-                </AccordionTrigger>
-
-                <AccordionContent className="p-6 space-y-6">
-                  <div>
-                    <Label className="font-semibold text-base">
-                      Boutique Colors
-                    </Label>
-
-                    {brandExists ? (
-                      <p className="text-sm text-muted-foreground mt-1 mb-3">
-                        Defaults loaded from your Brand Profile.
-                      </p>
-                    ) : (
-                      <Alert className="mt-2">
-                        <Heart className="h-4 w-4" />
-                        <AlertTitle>Using Defaults</AlertTitle>
-                        <AlertDescription>
-                          <Link href="/my-brand" className="underline">
-                            Complete your Brand Profile
-                          </Link>{' '}
-                          for better results.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    <div className="space-y-4 mt-4">
-                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 items-center">
-                        <Label htmlFor="bg-color">Background</Label>
-                        <Input
-                          id="bg-color"
-                          type="color"
-                          value={
-                            designForUI.palette.background ||
-                            defaultDesign.palette.background
-                          }
-                          onChange={(e) =>
-                            updatePalette({ background: e.target.value })
-                          }
-                          className="w-full h-10 p-1"
-                        />
-
-                        <Label htmlFor="surface-color">Surface</Label>
-                        <Input
-                          id="surface-color"
-                          type="color"
-                          value={
-                            designForUI.palette.surface ||
-                            defaultDesign.palette.surface
-                          }
-                          onChange={(e) =>
-                            updatePalette({ surface: e.target.value })
-                          }
-                          className="w-full h-10 p-1"
-                        />
-
-                        <Label htmlFor="accent-color">Accent</Label>
-                        <Input
-                          id="accent-color"
-                          type="color"
-                          value={
-                            designForUI.palette.accent ||
-                            defaultDesign.palette.accent
-                          }
-                          onChange={(e) =>
-                            handleAccentColorChange(e.target.value)
-                          }
-                          className="w-full h-10 p-1"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <Label className="font-semibold text-base">Typography</Label>
-                    <div className="space-y-4 mt-4">
-                      <div>
-                        <Label
-                          htmlFor="heading-font"
-                          className="text-sm text-muted-foreground flex items-center gap-2"
-                        >
-                          <CaseSensitive className="h-4 w-4" />
-                          Heading Font
-                        </Label>
-                        <Select
-                          value={designForUI.fonts.heading}
-                          onValueChange={(value) =>
-                            updateDesign({
-                              fonts: { ...designForUI.fonts, heading: value },
-                            })
-                          }
-                        >
-                          <SelectTrigger id="heading-font" className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ALL_FONTS.map((font) => (
-                              <SelectItem
-                                key={font.name}
-                                value={font.name}
-                                style={{ fontFamily: font.cssFamily }}
-                              >
-                                {font.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label
-                          htmlFor="body-font"
-                          className="text-sm text-muted-foreground flex items-center gap-2"
-                        >
-                          <Type className="h-4 w-4" />
-                          Body Font
-                        </Label>
-                        <Select
-                          value={designForUI.fonts.body}
-                          onValueChange={(value) =>
-                            updateDesign({
-                              fonts: { ...designForUI.fonts, body: value },
-                            })
-                          }
-                        >
-                          <SelectTrigger id="body-font" className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {ALL_FONTS.map((font) => (
-                              <SelectItem
-                                key={font.name}
-                                value={font.name}
-                                style={{ fontFamily: font.cssFamily }}
-                              >
-                                {font.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-
-                      <div>
-                        <Label
-                          htmlFor="button-font"
-                          className="text-sm text-muted-foreground flex items-center gap-2"
-                        >
-                          <Type className="h-4 w-4" />
-                          Button Font (button-safe only)
-                        </Label>
-                        <Select
-                          value={designForUI.fonts.button}
-                          onValueChange={(value) =>
-                            updateDesign({
-                              fonts: { ...designForUI.fonts, button: value },
-                            })
-                          }
-                        >
-                          <SelectTrigger id="button-font" className="mt-1">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {BUTTON_SAFE_FONTS.map((font) => (
-                              <SelectItem
-                                key={font.name}
-                                value={font.name}
-                                style={{ fontFamily: font.cssFamily }}
-                              >
-                                {font.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <p className="text-xs text-muted-foreground mt-2">
-                          We prevent hard-to-read fonts here on purpose (no
-                          cursive/handwriting, no extreme display).
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </AccordionContent>
-              </Card>
-            </AccordionItem>
-          </Accordion>
-
-          <Card>
-            <CardHeader>
               <CardTitle>Page Content</CardTitle>
-              <CardDescription>
-                Choose what to feature on your boutique page.
-              </CardDescription>
+              <CardDescription>Choose what to feature on your boutique page.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -1034,19 +483,14 @@ export default function MyBoutiquePage() {
                 <Select
                   value={(localSettings.featuredOutfitId as any) || 'auto'}
                   onValueChange={(v) =>
-                    setLocalSettings((prev) => ({
-                      ...prev,
-                      featuredOutfitId: v as any,
-                    }))
+                    setLocalSettings((prev) => ({ ...prev, featuredOutfitId: v as any }))
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="Select an outfit..." />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="auto">
-                      Auto (newest published look)
-                    </SelectItem>
+                    <SelectItem value="auto">Auto (newest published look)</SelectItem>
                     {outfits?.map((outfit) => (
                       <SelectItem key={outfit.id} value={outfit.id}>
                         {outfit.title}
@@ -1077,14 +521,8 @@ export default function MyBoutiquePage() {
                 <CardTitle>Admin Tools</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <Button
-                  onClick={handleSelfTest}
-                  disabled={isTesting}
-                  className="w-full"
-                >
-                  {isTesting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : null}
+                <Button onClick={handleSelfTest} disabled={isTesting} className="w-full">
+                  {isTesting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Run Boutique Self-Test
                 </Button>
 
@@ -1095,9 +533,7 @@ export default function MyBoutiquePage() {
                       {selfTestResults.map((result, i) => (
                         <li
                           key={i}
-                          className={`flex items-center gap-2 ${
-                            !result.ok ? 'text-destructive' : ''
-                          }`}
+                          className={`flex items-center gap-2 ${!result.ok ? 'text-destructive' : ''}`}
                         >
                           {result.ok ? (
                             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -1106,9 +542,7 @@ export default function MyBoutiquePage() {
                           )}
                           <span>{result.step}</span>
                           {result.error && (
-                            <span className="font-mono text-destructive/80">
-                              - {result.error}
-                            </span>
+                            <span className="font-mono text-destructive/80">- {result.error}</span>
                           )}
                         </li>
                       ))}
@@ -1131,7 +565,6 @@ export default function MyBoutiquePage() {
               <BoutiqueLivePreview
                 brandProfile={brandProfile}
                 featuredOutfit={featuredOutfit}
-                design={designForUI}
               />
             </CardContent>
           </Card>
@@ -1140,4 +573,3 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
-

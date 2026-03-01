@@ -13,7 +13,6 @@ import {
   where,
   limit,
   getDocs,
-  writeBatch,
   deleteDoc,
   updateDoc,
   orderBy,
@@ -23,8 +22,7 @@ import { useMemo } from 'react';
 import type { User } from 'firebase/auth';
 import { z } from 'zod';
 import type { BrandProfile } from '@/ai/flows/schemas';
-import { useOutfits, type Outfit, type OutfitClaim } from './outfits';
-import { type BoutiqueDesign, defaultDesign, getBoutiqueDesignDefaults } from './boutique-design';
+import { type Outfit, type OutfitClaim } from './outfits';
 
 // ---- Helpers ----
 type AnyRecord = Record<string, any>;
@@ -46,7 +44,6 @@ export interface BoutiqueSettings extends DocumentData {
   featuredOutfitId: string | null;
   handle: string | null;
   updatedAt?: any;
-  design: BoutiqueDesign;
 }
 
 export interface HandleMapping {
@@ -73,7 +70,6 @@ export interface PublicBoutiqueProfile {
     itemCount: number | null;
     outfitClaim: OutfitClaim | null;
   } | null;
-  design: Partial<BoutiqueDesign>;
   updatedAt: any;
 }
 
@@ -131,7 +127,6 @@ export const useBoutiqueSettings = (userId: string | null) => {
     if (!userId || !firestore) return null;
     return doc(firestore, `users/${userId}/boutiqueSettings/main`);
   }, [userId, firestore]);
-
   return useDoc<BoutiqueSettings>(docRef as any);
 };
 
@@ -141,7 +136,6 @@ export const useUserHandle = (userId: string | null) => {
     if (!userId || !firestore) return null;
     return query(collection(firestore, 'handles'), where('uid', '==', userId), limit(1));
   }, [userId, firestore]);
-
   const { data, ...rest } = useCollection<HandleMapping>(q as any, 'handles');
   return { handle: data?.[0], ...rest };
 };
@@ -152,7 +146,6 @@ export const usePublicBoutiqueByHandle = (handle: string | null) => {
     if (!handle || !firestore) return null;
     return doc(firestore, 'publicBoutiques', handle);
   }, [handle, firestore]);
-
   return useDoc<PublicBoutiqueProfile>(docRef as any);
 };
 
@@ -168,37 +161,45 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
 
   await runTransaction(firestore, async (transaction) => {
     const [userHandleSnap, newHandleSnap] = await Promise.all([
-        getDocs(userHandleQuery),
-        transaction.get(newHandleRef)
+      getDocs(userHandleQuery),
+      transaction.get(newHandleRef),
     ]);
-    
+
     if (newHandleSnap.exists()) {
       const handleData = asRecord(newHandleSnap.data());
       if (handleData.uid !== user.uid) {
         throw new Error('This handle is already taken. Please choose another.');
       }
     } else if (!userHandleSnap.empty) {
-        const existingHandle = userHandleSnap.docs[0].id;
-        if (existingHandle !== handle) {
-           throw new Error(`You already have a handle (${existingHandle}). You can only have one.`);
-        }
+      const existingHandle = userHandleSnap.docs[0].id;
+      if (existingHandle !== handle) {
+        throw new Error(`You already have a handle (${existingHandle}). You can only have one.`);
+      }
     }
 
     const now = serverTimestamp();
 
-    transaction.set(newHandleRef, {
-      uid: user.uid,
-      handle,
-      createdAt: asRecord(newHandleSnap.data()).createdAt || now,
-      updatedAt: now,
-    }, { merge: true });
+    transaction.set(
+      newHandleRef,
+      {
+        uid: user.uid,
+        handle,
+        createdAt: asRecord(newHandleSnap.data()).createdAt || now,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
 
-    transaction.set(publicBoutiqueRef, {
-      uid: user.uid,
-      handle,
-      enabled: false,
-      updatedAt: now,
-    }, { merge: true });
+    transaction.set(
+      publicBoutiqueRef,
+      {
+        uid: user.uid,
+        handle,
+        enabled: false,
+        updatedAt: now,
+      },
+      { merge: true }
+    );
   });
 
   await setDoc(settingsRef, { handle }, { merge: true });
@@ -213,9 +214,7 @@ export const updateHandleTransaction = async (
 ) => {
   handleSchema.parse({ handle: newHandle });
 
-  if (newHandle === oldHandle) {
-    return; // No changes needed if the handle is the same
-  }
+  if (newHandle === oldHandle) return;
 
   const oldHandleRef = doc(firestore, 'handles', oldHandle);
   const newHandleRef = doc(firestore, 'handles', newHandle);
@@ -225,8 +224,8 @@ export const updateHandleTransaction = async (
 
   await runTransaction(firestore, async (transaction) => {
     const [oldHandleSnap, newHandleSnap] = await Promise.all([
-        transaction.get(oldHandleRef),
-        transaction.get(newHandleRef)
+      transaction.get(oldHandleRef),
+      transaction.get(newHandleRef),
     ]);
 
     const oldHandleData = asRecord(oldHandleSnap.data());
@@ -247,19 +246,19 @@ export const updateHandleTransaction = async (
       createdAt: oldHandleData.createdAt || now,
       updatedAt: now,
     });
-    
+
     transaction.delete(oldHandleRef);
 
     const oldPublicDataSnap = await transaction.get(oldPublicBoutiqueRef);
     if (oldPublicDataSnap.exists()) {
       const newPublicBoutiqueRef = doc(firestore, 'publicBoutiques', newHandle);
       const publicDataToMigrate = {
-          ...asRecord(oldPublicDataSnap.data()),
-          uid: user.uid,
-          handle: newHandle,
-          updatedAt: now,
+        ...asRecord(oldPublicDataSnap.data()),
+        uid: user.uid,
+        handle: newHandle,
+        updatedAt: now,
       };
-      
+
       transaction.set(newPublicBoutiqueRef, publicDataToMigrate);
       transaction.delete(oldPublicBoutiqueRef);
     }
@@ -276,26 +275,21 @@ export const updateBoutiqueSettings = async (
 ) => {
   const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   const docSnap = await getDoc(settingsRef);
-  
+
   if (!docSnap.exists()) {
     await setDoc(settingsRef, {
       enabled: false,
       featuredOutfitId: null,
       handle: null,
       ...data,
-      design: data.design || defaultDesign,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
   } else {
     const updateData: any = { ...data, updatedAt: serverTimestamp() };
-    if (data.design) {
-      updateData.design = { ...data.design, updatedAt: serverTimestamp() };
-    }
     await setDoc(settingsRef, updateData, { merge: true });
   }
 };
-
 
 export const syncPublicBoutiqueData = async (
   firestore: Firestore,
@@ -308,7 +302,7 @@ export const syncPublicBoutiqueData = async (
 
   const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   const brandRef = doc(firestore, `users/${userId}/brandProfile/main`);
-  
+
   const outfitsQuery = query(
     collection(firestore, 'outfits'),
     where('ownerId', '==', userId),
@@ -323,16 +317,16 @@ export const syncPublicBoutiqueData = async (
 
   const settings = (settingsSnap.data() ?? {}) as Partial<BoutiqueSettings>;
   const brandProfile = (brandSnap.data() ?? {}) as BrandProfilePublicBits;
-  
+
   let featuredOutfit: Outfit | null = null;
   const outfitDocs = outfitsSnap.docs;
-
   const pickOutfitFromDoc = (d: any): Outfit => ({ id: d.id, ...asRecord(d.data()) } as Outfit);
 
   if (settings.featuredOutfitId && settings.featuredOutfitId !== 'auto') {
     const outfitDoc = outfitDocs.find((d) => d.id === settings.featuredOutfitId);
     if (outfitDoc) featuredOutfit = pickOutfitFromDoc(outfitDoc);
-  } 
+  }
+
   if (!featuredOutfit) {
     const firstPublished = outfitDocs.find((d) => asRecord(d.data()).status === 'published');
     if (firstPublished) featuredOutfit = pickOutfitFromDoc(firstPublished);
@@ -352,11 +346,12 @@ export const syncPublicBoutiqueData = async (
           title: featuredOutfit.title ?? null,
           imageUrl: featuredOutfit.cover?.imageUrl ?? null,
           description: featuredOutfit.storefrontDescription ?? null,
-          itemCount: Array.isArray(featuredOutfit.linkedRackItemIds) ? featuredOutfit.linkedRackItemIds.length : 0,
+          itemCount: Array.isArray(featuredOutfit.linkedRackItemIds)
+            ? featuredOutfit.linkedRackItemIds.length
+            : 0,
           outfitClaim: featuredOutfit.outfitClaim ?? null,
         }
       : null,
-    design: settings.design ?? defaultDesign,
   };
 
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
