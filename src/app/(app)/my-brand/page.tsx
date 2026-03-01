@@ -51,7 +51,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -62,6 +62,7 @@ import {
   getFontByName,
   normalizeFontName,
 } from '@/lib/fonts';
+import { logBrandProfile } from '@/lib/debug/logBrandProfile';
 
 /**
  * Accepts:
@@ -198,6 +199,8 @@ export default function MyBrandPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
+  const hasLoggedRef = useRef(false);
+
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
@@ -229,7 +232,7 @@ export default function MyBrandPage() {
     mode: 'onSubmit',
   });
 
-  const { watch, reset, handleSubmit } = form;
+  const { watch, reset, handleSubmit, formState } = form;
   const watchedValues = watch();
 
   const completionPercent = useMemo(() => {
@@ -251,6 +254,13 @@ export default function MyBrandPage() {
 
   useEffect(() => {
     if (brandProfileData) {
+      if (!hasLoggedRef.current) {
+        logBrandProfile(brandProfileData, 'MyBrandPage');
+        hasLoggedRef.current = true;
+      }
+      // If the form has unsaved changes, don't overwrite the user's input
+      if (formState.isDirty) return;
+
       const data: any = brandProfileData;
       const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
       const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
@@ -279,7 +289,7 @@ export default function MyBrandPage() {
         promoStyle: data.promoStyle || undefined,
       });
     }
-  }, [brandProfileData, reset]);
+  }, [brandProfileData, reset, formState.isDirty]);
 
 
   // --- Handlers ---

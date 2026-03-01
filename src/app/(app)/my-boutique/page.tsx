@@ -21,6 +21,7 @@ import {
 
 import { useToast } from '@/hooks/use-toast';
 import { isAdminEmail } from '@/lib/admin';
+import { logBrandProfile } from '@/lib/debug/logBrandProfile';
 
 import {
   Card,
@@ -101,6 +102,7 @@ export default function MyBoutiquePage() {
   const [publicUrl, setPublicUrl] = useState('');
 
   const initStartedRef = useRef(false);
+  const hasLoggedRef = useRef(false);
   const isMountedRef = useRef(true);
 
   useEffect(() => {
@@ -120,6 +122,13 @@ export default function MyBoutiquePage() {
   const [selfTestResults, setSelfTestResults] = useState<
     { step: string; ok: boolean; error?: string }[]
   >([]);
+  
+  useEffect(() => {
+    if (brandProfile && !hasLoggedRef.current) {
+      logBrandProfile(brandProfile, 'MyBoutiquePage');
+      hasLoggedRef.current = true;
+    }
+  }, [brandProfile]);
 
   useEffect(() => {
     if (handle?.handle) {
