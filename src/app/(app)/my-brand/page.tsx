@@ -196,17 +196,13 @@ function FontSelectField({
   label,
   placeholder,
   fonts,
-  fallbackName,
 }: {
   control: any;
   name: any;
   label: string;
   placeholder: string;
   fonts: FontDefinition[];
-  fallbackName: string;
 }) {
-  const allFontNames = useMemo(() => new Set(fonts.map((f) => f.name)), [fonts]);
-
   return (
     <FormField
       control={control}
@@ -216,7 +212,7 @@ function FontSelectField({
           <FormLabel>{label}</FormLabel>
           <Select
             onValueChange={(v) => field.onChange(v)}
-            value={normalizeFontName(field.value, allFontNames, fallbackName)}
+            value={field.value ?? ''}
           >
             <FormControl>
               <SelectTrigger>
@@ -825,7 +821,6 @@ export default function MyBrandPage() {
                           label="Primary Font (Headings)"
                           placeholder="Select a font"
                           fonts={ALL_FONTS}
-                          fallbackName={DEFAULT_FONTS.heading}
                         />
                         <FontSelectField
                           control={form.control}
@@ -833,7 +828,6 @@ export default function MyBrandPage() {
                           label="Secondary Font (Body)"
                           placeholder="Select a font"
                           fonts={ALL_FONTS}
-                          fallbackName={DEFAULT_FONTS.body}
                         />
                       </div>
 
