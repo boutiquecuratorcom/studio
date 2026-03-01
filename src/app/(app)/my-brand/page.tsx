@@ -307,7 +307,7 @@ export default function MyBrandPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    if (!brandProfileData) return;
+    if (brandProfileData === undefined) return; // Wait for data to be loaded (null means doc doesn't exist)
 
     const data: any = brandProfileData || {};
     const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
@@ -388,7 +388,6 @@ export default function MyBrandPage() {
 
     setIsSaving(true);
 
-    // Normalize fonts BEFORE saving so Firestore always stores exact allowed names
     const allFontNames = new Set(ALL_FONTS.map((f) => f.name));
     const normalizedPrimaryFont = normalizeFontName(
       data.primaryFont,
@@ -401,7 +400,6 @@ export default function MyBrandPage() {
       DEFAULT_FONTS.body
     );
 
-    // Normalize colors to true #RRGGBB (or empty)
     const normalizedColors = (data.brandColors || [])
       .map((c) => normalizeHexColor(c))
       .filter((c) => !!c);
@@ -422,19 +420,6 @@ export default function MyBrandPage() {
         { merge: true }
       );
 
-      // IMPORTANT: reset form to the normalized values we just wrote,
-      // so the UI cannot "snap back" on refresh.
-      reset({
-        ...data,
-        primaryFont: normalizedPrimaryFont,
-        secondaryFont: normalizedSecondaryFont,
-        brandColors: [
-          normalizedColors[0] || '',
-          normalizedColors[1] || '',
-          normalizedColors[2] || '',
-        ],
-      });
-
       toast({
         title: 'My Brand Saved!',
         description: 'Your changes have been saved.',
@@ -450,6 +435,7 @@ export default function MyBrandPage() {
       setIsSaving(false);
     }
   };
+
 
   if (userLoading || dataLoading) {
     return (
