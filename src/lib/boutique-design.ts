@@ -126,6 +126,5 @@ export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): O
         body: brandProfile?.secondaryFont || defaultDesign.fonts.body,
         button: brandProfile?.secondaryFont || defaultDesign.fonts.button,
     },
-    welcomeMessage: null,
   };
 };

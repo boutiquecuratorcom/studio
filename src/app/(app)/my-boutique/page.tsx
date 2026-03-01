@@ -148,6 +148,7 @@ export default function MyBoutiquePage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isBrandDataApplied, setIsBrandDataApplied] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
 
   const handleForm = useForm<HandleFormValues>({
@@ -160,8 +161,6 @@ export default function MyBoutiquePage() {
   const [selfTestResults, setSelfTestResults] = useState<
     { step: string; ok: boolean; error?: string }[]
   >([]);
-
-  const hasBrandColors = useMemo(() => brandProfile?.brandColors && brandProfile.brandColors.length > 0, [brandProfile]);
 
   const updateDesign = (newDesignPartial: Partial<BoutiqueDesign>) => {
     setLocalSettings(prev => {
@@ -207,41 +206,52 @@ export default function MyBoutiquePage() {
   }, [handle, handleForm]);
 
   useEffect(() => {
-    if (userLoading || settingsLoading || brandLoading) return;
+    if (userLoading || settingsLoading || brandLoading || isInitialized) return;
     if (!user || !firestore) return;
 
     const performInitialization = async () => {
       let currentSettings = boutiqueSettings;
+      let designSourceIsBrand = false;
 
-      if (!currentSettings) {
-        // Create settings if they don't exist
-        const initialDesign = getBoutiqueDesignDefaults(brandProfile);
-        const newSettingsData = {
-          enabled: false,
-          featuredOutfitId: null,
-          handle: null,
-          design: initialDesign,
-        };
+      let designToUse;
 
-        await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
-        currentSettings = newSettingsData as unknown as BoutiqueSettings;
+      if (!currentSettings?.design) {
+        designToUse = getBoutiqueDesignDefaults(brandProfile);
+        
+        if (brandProfile && (brandProfile.brandColors?.length || brandProfile.primaryFont)) {
+          designSourceIsBrand = true;
+        }
+
+        if (!currentSettings) {
+          const newSettingsData = {
+            enabled: false,
+            featuredOutfitId: null,
+            handle: null,
+            design: designToUse,
+          };
+          await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
+          currentSettings = newSettingsData as unknown as BoutiqueSettings;
+        } else {
+          currentSettings.design = designToUse;
+        }
+      } else {
+        designToUse = currentSettings.design;
       }
       
-      const designToUse = currentSettings.design 
-        ? {
-            ...defaultDesign,
-            ...currentSettings.design,
-            palette: { ...defaultDesign.palette, ...currentSettings.design.palette },
-            fonts: { ...defaultDesign.fonts, ...currentSettings.design.fonts },
-          }
-        : getBoutiqueDesignDefaults(brandProfile);
+      const completeDesign = {
+        ...defaultDesign,
+        ...designToUse,
+        palette: { ...defaultDesign.palette, ...(designToUse as any)?.palette },
+        fonts: { ...defaultDesign.fonts, ...(designToUse as any)?.fonts },
+      };
         
       setLocalSettings({
-        enabled: currentSettings.enabled,
-        featuredOutfitId: currentSettings.featuredOutfitId || 'auto',
-        design: designToUse,
+        enabled: currentSettings?.enabled ?? false,
+        featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
+        design: completeDesign,
       });
 
+      setIsBrandDataApplied(designSourceIsBrand);
       setIsInitialized(true);
     };
 
@@ -254,6 +264,7 @@ export default function MyBoutiquePage() {
     brandLoading,
     brandProfile,
     boutiqueSettings,
+    isInitialized,
   ]);
 
   // --- Handlers ---
@@ -695,24 +706,19 @@ export default function MyBoutiquePage() {
                 </AccordionTrigger>
 
                 <AccordionContent className="p-6 space-y-6">
-                    {!hasBrandColors && (
-                        <Alert>
+                  <div>
+                    <Label className="font-semibold text-base">Boutique Colors</Label>
+                    {isBrandDataApplied ? (
+                         <p className="text-sm text-muted-foreground mt-1 mb-3">Defaults loaded from your Brand Profile.</p>
+                    ) : (
+                        <Alert className="mt-2">
                           <Heart className="h-4 w-4" />
-                          <AlertTitle>Personalize Your Boutique</AlertTitle>
+                          <AlertTitle>Using Defaults</AlertTitle>
                           <AlertDescription>
-                            Complete your Brand Profile for a design that truly reflects you.
-                            <Button asChild variant="link" className="p-0 h-auto ml-1">
-                                <Link href="/my-brand">Go to My Brand</Link>
-                            </Button>
+                            <Link href="/my-brand" className="underline">Complete your Brand Profile</Link> for better results.
                           </AlertDescription>
                         </Alert>
                     )}
-
-                  <div>
-                    <Label className="font-semibold text-base">Boutique Colors</Label>
-                     {hasBrandColors && (
-                        <p className="text-sm text-muted-foreground mt-1 mb-3">Loaded from your Brand Profile.</p>
-                     )}
                      <div className="space-y-4 mt-4">
                         <div className="grid grid-cols-2 gap-x-4 gap-y-2 items-center">
                             <Label htmlFor="bg-color">Background</Label>
