@@ -156,6 +156,48 @@ const formOptions = {
 
 const totalFields = Object.keys(brandProfileSchema.shape).length;
 
+// --- Reusable Font Select Field ---
+function FontSelectField({ control, name, label, placeholder, fonts, fallbackName }: { control: any, name: any, label: string, placeholder: string, fonts: FontDefinition[], fallbackName: string }) {
+  const allFontNames = useMemo(() => new Set(fonts.map(f => f.name)), [fonts]);
+
+  return (
+    <FormField
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>{label}</FormLabel>
+          <Select 
+            onValueChange={field.onChange} 
+            value={normalizeFontName(field.value, allFontNames, fallbackName)}
+          >
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder={placeholder} />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              {fonts.map((font) => (
+                <SelectItem
+                  key={font.name}
+                  value={font.name}
+                  style={{ fontFamily: font.cssFamily }}
+                >
+                  <div className="flex justify-between items-center w-full">
+                    <span>{font.name}</span>
+                    <span className="text-muted-foreground text-lg opacity-70">Aa</span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FormItem>
+      )}
+    />
+  );
+}
+
+
 export default function MyBrandPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
@@ -188,8 +230,8 @@ export default function MyBrandPage() {
       primaryGoal: undefined,
       logoUrl: '',
       brandColors: ['', '', ''],
-      primaryFont: undefined,
-      secondaryFont: undefined,
+      primaryFont: DEFAULT_FONTS.heading,
+      secondaryFont: DEFAULT_FONTS.body,
       primaryPlatform: undefined,
       postingFrequency: undefined,
       promoStyle: undefined,
@@ -226,6 +268,8 @@ export default function MyBrandPage() {
       const colors = data.brandColors || [];
       const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
 
+      const allFontNames = new Set(ALL_FONTS.map(f => f.name));
+
       reset({
         brandName: data.brandName || '',
         tagline: data.tagline || '',
@@ -239,8 +283,8 @@ export default function MyBrandPage() {
         primaryGoal: data.primaryGoal || undefined,
         logoUrl: data.logoUrl || '',
         brandColors: paddedColors,
-        primaryFont: data.primaryFont || undefined,
-        secondaryFont: data.secondaryFont || undefined,
+        primaryFont: normalizeFontName(data.primaryFont, allFontNames, DEFAULT_FONTS.heading),
+        secondaryFont: normalizeFontName(data.secondaryFont, allFontNames, DEFAULT_FONTS.body),
         primaryPlatform: data.primaryPlatform || undefined,
         postingFrequency: data.postingFrequency || undefined,
         promoStyle: data.promoStyle || undefined,
@@ -748,6 +792,7 @@ export default function MyBrandPage() {
                           label="Primary Font (Headings)"
                           placeholder="Select a font"
                           fonts={ALL_FONTS}
+                          fallbackName={DEFAULT_FONTS.heading}
                         />
                         <FontSelectField
                           control={form.control}
@@ -755,6 +800,7 @@ export default function MyBrandPage() {
                           label="Secondary Font (Body)"
                           placeholder="Select a font"
                           fonts={ALL_FONTS}
+                          fallbackName={DEFAULT_FONTS.body}
                         />
                       </div>
                       <div className="mt-6 flex justify-end border-t pt-6">
@@ -856,47 +902,6 @@ function SelectField({ control, name, label, placeholder, options }: any) {
               {options.map((option: string) => (
                 <SelectItem key={option} value={option}>
                   {option}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormItem>
-      )}
-    />
-  );
-}
-
-// --- Reusable Font Select Field ---
-function FontSelectField({ control, name, label, placeholder, fonts }: { control: any, name: any, label: string, placeholder: string, fonts: FontDefinition[] }) {
-  const allFontNames = useMemo(() => new Set(fonts.map(f => f.name)), [fonts]);
-
-  return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <Select 
-            onValueChange={field.onChange} 
-            value={normalizeFontName(field.value, allFontNames, DEFAULT_FONTS.body)} 
-          >
-            <FormControl>
-              <SelectTrigger>
-                <SelectValue placeholder={placeholder} />
-              </SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {fonts.map((font) => (
-                <SelectItem
-                  key={font.name}
-                  value={font.name}
-                  style={{ fontFamily: font.cssFamily }}
-                >
-                  <div className="flex justify-between items-center w-full">
-                    <span>{font.name}</span>
-                    <span className="text-muted-foreground text-lg opacity-70">Aa</span>
-                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
