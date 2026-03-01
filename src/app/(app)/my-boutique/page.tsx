@@ -211,44 +211,37 @@ export default function MyBoutiquePage() {
 
     const performInitialization = async () => {
       let currentSettings = boutiqueSettings;
-      let designSourceIsBrand = false;
+      
+      const brandBase = getBoutiqueDesignDefaults(brandProfile);
+      const designSourceIsBrand = !!(
+        brandProfile &&
+        (brandProfile.brandColors?.length || brandProfile.primaryFont || brandProfile.secondaryFont)
+      );
 
-      let designToUse;
+      const designToUse = currentSettings?.design
+        ? {
+            ...brandBase,
+            ...currentSettings.design,
+            palette: { ...brandBase.palette, ...(currentSettings.design as any).palette },
+            fonts: { ...brandBase.fonts, ...(currentSettings.design as any).fonts },
+          }
+        : brandBase;
 
-      if (!currentSettings?.design) {
-        designToUse = getBoutiqueDesignDefaults(brandProfile);
-        
-        if (brandProfile && (brandProfile.brandColors?.length || brandProfile.primaryFont)) {
-          designSourceIsBrand = true;
-        }
-
-        if (!currentSettings) {
-          const newSettingsData = {
-            enabled: false,
-            featuredOutfitId: null,
-            handle: null,
-            design: designToUse,
-          };
-          await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
-          currentSettings = newSettingsData as unknown as BoutiqueSettings;
-        } else {
-          currentSettings.design = designToUse;
-        }
-      } else {
-        designToUse = currentSettings.design;
+      if (!currentSettings) {
+        const newSettingsData = {
+          enabled: false,
+          featuredOutfitId: null,
+          handle: null,
+          design: designToUse,
+        };
+        await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
+        currentSettings = newSettingsData as unknown as BoutiqueSettings;
       }
       
-      const completeDesign = {
-        ...defaultDesign,
-        ...designToUse,
-        palette: { ...defaultDesign.palette, ...(designToUse as any)?.palette },
-        fonts: { ...defaultDesign.fonts, ...(designToUse as any)?.fonts },
-      };
-        
       setLocalSettings({
         enabled: currentSettings?.enabled ?? false,
         featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
-        design: completeDesign,
+        design: designToUse,
       });
 
       setIsBrandDataApplied(designSourceIsBrand);
@@ -725,7 +718,7 @@ export default function MyBoutiquePage() {
                             <Input
                                 id="bg-color"
                                 type="color"
-                                value={designForUI.palette.background}
+                                value={designForUI.palette.background || defaultDesign.palette.background}
                                 onChange={(e) => updatePalette({ background: e.target.value })}
                                 className="w-full h-10 p-1"
                             />
@@ -733,7 +726,7 @@ export default function MyBoutiquePage() {
                             <Input
                                 id="surface-color"
                                 type="color"
-                                value={designForUI.palette.surface}
+                                value={designForUI.palette.surface || defaultDesign.palette.surface}
                                 onChange={(e) => updatePalette({ surface: e.target.value })}
                                 className="w-full h-10 p-1"
                             />
@@ -741,7 +734,7 @@ export default function MyBoutiquePage() {
                             <Input
                                 id="accent-color"
                                 type="color"
-                                value={designForUI.palette.accent}
+                                value={designForUI.palette.accent || defaultDesign.palette.accent}
                                 onChange={(e) => handleAccentColorChange(e.target.value)}
                                 className="w-full h-10 p-1"
                             />
