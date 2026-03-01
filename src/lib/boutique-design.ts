@@ -1,6 +1,7 @@
 'use client';
 
 import type { BrandProfile } from '@/ai/flows/schemas';
+import { DEFAULT_FONTS, getFontByName } from '@/lib/fonts';
 
 // --- Interfaces ---
 
@@ -41,38 +42,7 @@ export interface BoutiqueDesign {
 // --- Helper Functions ---
 
 export const getFontFamily = (fontName: string | undefined, defaultFont: string) => {
-  const fontOptions: { name: string, family: string }[] = [
-    { name: 'Playfair Display', family: "'Playfair Display', serif" },
-    { name: 'Montserrat', family: 'Montserrat, sans-serif' },
-    { name: 'Poppins', family: 'Poppins, sans-serif' },
-    { name: 'DM Sans', family: "'DM Sans', sans-serif" },
-    { name: 'Lora', family: "'Lora', serif" },
-    { name: 'Oswald', family: 'Oswald, sans-serif' },
-    { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
-    { name: 'Raleway', family: 'Raleway, sans-serif' },
-    { name: 'Inter', family: 'Inter, sans-serif' },
-    { name: 'Nunito', family: 'Nunito, sans-serif' },
-    { name: 'Quicksand', family: 'Quicksand, sans-serif' },
-    { name: 'Cinzel', family: "'Cinzel', serif" },
-    { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
-    { name: 'Josefin Sans', family: "'Josefin Sans', sans-serif" },
-    { name: 'Merriweather', family: "'Merriweather', serif" },
-    { name: 'Abril Fatface', family: "'Abril Fatface', cursive" },
-    { name: 'Urbanist', family: 'Urbanist, sans-serif' },
-    { name: 'Manrope', family: 'Manrope, sans-serif' },
-    { name: 'Tenor Sans', family: "'Tenor Sans', sans-serif" },
-    { name: 'Plus Jakarta Sans', family: "'Plus Jakarta Sans', sans-serif" },
-    { name: 'Lato', family: 'Lato, sans-serif' },
-    { name: 'Open Sans', family: "'Open Sans', sans-serif" },
-    { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
-    { name: 'Dancing Script', family: "'Dancing Script', cursive" },
-    { name: 'Work Sans', family: "'Work Sans', sans-serif" },
-    { name: 'Figtree', family: "'Figtree', sans-serif" },
-    { name: 'Caveat', family: "'Caveat', cursive" },
-    { name: 'Source Sans 3', family: "'Source Sans 3', sans-serif" },
-    { name: 'Roboto Slab', family: "'Roboto Slab', serif" },
-  ];
-  return fontOptions.find(f => f.name === fontName)?.family || defaultFont;
+  return getFontByName(fontName)?.cssFamily || defaultFont;
 };
 
 export const getContrastingTextColor = (bgHex: string): string => {
@@ -104,7 +74,11 @@ export const defaultDesign: Omit<BoutiqueDesign, 'updatedAt'> = {
       accent: '#d4af37',
       accentText: '#111111',
   },
-  fonts: { heading: 'Playfair Display', body: 'Inter', button: 'Inter' },
+  fonts: { 
+    heading: DEFAULT_FONTS.heading, 
+    body: DEFAULT_FONTS.body, 
+    button: DEFAULT_FONTS.button 
+  },
   buttons: { radius: 'md', style: 'solid' },
   frames: { outfitFrameStyle: 'soft-border' },
   background: { patternId: 'none', intensity: 0 },
@@ -122,9 +96,9 @@ export const getBoutiqueDesignDefaults = (brandProfile?: BrandProfile | null): O
         accentText: getContrastingTextColor(accentColor),
     },
     fonts: {
-        heading: brandProfile?.primaryFont || defaultDesign.fonts.heading,
-        body: brandProfile?.secondaryFont || defaultDesign.fonts.body,
-        button: brandProfile?.secondaryFont || defaultDesign.fonts.button,
+        heading: brandProfile?.primaryFont || DEFAULT_FONTS.heading,
+        body: brandProfile?.secondaryFont || DEFAULT_FONTS.body,
+        button: brandProfile?.secondaryFont || DEFAULT_FONTS.button,
     },
   };
 };

@@ -56,6 +56,7 @@ import { useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { ALL_FONTS, DEFAULT_FONTS, FontDefinition, getFontByName, normalizeFontName } from '@/lib/fonts';
 
 // --- Zod Schema for Validation ---
 const brandProfileSchema = z.object({
@@ -152,24 +153,6 @@ const formOptions = {
   postingFrequency: ['Daily', '3x/week', 'Weekly'],
   promoStyle: ['Flash Sales', 'Lives', 'Outfit Drops', 'Mystery Bundles'],
 };
-
-const fontOptions = [
-  { name: 'Inter', family: 'Inter, sans-serif' },
-  { name: 'Playfair Display', family: "'Playfair Display', serif" },
-  { name: 'Lora', family: "'Lora', serif" },
-  { name: 'Montserrat', family: 'Montserrat, sans-serif' },
-  { name: 'Lato', family: 'Lato, sans-serif' },
-  { name: 'Raleway', family: 'Raleway, sans-serif' },
-  { name: 'Poppins', family: 'Poppins, sans-serif' },
-  { name: 'Open Sans', family: "'Open Sans', sans-serif" },
-  { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
-  { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
-  { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
-  { name: 'Dancing Script', family: "'Dancing Script', cursive" },
-  { name: 'Great Vibes', family: "'Great Vibes', cursive" },
-  { name: 'Pacifico', family: "'Pacifico', cursive" },
-  { name: 'Lobster', family: "'Lobster', cursive" },
-];
 
 const totalFields = Object.keys(brandProfileSchema.shape).length;
 
@@ -764,14 +747,14 @@ export default function MyBrandPage() {
                           name="primaryFont"
                           label="Primary Font (Headings)"
                           placeholder="Select a font"
-                          fonts={fontOptions}
+                          fonts={ALL_FONTS}
                         />
                         <FontSelectField
                           control={form.control}
                           name="secondaryFont"
                           label="Secondary Font (Body)"
                           placeholder="Select a font"
-                          fonts={fontOptions}
+                          fonts={ALL_FONTS}
                         />
                       </div>
                       <div className="mt-6 flex justify-end border-t pt-6">
@@ -863,7 +846,7 @@ function SelectField({ control, name, label, placeholder, options }: any) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} key={field.value ?? name}>
+          <Select onValueChange={field.onChange} value={field.value ?? ''} key={field.value ?? name}>
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
@@ -884,7 +867,9 @@ function SelectField({ control, name, label, placeholder, options }: any) {
 }
 
 // --- Reusable Font Select Field ---
-function FontSelectField({ control, name, label, placeholder, fonts }: any) {
+function FontSelectField({ control, name, label, placeholder, fonts }: { control: any, name: any, label: string, placeholder: string, fonts: FontDefinition[] }) {
+  const allFontNames = useMemo(() => new Set(fonts.map(f => f.name)), [fonts]);
+
   return (
     <FormField
       control={control}
@@ -892,20 +877,26 @@ function FontSelectField({ control, name, label, placeholder, fonts }: any) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} defaultValue={field.value} key={field.value ?? name}>
+          <Select 
+            onValueChange={field.onChange} 
+            value={normalizeFontName(field.value, allFontNames, DEFAULT_FONTS.body)} 
+          >
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
               </SelectTrigger>
             </FormControl>
             <SelectContent>
-              {fonts.map((font: { name: string; family: string }) => (
+              {fonts.map((font) => (
                 <SelectItem
                   key={font.name}
                   value={font.name}
-                  style={{ fontFamily: font.family }}
+                  style={{ fontFamily: font.cssFamily }}
                 >
-                  {font.name}
+                  <div className="flex justify-between items-center w-full">
+                    <span>{font.name}</span>
+                    <span className="text-muted-foreground text-lg opacity-70">Aa</span>
+                  </div>
                 </SelectItem>
               ))}
             </SelectContent>
@@ -919,7 +910,7 @@ function FontSelectField({ control, name, label, placeholder, fonts }: any) {
 // --- Preview Panel ---
 function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
   const getFontFamily = (fontName: string | undefined, defaultFamily: string) => {
-    return fontOptions.find((f) => f.name === fontName)?.family || defaultFamily;
+    return getFontByName(fontName)?.cssFamily || defaultFamily;
   };
 
   const renderValue = (
@@ -969,13 +960,13 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
           <div>
             <h3
               className="text-lg font-bold"
-              style={{ fontFamily: getFontFamily(values.primaryFont, 'Poppins, sans-serif') }}
+              style={{ fontFamily: getFontFamily(values.primaryFont, DEFAULT_FONTS.heading) }}
             >
               {values.brandName || 'Your Brand Name'}
             </h3>
             <p
               className="text-sm text-muted-foreground"
-              style={{ fontFamily: getFontFamily(values.secondaryFont, 'Montserrat, sans-serif') }}
+              style={{ fontFamily: getFontFamily(values.secondaryFont, DEFAULT_FONTS.body) }}
             >
               {values.tagline || 'Your tagline'}
             </p>
@@ -1015,7 +1006,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
               Primary Font
             </p>
             {renderValue(values.primaryFont, 'Not set', {
-              fontFamily: getFontFamily(values.primaryFont, 'Poppins, sans-serif'),
+              fontFamily: getFontFamily(values.primaryFont, DEFAULT_FONTS.heading),
             })}
           </div>
           <div className="flex justify-between items-center gap-4">
@@ -1023,7 +1014,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
               Secondary Font
             </p>
             {renderValue(values.secondaryFont, 'Not set', {
-              fontFamily: getFontFamily(values.secondaryFont, 'Montserrat, sans-serif'),
+              fontFamily: getFontFamily(values.secondaryFont, DEFAULT_FONTS.body),
             })}
           </div>
         </div>

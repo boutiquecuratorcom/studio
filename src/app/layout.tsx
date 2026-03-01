@@ -20,7 +20,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         <link
-          href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Caveat&family=Cinzel&family=Cormorant+Garamond:wght@400;700&family=DM+Sans&family=DM+Serif+Display&family=Dancing+Script&family=Figtree&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Josefin+Sans&family=Lato&family=Libre+Baskerville&family=Lobster&family=Lora&family=Manrope&family=Merriweather&family=Montserrat&family=Nunito&family=Open+Sans&family=Oswald&family=Pacifico&family=Playfair+Display:wght@400;700;800&family=Plus+Jakarta+Sans&family=Poppins:wght@400;700&family=Quicksand&family=Raleway&family=Roboto+Slab&family=Source+Sans+3&family=Tenor+Sans&family=Urbanist&family=Work+Sans&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Abril+Fatface&family=Caveat&family=Cinzel&family=Cormorant+Garamond:wght@400;700&family=DM+Serif+Display&family=Dancing+Script&family=Figtree&family=Great+Vibes&family=Inter:wght@400;500;600;700&family=Josefin+Sans&family=Lato&family=Libre+Baskerville&family=Lobster&family=Lora&family=Manrope&family=Merriweather&family=Montserrat&family=Nunito&family=Open+Sans&family=Oswald&family=Pacifico&family=Playfair+Display:wght@400;700;800&family=Plus+Jakarta+Sans&family=Poppins:wght@400;700&family=Quicksand&family=Raleway&family=Roboto+Slab&family=Source+Sans+3&family=Tenor+Sans&family=Urbanist&family=Work+Sans&display=swap"
           rel="stylesheet"
         />
       </head>
@@ -35,5 +35,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-    

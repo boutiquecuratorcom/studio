@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
@@ -20,13 +18,20 @@ import {
   syncPublicBoutiqueData,
   handleSchema,
 } from '@/lib/boutique';
-
 import {
   type BoutiqueDesign,
   getContrastingTextColor,
   defaultDesign,
   getBoutiqueDesignDefaults,
 } from '@/lib/boutique-design';
+import {
+  ALL_FONTS,
+  BUTTON_SAFE_FONTS,
+  DEFAULT_FONTS,
+  FontDefinition,
+  getNormalizedFonts,
+  normalizeFontName,
+} from '@/lib/fonts';
 
 import { useToast } from '@/hooks/use-toast';
 import { isAdminEmail } from '@/lib/admin';
@@ -67,7 +72,6 @@ import {
   Eye,
   Globe,
   Loader2,
-  Palette,
   Save,
   Settings2,
   XCircle,
@@ -92,35 +96,9 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import { cn } from '@/lib/utils';
 import { Separator } from '@/components/ui/separator';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
-
-const allFonts = [
-    { name: 'Inter', family: 'Inter, sans-serif' },
-    { name: 'Playfair Display', family: "'Playfair Display', serif" },
-    { name: 'Lora', family: "'Lora', serif" },
-    { name: 'Poppins', family: 'Poppins, sans-serif' },
-    { name: 'Raleway', family: 'Raleway, sans-serif' },
-    { name: 'DM Serif Display', family: "'DM Serif Display', serif" },
-    { name: 'Montserrat', family: 'Montserrat, sans-serif' },
-    { name: 'Merriweather', family: "'Merriweather', serif" },
-    { name: 'Oswald', family: 'Oswald, sans-serif' },
-    { name: 'Nunito', family: 'Nunito, sans-serif' },
-    { name: 'Quicksand', family: 'Quicksand, sans-serif' },
-    { name: 'Source Sans 3', family: "'Source Sans 3', sans-serif" },
-    { name: 'Roboto Slab', family: "'Roboto Slab', serif" },
-    { name: 'Libre Baskerville', family: "'Libre Baskerville', serif" },
-    { name: 'Work Sans', family: "'Work Sans', sans-serif" },
-    { name: 'Figtree', family: "'Figtree', sans-serif" },
-    { name: 'Manrope', family: 'Manrope, sans-serif' },
-    { name: 'Caveat', family: "'Caveat', cursive" },
-    { name: 'Abril Fatface', family: "'Abril Fatface', cursive" },
-    { name: 'Cormorant Garamond', family: "'Cormorant Garamond', serif" },
-];
-
-const buttonSafeFonts = allFonts.filter(f => !f.family.includes('serif') && !f.family.includes('cursive'));
 
 export default function MyBoutiquePage() {
   const { user, loading: userLoading } = useUser();
@@ -136,15 +114,13 @@ export default function MyBoutiquePage() {
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
   }, [user, firestore]);
 
-  const { data: brandProfile, loading: brandLoading } = useDoc<any>(
-    brandProfileRef
-  );
+  const { data: brandProfile, loading: brandLoading } = useDoc<any>(brandProfileRef);
+
+  const brandResolved = brandProfile !== undefined;
 
   const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
 
-  const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>(
-    {}
-  );
+  const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -161,38 +137,38 @@ export default function MyBoutiquePage() {
   const [selfTestResults, setSelfTestResults] = useState<
     { step: string; ok: boolean; error?: string }[]
   >([]);
-
+  
   const updateDesign = (newDesignPartial: Partial<BoutiqueDesign>) => {
-    setLocalSettings(prev => {
-        const currentDesign = prev.design || defaultDesign;
+    setLocalSettings((prev) => {
+      const currentDesign = (prev.design as any) || defaultDesign;
 
-        const mergedDesign: BoutiqueDesign = {
-            ...currentDesign,
-            ...newDesignPartial,
-            palette: {
-                ...currentDesign.palette,
-                ...newDesignPartial.palette,
-            },
-            fonts: {
-                ...currentDesign.fonts,
-                ...newDesignPartial.fonts,
-            },
-        };
+      const mergedDesign: BoutiqueDesign = {
+        ...currentDesign,
+        ...newDesignPartial,
+        palette: {
+          ...currentDesign.palette,
+          ...(newDesignPartial as any).palette,
+        },
+        fonts: {
+          ...currentDesign.fonts,
+          ...(newDesignPartial as any).fonts,
+        },
+      };
 
-        return {
-            ...prev,
-            design: mergedDesign,
-        };
+      return {
+        ...prev,
+        design: mergedDesign,
+      };
     });
   };
-  
+
   const updatePalette = (newPalette: Partial<BoutiqueDesign['palette']>) => {
-     updateDesign({
-        palette: {
-            ...((localSettings.design as any)?.palette || defaultDesign.palette),
-            ...newPalette
-        }
-     })
+    updateDesign({
+      palette: {
+        ...(((localSettings.design as any)?.palette || defaultDesign.palette) as any),
+        ...newPalette,
+      } as any,
+    });
   };
 
   // --- Effects ---
@@ -204,61 +180,54 @@ export default function MyBoutiquePage() {
       setPublicUrl('');
     }
   }, [handle, handleForm]);
-
+  
   useEffect(() => {
-    if (userLoading || settingsLoading || brandLoading || isInitialized) return;
+    if (userLoading || settingsLoading || brandLoading || !brandResolved || isInitialized) return;
     if (!user || !firestore) return;
 
     const performInitialization = async () => {
-      let currentSettings = boutiqueSettings;
-      
-      const brandBase = getBoutiqueDesignDefaults(brandProfile);
-      const designSourceIsBrand = !!(
-        brandProfile &&
-        (brandProfile.brandColors?.length || brandProfile.primaryFont || brandProfile.secondaryFont)
-      );
+        let currentSettings = boutiqueSettings;
+        let designToUse: BoutiqueDesign;
 
-      const designToUse = currentSettings?.design
-        ? {
-            ...brandBase,
-            ...currentSettings.design,
-            palette: { ...brandBase.palette, ...(currentSettings.design as any).palette },
-            fonts: { ...brandBase.fonts, ...(currentSettings.design as any).fonts },
-          }
-        : brandBase;
+        const designSourceIsBrand = !!(brandProfile && (brandProfile.brandColors?.length || brandProfile.primaryFont || brandProfile.secondaryFont));
+        setIsBrandDataApplied(designSourceIsBrand);
+        
+        const brandBase = getBoutiqueDesignDefaults(brandProfile);
 
-      if (!currentSettings) {
-        const newSettingsData = {
-          enabled: false,
-          featuredOutfitId: null,
-          handle: null,
-          design: designToUse,
-        };
-        await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
-        currentSettings = newSettingsData as unknown as BoutiqueSettings;
-      }
-      
-      setLocalSettings({
-        enabled: currentSettings?.enabled ?? false,
-        featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
-        design: designToUse,
-      });
+        if (currentSettings?.design) {
+            designToUse = {
+                ...brandBase,
+                ...currentSettings.design,
+                palette: { ...brandBase.palette, ...currentSettings.design.palette },
+                fonts: { ...brandBase.fonts, ...currentSettings.design.fonts },
+            };
+        } else {
+            designToUse = brandBase as BoutiqueDesign;
+        }
 
-      setIsBrandDataApplied(designSourceIsBrand);
-      setIsInitialized(true);
+        if (!currentSettings) {
+            const newSettingsData = {
+                enabled: false,
+                featuredOutfitId: null,
+                handle: null,
+                design: designToUse,
+            };
+            await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
+            currentSettings = newSettingsData as unknown as BoutiqueSettings;
+        }
+
+        setLocalSettings({
+            enabled: currentSettings?.enabled ?? false,
+            featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
+            design: designToUse,
+        });
+
+        setIsInitialized(true);
     };
 
     performInitialization();
-  }, [
-    user,
-    firestore,
-    userLoading,
-    settingsLoading,
-    brandLoading,
-    brandProfile,
-    boutiqueSettings,
-    isInitialized,
-  ]);
+  }, [user, firestore, userLoading, settingsLoading, brandLoading, brandResolved, brandProfile, boutiqueSettings, isInitialized]);
+
 
   // --- Handlers ---
   const handleEnabledToggle = async (enabled: boolean) => {
@@ -292,8 +261,8 @@ export default function MyBoutiquePage() {
         }
         await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
       }
-      
-      setLocalSettings(prev => ({...prev, enabled}));
+
+      setLocalSettings((prev) => ({ ...prev, enabled }));
 
       toast({
         title: 'Boutique Status Updated',
@@ -398,11 +367,7 @@ export default function MyBoutiquePage() {
     try {
       await runTransaction(firestore, async (transaction) => {
         const testHandleRef = doc(firestore, 'handles', randomHandle);
-        const testPublicBoutiqueRef = doc(
-          firestore,
-          'publicBoutiques',
-          randomHandle
-        );
+        const testPublicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
 
         const testHandleSnap = await transaction.get(testHandleRef);
         if (testHandleSnap.exists())
@@ -480,17 +445,21 @@ export default function MyBoutiquePage() {
       setIsTesting(false);
     }
   };
-  
+
   const handleAccentColorChange = (color: string) => {
     updatePalette({
-        accent: color,
-        accentText: getContrastingTextColor(color),
+      accent: color,
+      accentText: getContrastingTextColor(color),
     });
   };
 
   // --- Derived State & Memos ---
   const loading =
-    userLoading || !isInitialized || outfitsLoading || brandLoading || handleLoading;
+    userLoading ||
+    !isInitialized ||
+    outfitsLoading ||
+    brandLoading ||
+    handleLoading;
 
   const featuredOutfit = useMemo(() => {
     if (!outfits) return undefined;
@@ -520,7 +489,9 @@ export default function MyBoutiquePage() {
   // --- Render Functions ---
   const renderHeader = () => (
     <header className="mb-12">
-      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">My Boutique</h1>
+      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
+        My Boutique
+      </h1>
       <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
         Your personal boutique showcase. When you're ready, share it with the world.
       </p>
@@ -544,7 +515,8 @@ export default function MyBoutiquePage() {
     );
   }
 
-  const designForUI = localSettings.design || defaultDesign;
+  const designForUI = (localSettings.design as any) || defaultDesign;
+  const normalizedFonts = getNormalizedFonts(designForUI.fonts);
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -615,7 +587,10 @@ export default function MyBoutiquePage() {
                               placeholder="your-handle"
                               {...field}
                               className="rounded-l-none"
-                              disabled={!!localSettings.enabled || handleForm.formState.isSubmitting}
+                              disabled={
+                                !!localSettings.enabled ||
+                                handleForm.formState.isSubmitting
+                              }
                             />
                           </FormControl>
                         </div>
@@ -701,109 +676,155 @@ export default function MyBoutiquePage() {
                 <AccordionContent className="p-6 space-y-6">
                   <div>
                     <Label className="font-semibold text-base">Boutique Colors</Label>
+                    
                     {isBrandDataApplied ? (
-                         <p className="text-sm text-muted-foreground mt-1 mb-3">Defaults loaded from your Brand Profile.</p>
+                      <p className="text-sm text-muted-foreground mt-1 mb-3">
+                        Defaults loaded from your Brand Profile.
+                      </p>
                     ) : (
-                        <Alert className="mt-2">
-                          <Heart className="h-4 w-4" />
-                          <AlertTitle>Using Defaults</AlertTitle>
-                          <AlertDescription>
-                            <Link href="/my-brand" className="underline">Complete your Brand Profile</Link> for better results.
-                          </AlertDescription>
-                        </Alert>
+                      <Alert className="mt-2">
+                        <Heart className="h-4 w-4" />
+                        <AlertTitle>Using Defaults</AlertTitle>
+                        <AlertDescription>
+                          <Link href="/my-brand" className="underline">
+                            Complete your Brand Profile
+                          </Link>{' '}
+                          for better results.
+                        </AlertDescription>
+                      </Alert>
                     )}
-                     <div className="space-y-4 mt-4">
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-2 items-center">
-                            <Label htmlFor="bg-color">Background</Label>
-                            <Input
-                                id="bg-color"
-                                type="color"
-                                value={designForUI.palette.background || defaultDesign.palette.background}
-                                onChange={(e) => updatePalette({ background: e.target.value })}
-                                className="w-full h-10 p-1"
-                            />
-                             <Label htmlFor="surface-color">Surface</Label>
-                            <Input
-                                id="surface-color"
-                                type="color"
-                                value={designForUI.palette.surface || defaultDesign.palette.surface}
-                                onChange={(e) => updatePalette({ surface: e.target.value })}
-                                className="w-full h-10 p-1"
-                            />
-                            <Label htmlFor="accent-color">Accent</Label>
-                            <Input
-                                id="accent-color"
-                                type="color"
-                                value={designForUI.palette.accent || defaultDesign.palette.accent}
-                                onChange={(e) => handleAccentColorChange(e.target.value)}
-                                className="w-full h-10 p-1"
-                            />
-                        </div>
-                     </div>
+
+                    <div className="space-y-4 mt-4">
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-2 items-center">
+                        <Label htmlFor="bg-color">Background</Label>
+                        <Input
+                          id="bg-color"
+                          type="color"
+                          value={designForUI.palette.background || defaultDesign.palette.background}
+                          onChange={(e) => updatePalette({ background: e.target.value })}
+                          className="w-full h-10 p-1"
+                        />
+
+                        <Label htmlFor="surface-color">Surface</Label>
+                        <Input
+                          id="surface-color"
+                          type="color"
+                          value={designForUI.palette.surface || defaultDesign.palette.surface}
+                          onChange={(e) => updatePalette({ surface: e.target.value })}
+                          className="w-full h-10 p-1"
+                        />
+
+                        <Label htmlFor="accent-color">Accent</Label>
+                        <Input
+                          id="accent-color"
+                          type="color"
+                          value={designForUI.palette.accent || defaultDesign.palette.accent}
+                          onChange={(e) => handleAccentColorChange(e.target.value)}
+                          className="w-full h-10 p-1"
+                        />
+                      </div>
+                    </div>
                   </div>
-                  
+
                   <Separator />
 
                   <div>
                     <Label className="font-semibold text-base">Typography</Label>
                     <div className="space-y-4 mt-4">
-                        <div>
-                            <Label htmlFor="heading-font" className="text-sm text-muted-foreground flex items-center gap-2"><CaseSensitive className="h-4 w-4" />Heading Font</Label>
-                            <Select
-                                value={designForUI.fonts.heading}
-                                onValueChange={(value) => updateDesign({ fonts: { ...designForUI.fonts, heading: value }})}
-                            >
-                                <SelectTrigger id="heading-font" className="mt-1">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {allFonts.map(font => (
-                                        <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
-                                            {font.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label htmlFor="body-font" className="text-sm text-muted-foreground flex items-center gap-2"><Type className="h-4 w-4" />Body Font</Label>
-                            <Select
-                                value={designForUI.fonts.body}
-                                onValueChange={(value) => updateDesign({ fonts: { ...designForUI.fonts, body: value }})}
-                            >
-                                <SelectTrigger id="body-font" className="mt-1">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {allFonts.map(font => (
-                                        <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
-                                            {font.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div>
-                            <Label htmlFor="button-font" className="text-sm text-muted-foreground flex items-center gap-2"><Type className="h-4 w-4" />Button Font</Label>
-                            <Select
-                                value={designForUI.fonts.button}
-                                onValueChange={(value) => updateDesign({ fonts: { ...designForUI.fonts, button: value }})}
-                            >
-                                <SelectTrigger id="button-font" className="mt-1">
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {buttonSafeFonts.map(font => (
-                                        <SelectItem key={font.name} value={font.name} style={{ fontFamily: font.family }}>
-                                            {font.name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                      <div>
+                        <Label
+                          htmlFor="heading-font"
+                          className="text-sm text-muted-foreground flex items-center gap-2"
+                        >
+                          <CaseSensitive className="h-4 w-4" />
+                          Heading Font
+                        </Label>
+                        <Select
+                          value={normalizedFonts.heading}
+                          onValueChange={(value) =>
+                            updateDesign({ fonts: { ...designForUI.fonts, heading: value } })
+                          }
+                        >
+                          <SelectTrigger id="heading-font" className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ALL_FONTS.map((font) => (
+                              <SelectItem
+                                key={font.name}
+                                value={font.name}
+                                style={{ fontFamily: font.cssFamily }}
+                              >
+                                {font.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label
+                          htmlFor="body-font"
+                          className="text-sm text-muted-foreground flex items-center gap-2"
+                        >
+                          <Type className="h-4 w-4" />
+                          Body Font
+                        </Label>
+                        <Select
+                          value={normalizedFonts.body}
+                          onValueChange={(value) =>
+                            updateDesign({ fonts: { ...designForUI.fonts, body: value } })
+                          }
+                        >
+                          <SelectTrigger id="body-font" className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {ALL_FONTS.map((font) => (
+                              <SelectItem
+                                key={font.name}
+                                value={font.name}
+                                style={{ fontFamily: font.cssFamily }}
+                              >
+                                {font.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label
+                          htmlFor="button-font"
+                          className="text-sm text-muted-foreground flex items-center gap-2"
+                        >
+                          <Type className="h-4 w-4" />
+                          Button Font
+                        </Label>
+                        <Select
+                          value={normalizedFonts.button}
+                          onValueChange={(value) =>
+                            updateDesign({ fonts: { ...designForUI.fonts, button: value } })
+                          }
+                        >
+                          <SelectTrigger id="button-font" className="mt-1">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {BUTTON_SAFE_FONTS.map((font) => (
+                              <SelectItem
+                                key={font.name}
+                                value={font.name}
+                                style={{ fontFamily: font.cssFamily }}
+                              >
+                                {font.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
                   </div>
-
                 </AccordionContent>
               </Card>
             </AccordionItem>
