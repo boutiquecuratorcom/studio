@@ -286,7 +286,7 @@ export default function MyBrandPage() {
     mode: 'onSubmit',
   });
 
-  const { watch, reset, handleSubmit } = form;
+  const { watch, reset, handleSubmit, formState } = form;
   const watchedValues = watch();
 
   const completionPercent = useMemo(() => {
@@ -307,7 +307,8 @@ export default function MyBrandPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    if (brandProfileData === undefined) return; // Wait for data to be loaded (null means doc doesn't exist)
+    if (brandProfileData === undefined) return; // Wait for data to be loaded
+    if (formState.isDirty) return; // Don't overwrite user edits with incoming data
 
     const data: any = brandProfileData || {};
     const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
@@ -334,7 +335,7 @@ export default function MyBrandPage() {
       postingFrequency: data.postingFrequency || undefined,
       promoStyle: data.promoStyle || undefined,
     });
-  }, [brandProfileData, reset]);
+  }, [brandProfileData, reset, formState.isDirty]);
 
   // --- Handlers ---
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
