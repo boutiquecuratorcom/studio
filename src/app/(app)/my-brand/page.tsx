@@ -189,57 +189,6 @@ const formOptions = {
 
 const totalFields = Object.keys(brandProfileSchema.shape).length;
 
-// --- Reusable Font Select Field ---
-function FontSelectField({
-  control,
-  name,
-  label,
-  placeholder,
-  fonts,
-}: {
-  control: any;
-  name: any;
-  label: string;
-  placeholder: string;
-  fonts: FontDefinition[];
-}) {
-  return (
-    <FormField
-      control={control}
-      name={name}
-      render={({ field }) => (
-        <FormItem>
-          <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} value={field.value}>
-            <FormControl>
-              <SelectTrigger>
-                <SelectValue placeholder={placeholder} />
-              </SelectTrigger>
-            </FormControl>
-            <SelectContent>
-              {fonts.map((font: FontDefinition) => (
-                <SelectItem
-                  key={font.name}
-                  value={font.name}
-                  style={{ fontFamily: font.cssFamily }}
-                >
-                  <div className="flex justify-between items-center w-full">
-                    <span>{font.name}</span>
-                    <span className="text-muted-foreground text-lg opacity-70">
-                      Aa
-                    </span>
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormItem>
-      )}
-    />
-  );
-}
-
-
 export default function MyBrandPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
@@ -248,8 +197,7 @@ export default function MyBrandPage() {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isFormInitialized, setIsFormInitialized] = useState(false);
-
+  
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
@@ -302,14 +250,14 @@ export default function MyBrandPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    // Only run this once, after data has loaded and the form hasn't been initialized yet.
-    if (brandProfileData !== undefined && !isFormInitialized) {
-      const data: any = brandProfileData || {};
+    // This effect now correctly syncs data from Firestore to the form.
+    // It runs whenever the data from the database changes.
+    if (brandProfileData) {
+      const data: any = brandProfileData;
       const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
       const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
       
       const allFontNames = new Set(ALL_FONTS.map((f) => f.name));
-
       const initialPrimaryFont = normalizeFontName(data.primaryFont, allFontNames, DEFAULT_FONTS.heading);
       const initialSecondaryFont = normalizeFontName(data.secondaryFont, allFontNames, DEFAULT_FONTS.body);
 
@@ -332,11 +280,8 @@ export default function MyBrandPage() {
         postingFrequency: data.postingFrequency || undefined,
         promoStyle: data.promoStyle || undefined,
       });
-
-      // Mark the form as initialized so this effect doesn't run again.
-      setIsFormInitialized(true);
     }
-  }, [brandProfileData, isFormInitialized, reset]);
+  }, [brandProfileData, reset]);
 
 
   // --- Handlers ---
@@ -396,7 +341,6 @@ export default function MyBrandPage() {
       .map((c) => normalizeHexColor(c))
       .filter((c) => !!c);
 
-    // Create a payload that only includes defined values to avoid overwriting with undefined
     const payload: Record<string, any> = {};
     Object.entries(data).forEach(([key, value]) => {
       if (value !== undefined) {
@@ -404,7 +348,6 @@ export default function MyBrandPage() {
       }
     });
 
-    // Ensure the cleaned color array is in the payload
     payload.brandColors = normalizedColors;
 
     try {
@@ -419,10 +362,6 @@ export default function MyBrandPage() {
         description: 'Your changes have been saved.',
       });
 
-      // After successful save, reset the form with the data that was just saved
-      // This marks the form as "clean" and aligns its state with the database
-      form.reset(data);
-
     } catch (error: any) {
       console.error('Firestore save error:', error);
       toast({
@@ -436,7 +375,7 @@ export default function MyBrandPage() {
   };
 
 
-  if (userLoading || dataLoading || !isFormInitialized) {
+  if (userLoading || dataLoading) {
     return (
       <div className="flex-1 p-8 sm:p-10 lg:p-12">
         <header className="mb-12">
@@ -817,19 +756,69 @@ export default function MyBrandPage() {
                       />
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                        <FontSelectField
+                        <FormField
                           control={form.control}
                           name="primaryFont"
-                          label="Primary Font (Headings)"
-                          placeholder="Select a font"
-                          fonts={ALL_FONTS}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Primary Font (Headings)</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a font" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {ALL_FONTS.map((font: FontDefinition) => (
+                                    <SelectItem
+                                      key={font.name}
+                                      value={font.name}
+                                      style={{ fontFamily: font.cssFamily }}
+                                    >
+                                      <div className="flex justify-between items-center w-full">
+                                        <span>{font.name}</span>
+                                        <span className="text-muted-foreground text-lg opacity-70">
+                                          Aa
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
                         />
-                        <FontSelectField
+                         <FormField
                           control={form.control}
                           name="secondaryFont"
-                          label="Secondary Font (Body)"
-                          placeholder="Select a font"
-                          fonts={ALL_FONTS}
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Secondary Font (Body)</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value ?? ''}>
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a font" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {ALL_FONTS.map((font: FontDefinition) => (
+                                    <SelectItem
+                                      key={font.name}
+                                      value={font.name}
+                                      style={{ fontFamily: font.cssFamily }}
+                                    >
+                                      <div className="flex justify-between items-center w-full">
+                                        <span>{font.name}</span>
+                                        <span className="text-muted-foreground text-lg opacity-70">
+                                          Aa
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </FormItem>
+                          )}
                         />
                       </div>
 
