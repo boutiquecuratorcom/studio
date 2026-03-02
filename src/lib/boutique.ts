@@ -27,20 +27,12 @@ import { type Outfit, type OutfitClaim } from './outfits';
 import {
   type BoutiqueTemplateId,
   type BoutiquePatternId,
+  type BrandProfilePublicBits,
 } from '@/lib/brand/brandPublicBits';
 
 // ---- Helpers ----
 type AnyRecord = Record<string, any>;
 const asRecord = (v: unknown): AnyRecord => (v && typeof v === 'object' ? (v as AnyRecord) : {});
-
-// If your generated BrandProfile type doesn't include these fields,
-// we safely widen it locally without changing your schema file.
-type BrandProfilePublicBits = Partial<BrandProfile> & {
-  brandName?: string | null;
-  tagline?: string | null;
-  logoUrl?: string | null;
-  brandColors?: string[] | null;
-};
 
 // --- Interfaces ---
 export interface BoutiqueSettings extends DocumentData {
@@ -86,14 +78,11 @@ export interface HandleMapping {
   updatedAt: any;
 }
 
-export interface PublicBoutiqueProfile {
+export interface PublicBoutiqueProfile extends BrandProfilePublicBits {
   id: string; // The handle (doc id)
   uid: string;
   handle: string;
   enabled: boolean;
-  brandName: string | null;
-  tagline: string | null;
-  logoUrl: string | null;
   templateId?: BoutiqueTemplateId | null;
   patternId?: BoutiquePatternId | null;
   bannerEnabled?: boolean | null;
@@ -107,6 +96,9 @@ export interface PublicBoutiqueProfile {
     itemCount: number | null;
     outfitClaim: OutfitClaim | null;
   } | null;
+  quickLinks?: BoutiqueSettings['quickLinks'];
+  social?: BoutiqueSettings['social'];
+  footer?: BoutiqueSettings['footer'];
   updatedAt: any;
 }
 
@@ -393,6 +385,9 @@ export const syncPublicBoutiqueData = async (
     bannerEnabled: settings.bannerEnabled ?? true,
     bannerHeight: settings.bannerHeight ?? 'md',
     bannerOpacity: settings.bannerOpacity ?? 0.18,
+    quickLinks: settings.quickLinks ?? { enabled: false, items: [] },
+    social: settings.social ?? { facebookEnabled: false, position: 'right', facebookUrl: null },
+    footer: settings.footer ?? { enabled: true, layout: 'minimal', headline: null, message: null, ctaLabel: null, ctaUrl: null },
     featuredOutfit: featuredOutfit
       ? {
           id: featuredOutfit.id,
