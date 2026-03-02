@@ -701,6 +701,65 @@ export default function MyBoutiquePage() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {brandProfile ? (
+                    <div className="space-y-6">
+                        <div>
+                            <Label className="text-xs text-muted-foreground">Logo Style</Label>
+                            <div className="text-sm font-medium">
+                                { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
+                            </div>
+                        </div>
+                        <div>
+                            <Label className="text-xs text-muted-foreground">Colors</Label>
+                            <div className="flex items-center gap-2 mt-2">
+                            {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
+                                brandProfile.brandColors.map((color, i) =>
+                                    color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
+                                )
+                            ) : (
+                                <p className="text-xs text-muted-foreground">No colors set</p>
+                            )}
+                            </div>
+                        </div>
+                         <div>
+                            <Label className="text-xs text-muted-foreground">Fonts</Label>
+                            <div className="mt-2 space-y-2">
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="text-sm">Primary</span>
+                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
+                                        {brandProfile.primaryFont || 'Default'}
+                                    </span>
+                                </div>
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="text-sm">Secondary</span>
+                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
+                                        {brandProfile.secondaryFont || 'Default'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                         <p className="text-xs text-muted-foreground text-center pt-4 border-t">
+                            To change these,{' '}
+                            <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
+                         </p>
+                    </div>
+                ) : (
+                     <p className="text-xs text-muted-foreground text-center p-4">
+                        Set up{' '}
+                        <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
+                        {' '}to see your snapshot.
+                     </p>
+                )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                   <Palette className="h-5 w-5 text-accent" /> Boutique Designer
               </CardTitle>
               <CardDescription>
@@ -769,65 +828,6 @@ export default function MyBoutiquePage() {
                   </SelectContent>
                 </Select>
               </div>
-            </CardContent>
-          </Card>
-
-           <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {brandProfile ? (
-                    <div className="space-y-6">
-                        <div>
-                            <Label className="text-xs text-muted-foreground">Logo Style</Label>
-                            <div className="text-sm font-medium">
-                                { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
-                            </div>
-                        </div>
-                        <div>
-                            <Label className="text-xs text-muted-foreground">Colors</Label>
-                            <div className="flex items-center gap-2 mt-2">
-                            {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
-                                brandProfile.brandColors.map((color, i) =>
-                                    color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
-                                )
-                            ) : (
-                                <p className="text-xs text-muted-foreground">No colors set</p>
-                            )}
-                            </div>
-                        </div>
-                         <div>
-                            <Label className="text-xs text-muted-foreground">Fonts</Label>
-                            <div className="mt-2 space-y-2">
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm">Primary</span>
-                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
-                                        {brandProfile.primaryFont || 'Default'}
-                                    </span>
-                                </div>
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm">Secondary</span>
-                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
-                                        {brandProfile.secondaryFont || 'Default'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                         <p className="text-xs text-muted-foreground text-center pt-4 border-t">
-                            To change these,{' '}
-                            <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
-                         </p>
-                    </div>
-                ) : (
-                     <p className="text-xs text-muted-foreground text-center p-4">
-                        Set up{' '}
-                        <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
-                        {' '}to see your snapshot.
-                     </p>
-                )}
             </CardContent>
           </Card>
           
@@ -914,9 +914,24 @@ export default function MyBoutiquePage() {
                             >
                                 <SelectTrigger><SelectValue /></SelectTrigger>
                                 <SelectContent>
-                                    <SelectItem value="accent">Primary Brand Color (accent)</SelectItem>
-                                    <SelectItem value="color2" disabled={!brandProfile?.brandColors?.[1]}>Secondary Brand Color</SelectItem>
-                                    <SelectItem value="color3" disabled={!brandProfile?.brandColors?.[2]}>Third Brand Color</SelectItem>
+                                    <SelectItem value="accent">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[0] || 'transparent' }}></div>
+                                            <span>Primary Brand Color (accent)</span>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="color2" disabled={!brandProfile?.brandColors?.[1]}>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[1] || 'transparent' }}></div>
+                                            <span>Secondary Brand Color</span>
+                                        </div>
+                                    </SelectItem>
+                                    <SelectItem value="color3" disabled={!brandProfile?.brandColors?.[2]}>
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[2] || 'transparent' }}></div>
+                                            <span>Third Brand Color</span>
+                                        </div>
+                                    </SelectItem>
                                 </SelectContent>
                             </Select>
                            </div>
