@@ -199,32 +199,54 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
   const [filter, setFilter] = useState<'all' | 'items' | 'outfits'>('all');
   const [activeItem, setActiveItem] = useState<InventoryItem | null>(null);
   const [activeOutfit, setActiveOutfit] = useState<Outfit | null>(null);
+  
+  const normalize = (s: string) =>
+    s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  const tokenize = (s: string) =>
+    normalize(s).split(/\s+/).filter(Boolean);
+
+  const matchesTokens = (haystack: string, tokens: string[]) => {
+    if (!tokens.length) return true;
+    return tokens.every(token => haystack.includes(token));
+  };
+  
+  const tokens = tokenize(searchTerm);
+
+  const filteredItems = useMemo(() => {
+    if (!rackItems || (filter !== 'all' && filter !== 'items')) return [];
+    if (!tokens.length) return rackItems;
+
+    return rackItems.filter(item => {
+      const haystack = normalize([
+        item.title,
+        item.type,
+        ...(item.sizes ?? []),
+        ...(item.searchKeywords ?? [])
+      ].filter(Boolean).join(' '));
+
+      return matchesTokens(haystack, tokens);
+    });
+  }, [rackItems, tokens, filter]);
+
+  const filteredOutfits = useMemo(() => {
+    if (!outfits || (filter !== 'all' && filter !== 'outfits')) return [];
+    if (!tokens.length) return outfits;
+    
+    return outfits.filter(outfit => {
+      const haystack = normalize([
+        outfit.title,
+        outfit.storefrontDescription,
+        outfit.internalNotes
+      ].filter(Boolean).join(' '));
+
+      return matchesTokens(haystack, tokens);
+    });
+  }, [outfits, tokens, filter]);
 
   const renderTokens = useMemo(() => computeRenderTokens(brandProfile, templateId, patternId), [brandProfile, templateId, patternId]);
   const theme = useMemo(() => getThemeLayout(templateId), [templateId]);
   
-  const lowerCaseSearchTerm = searchTerm.toLowerCase();
-
-  const filteredItems = useMemo(() => {
-    if (!rackItems || (filter !== 'all' && filter !== 'items')) return [];
-    if (!lowerCaseSearchTerm) return rackItems;
-    return rackItems.filter(item => 
-      item.title.toLowerCase().includes(lowerCaseSearchTerm) ||
-      item.type.toLowerCase().includes(lowerCaseSearchTerm) ||
-      item.sizes.some(s => s.toLowerCase().includes(lowerCaseSearchTerm)) ||
-      (item.searchKeywords || []).some(k => k.toLowerCase().includes(lowerCaseSearchTerm))
-    );
-  }, [rackItems, lowerCaseSearchTerm, filter]);
-
-  const filteredOutfits = useMemo(() => {
-    if (!outfits || (filter !== 'all' && filter !== 'outfits')) return [];
-    if (!lowerCaseSearchTerm) return outfits;
-    return outfits.filter(outfit => 
-      outfit.title.toLowerCase().includes(lowerCaseSearchTerm) ||
-      (outfit.storefrontDescription || '').toLowerCase().includes(lowerCaseSearchTerm)
-    );
-  }, [outfits, lowerCaseSearchTerm, filter]);
-
   const logoStyle = brandProfile?.logoStyle ?? 'auto';
   const logoIsStyled = logoStyle === 'circle' || logoStyle === 'rounded';
 
