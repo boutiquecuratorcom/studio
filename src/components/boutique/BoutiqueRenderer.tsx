@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -23,30 +24,43 @@ import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { ItemQuickViewModal } from './ItemQuickViewModal';
 import { OutfitQuickViewModal } from './OutfitQuickViewModal';
 
+
 const validateHexColor = (color: string | null | undefined): string | null => {
-  if (!color) return null;
-  const raw = color.trim();
-  const withHash = raw.startsWith('#') ? raw : `#${raw}`;
-  const hex = withHash.slice(1);
-
-  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
-
-  if (hex.length === 3) {
-    const [r, g, b] = hex.split('');
-    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
-  }
-
-  return `#${hex}`.toUpperCase();
-};
+    if (!color) return null;
+    const raw = color.trim();
+    const withHash = raw.startsWith('#') ? raw : `#${raw}`;
+    const hex = withHash.slice(1);
+  
+    if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
+  
+    if (hex.length === 3) {
+      const [r, g, b] = hex.split('');
+      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+    }
+  
+    return `#${hex}`.toUpperCase();
+  };
 
 const hexToRgba = (hex: string, alpha: number): string => {
-  const h = validateHexColor(hex);
-  if (!h) return `rgba(17,24,39,${alpha})`;
-  const r = parseInt(h.slice(1, 3), 16);
-  const g = parseInt(h.slice(3, 5), 16);
-  const b = parseInt(h.slice(5, 7), 16);
-  const a = Math.max(0, Math.min(1, alpha));
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
+    const h = validateHexColor(hex);
+    if (!h) return `rgba(17,24,39,${alpha})`;
+    const r = parseInt(h.slice(1, 3), 16);
+    const g = parseInt(h.slice(3, 5), 16);
+    const b = parseInt(h.slice(5, 7), 16);
+    const a = Math.max(0, Math.min(1, alpha));
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+  };
+
+const normalize = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+const tokenize = (s: string) =>
+  normalize(s).split(/\s+/).filter(Boolean);
+
+const matchesTokens = (haystack: string, tokens: string[]) => {
+  if (!tokens.length) return true;
+  const normalizedHaystack = normalize(haystack);
+  return tokens.every(token => normalizedHaystack.includes(token));
 };
 
 type Props = {
@@ -197,19 +211,6 @@ const SectionSkeleton = ({ cols = 3 }: { cols?: number }) => (
   </div>
 );
 
-// Search helpers
-const normalize = (s: string) =>
-  s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-
-const tokenize = (s: string) =>
-  normalize(s).split(/\s+/).filter(Boolean);
-
-const matchesTokens = (haystack: string, tokens: string[]) => {
-  if (!tokens.length) return true;
-  const normalizedHaystack = normalize(haystack);
-  return tokens.every(token => normalizedHaystack.includes(token));
-};
-
 export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading, showFeaturedLook, showOutfits, showRack }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'items' | 'outfits'>('all');
@@ -223,12 +224,12 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
     if (tokens.length === 0) return rackItems;
 
     return rackItems.filter(item => {
-      const haystack = [
+      const haystack = normalize([
         item.title,
         item.type,
         ...(item.sizes ?? []),
         ...(item.searchKeywords ?? [])
-      ].filter(Boolean).join(' ');
+      ].filter(Boolean).join(' '));
 
       return matchesTokens(haystack, tokens);
     });
@@ -239,11 +240,11 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
     if (tokens.length === 0) return outfits;
     
     return outfits.filter(outfit => {
-      const haystack = [
+      const haystack = normalize([
         outfit.title,
         outfit.storefrontDescription,
         outfit.internalNotes
-      ].filter(Boolean).join(' ');
+      ].filter(Boolean).join(' '));
 
       return matchesTokens(haystack, tokens);
     });
@@ -278,6 +279,15 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
   const bannerHeightValue = bannerHeight ?? 'md';
   const bannerOpacityValue = bannerOpacity ?? 0.18;
   const bannerAccentColor = renderTokens.accentColor.startsWith('#') ? renderTokens.accentColor : '#EAE6E4';
+
+  const bannerHeightClass = useMemo(() => {
+    const heightMap = {
+      sm: 'h-40',
+      md: 'h-48',
+      lg: 'h-56',
+    };
+    return heightMap[bannerHeightValue] ?? 'h-48';
+  }, [bannerHeightValue]);
   
   const bannerStyle: React.CSSProperties = {
     background: `linear-gradient(180deg, ${hexToRgba(bannerAccentColor, bannerOpacityValue)} 0%, transparent 100%)`
