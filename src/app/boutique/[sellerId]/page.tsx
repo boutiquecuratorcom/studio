@@ -6,7 +6,10 @@ import { BoutiqueRenderer } from '@/components/boutique/BoutiqueRenderer';
 import { Store, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { computeRenderTokens } from '@/lib/boutique-design';
+import type {
+  BoutiquePatternId,
+  BoutiqueTemplateId,
+} from '@/lib/brand/brandPublicBits';
 
 function BoutiqueLoading() {
   return (
@@ -35,28 +38,24 @@ export default function PublicBoutiquePage() {
 
   const { data: publicProfile, loading, error } = usePublicBoutiqueByHandle(handle);
 
-  if (loading) {
-    return <BoutiqueLoading />;
-  }
-  
-  if (!error && !publicProfile) {
-      notFound();
-  }
+  if (loading) return <BoutiqueLoading />;
 
-  if (error || !publicProfile?.enabled) {
-    return <BoutiqueNotAvailable />;
-  }
+  if (!error && !publicProfile) notFound();
 
-  // For the public page, we don't have the full brandProfile, just the public bits.
-  // The computeRenderTokens function is designed to handle this gracefully.
-  // We hardcode the template and pattern for now, as per the directive.
-  const renderTokens = computeRenderTokens(publicProfile, 'editorial', 'none');
+  if (error || !publicProfile?.enabled) return <BoutiqueNotAvailable />;
+
+  // Hardcoded defaults for Step 2
+  const templateId: BoutiqueTemplateId = 'editorial';
+  const patternId: BoutiquePatternId = 'none';
 
   return (
     <BoutiqueRenderer
       brandProfile={publicProfile}
       featuredOutfit={publicProfile.featuredOutfit}
-      renderTokens={renderTokens}
+      templateId={templateId}
+      patternId={patternId}
     />
   );
 }
+
+    

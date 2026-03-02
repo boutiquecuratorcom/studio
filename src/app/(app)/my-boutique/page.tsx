@@ -8,7 +8,11 @@ import * as z from 'zod';
 
 import { useUser, useFirestore, useDoc } from '@/firebase';
 import { useOutfits } from '@/lib/outfits';
-import type { BrandProfilePublicBits } from '@/lib/brand/brandPublicBits';
+import type {
+  BrandProfilePublicBits,
+  BoutiqueTemplateId,
+  BoutiquePatternId,
+} from '@/lib/brand/brandPublicBits';
 
 import {
   type BoutiqueSettings,
@@ -72,7 +76,6 @@ import {
 } from 'firebase/firestore';
 
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
-import { computeRenderTokens } from '@/lib/boutique-design';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -90,11 +93,14 @@ export default function MyBoutiquePage() {
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
   }, [user, firestore]);
 
-  const { data: brandProfile, loading: brandLoading } = useDoc<BrandProfilePublicBits>(brandProfileRef);
+  const { data: brandProfile, loading: brandLoading } =
+    useDoc<BrandProfilePublicBits>(brandProfileRef);
 
   const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
 
-  const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>({});
+  const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>(
+    {}
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isInitialized, setIsInitialized] = useState(false);
@@ -314,7 +320,11 @@ export default function MyBoutiquePage() {
     try {
       await runTransaction(firestore, async (transaction) => {
         const testHandleRef = doc(firestore, 'handles', randomHandle);
-        const testPublicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
+        const testPublicBoutiqueRef = doc(
+          firestore,
+          'publicBoutiques',
+          randomHandle
+        );
 
         const testHandleSnap = await transaction.get(testHandleRef);
         if (testHandleSnap.exists())
@@ -394,7 +404,11 @@ export default function MyBoutiquePage() {
   };
 
   const loading =
-    userLoading || !isInitialized || outfitsLoading || brandLoading || handleLoading;
+    userLoading ||
+    !isInitialized ||
+    outfitsLoading ||
+    brandLoading ||
+    handleLoading;
 
   const featuredOutfit = useMemo(() => {
     if (!outfits) return undefined;
@@ -410,7 +424,6 @@ export default function MyBoutiquePage() {
 
   const isConfigDirty = useMemo(() => {
     if (!boutiqueSettings) return false;
-
     return (
       (localSettings.featuredOutfitId || 'auto') !==
       (boutiqueSettings.featuredOutfitId || 'auto')
@@ -419,9 +432,12 @@ export default function MyBoutiquePage() {
 
   const renderHeader = () => (
     <header className="mb-12">
-      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">My Boutique</h1>
+      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
+        My Boutique
+      </h1>
       <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
-        Your personal boutique showcase. When you&apos;re ready, share it with the world.
+        Your personal boutique showcase. When you&apos;re ready, share it with the
+        world.
       </p>
     </header>
   );
@@ -444,9 +460,8 @@ export default function MyBoutiquePage() {
   }
 
   // Hardcode defaults for now, as per the directive. UI controls will be added later.
-  const templateId = 'editorial';
-  const patternId = 'none';
-  const renderTokens = computeRenderTokens(brandProfile, templateId, patternId);
+  const templateId: BoutiqueTemplateId = 'editorial';
+  const patternId: BoutiquePatternId = 'none';
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -460,7 +475,7 @@ export default function MyBoutiquePage() {
             <AlertDescription>
               If you don&apos;t like how your boutique looks, update your{' '}
               <Link href="/my-brand" className="underline">
-                Brand Colors & Fonts
+                Brand Colors &amp; Fonts
               </Link>{' '}
               in <strong>My Brand</strong>. Your boutique will automatically match.
             </AlertDescription>
@@ -488,7 +503,9 @@ export default function MyBoutiquePage() {
               </div>
 
               <p className="text-sm text-muted-foreground mt-3 px-1">
-                {localSettings.enabled ? 'Your boutique is public.' : 'Your boutique is private.'}
+                {localSettings.enabled
+                  ? 'Your boutique is public.'
+                  : 'Your boutique is private.'}
               </p>
 
               {!handle && (
@@ -506,7 +523,9 @@ export default function MyBoutiquePage() {
           <Card>
             <CardHeader>
               <CardTitle>Page Content</CardTitle>
-              <CardDescription>Choose what to feature on your boutique page.</CardDescription>
+              <CardDescription>
+                Choose what to feature on your boutique page.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -564,7 +583,9 @@ export default function MyBoutiquePage() {
                       {selfTestResults.map((result, i) => (
                         <li
                           key={i}
-                          className={`flex items-center gap-2 ${!result.ok ? 'text-destructive' : ''}`}
+                          className={`flex items-center gap-2 ${
+                            !result.ok ? 'text-destructive' : ''
+                          }`}
                         >
                           {result.ok ? (
                             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -573,7 +594,9 @@ export default function MyBoutiquePage() {
                           )}
                           <span>{result.step}</span>
                           {result.error && (
-                            <span className="font-mono text-destructive/80">- {result.error}</span>
+                            <span className="font-mono text-destructive/80">
+                              - {result.error}
+                            </span>
                           )}
                         </li>
                       ))}
@@ -593,10 +616,11 @@ export default function MyBoutiquePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <BoutiqueLivePreview 
-                brandProfile={brandProfile} 
-                featuredOutfit={featuredOutfit} 
-                renderTokens={renderTokens}
+              <BoutiqueLivePreview
+                brandProfile={brandProfile}
+                featuredOutfit={featuredOutfit}
+                templateId={templateId}
+                patternId={patternId}
               />
             </CardContent>
           </Card>
@@ -605,3 +629,5 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
+
+    
