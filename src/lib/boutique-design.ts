@@ -111,7 +111,7 @@ const PATTERNS: Record<BoutiquePatternId, CSSProperties> = {
   },
 
   waves: {
-    backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 80 40\' width=\'80\' height=\'40\'%3e%3cpath fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.5\' d=\'M0 20 Q 20 0 40 20 T 80 20\'%3e%3c/path%3e%3c/svg%3e")',
+    backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 80 40\' width=\'80\' height=\'40\'%3e%3cpath fill=\'none\' stroke=\'currentColor\' stroke-width=\'0.75\' d=\'M0 20 Q 20 0 40 20 T 80 20\'%3e%3c/path%3e%3c/svg%3e")',
     backgroundSize: '40px',
   },
 
