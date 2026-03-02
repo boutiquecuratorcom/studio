@@ -624,8 +624,8 @@ export default function MyBoutiquePage() {
               <BoutiqueLivePreview
                 brandProfile={brandProfile}
                 featuredOutfit={featuredOutfit}
-                templateId={localSettings.templateId ?? 'editorial'}
-                patternId={localSettings.patternId ?? 'none'}
+                templateId={localSettings.templateId as BoutiqueTemplateId ?? 'editorial'}
+                patternId={localSettings.patternId as BoutiquePatternId ?? 'none'}
               />
             </CardContent>
           </Card>
