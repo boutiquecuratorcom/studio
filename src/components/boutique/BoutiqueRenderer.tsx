@@ -5,14 +5,14 @@ import Image from 'next/image';
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Store, ImageIcon } from 'lucide-react';
+import { Store, ImageIcon, Facebook } from 'lucide-react';
 import type { PublicBoutiqueProfile } from '@/lib/boutique';
 import type {
   BoutiquePatternId,
   BoutiqueTemplateId,
   BrandProfilePublicBits,
 } from '@/lib/brand/brandPublicBits';
-import { computeRenderTokens } from '@/lib/boutique-design';
+import { computeRenderTokens, getContrastingTextColor } from '@/lib/boutique-design';
 import { cn } from '@/lib/utils';
 import { PublicClaimButton } from './PublicClaimButton';
 
@@ -50,7 +50,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-2xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-75',
+        overlayOpacityClass: 'opacity-60',
         ornaments: 'editorial',
       };
     case 'soft-luxe':
@@ -64,7 +64,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-75', 
+        overlayOpacityClass: 'opacity-60', 
         ornaments: 'luxe',
       };
     case 'playful-pop':
@@ -92,7 +92,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-3',
         cardWrap: 'rounded-none overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-50',
+        overlayOpacityClass: 'opacity-40',
         ornaments: 'minimal',
       };
     case 'street-bold':
@@ -106,7 +106,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-lg overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-50', 
+        overlayOpacityClass: 'opacity-25', 
         ornaments: 'street',
       };
     case 'romantic-vintage':
@@ -120,7 +120,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-75', 
+        overlayOpacityClass: 'opacity-60', 
         ornaments: 'vintage',
       };
   }
@@ -137,16 +137,6 @@ function Ornaments({ kind }: { kind: ThemeLayout['ornaments'] }) {
     default: return null;
   }
 }
-
-const hexToRgba = (hex: string, alpha: number): string => {
-  if (!hex || !hex.startsWith('#')) return `rgba(17,24,39,${alpha})`;
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const a = Math.max(0, Math.min(1, alpha));
-  return `rgba(${r}, ${g}, ${b}, ${a})`;
-};
-
 
 export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, patternId }: Props) => {
   const renderTokens = useMemo(() => computeRenderTokens(brandProfile, templateId, patternId), [brandProfile, templateId, patternId]);
@@ -167,7 +157,7 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
   }[bannerHeightValue];
   
   const bannerStyle: React.CSSProperties = {
-    background: `linear-gradient(180deg, ${hexToRgba(bannerAccentColor, bannerOpacity)} 0%, transparent 100%)`
+    background: `linear-gradient(180deg, ${getContrastingTextColor(bannerAccentColor)} 0%, transparent 100%)`
   };
 
 
@@ -179,6 +169,10 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
     ['--boutique-font-body' as any]: renderTokens.bodyFontFamily,
     ['--boutique-font-button' as any]: renderTokens.buttonFontFamily,
   };
+  
+  const quickLinks = brandProfile?.quickLinks;
+  const social = brandProfile?.social;
+  const footer = brandProfile?.footer;
   
   return (
     <div 
@@ -192,7 +186,7 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
       {bannerEnabled && (
         <div 
             className={cn(
-                'absolute top-0 left-0 right-0 w-full',
+                'absolute top-0 left-0 right-0 w-full opacity-10',
                 bannerHeightClass
             )}
             style={bannerStyle}
@@ -201,6 +195,21 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
       <div className={cn('absolute inset-0 pointer-events-none', theme.overlayOpacityClass)} style={renderTokens.patternStyles} />
       <div className="absolute inset-0 pointer-events-none"><Ornaments kind={theme.ornaments} /></div>
       
+       {social?.facebookEnabled && social.facebookUrl && (
+        <a 
+          href={social.facebookUrl} 
+          target="_blank" 
+          rel="noopener noreferrer"
+          className={cn(
+            'fixed bottom-4 z-50 h-14 w-14 rounded-full flex items-center justify-center shadow-lg',
+            social.position === 'left' ? 'left-4' : 'right-4'
+          )}
+          style={{ backgroundColor: 'var(--boutique-accent)', color: 'var(--boutique-accent-text)' }}
+        >
+          <Facebook className="h-7 w-7" />
+        </a>
+      )}
+
       <div className={cn('w-full mx-auto px-4 md:px-6 relative z-10', theme.containerWidth)}>
         
         <header className={cn('flex flex-col items-center text-center mb-12 md:mb-16', theme.headerWrap, renderTokens.headerClass)}>
@@ -286,6 +295,35 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
             )}
           </section>
 
+          {quickLinks?.enabled && quickLinks.items && quickLinks.items.length > 0 && (
+            <section className="text-center">
+                <div className="flex flex-wrap items-center justify-center gap-4">
+                    {quickLinks.items.map(item => {
+                        const style: React.CSSProperties = { fontFamily: 'var(--boutique-font-button)'};
+                        let variant: 'default' | 'outline' | 'ghost' = 'default';
+
+                        if (item.style === 'primary') {
+                            style.backgroundColor = renderTokens.accentColor;
+                            style.color = renderTokens.accentTextColor;
+                        } else if (item.style === 'secondary') {
+                            variant = 'outline';
+                            style.borderColor = renderTokens.accentColor;
+                            style.color = renderTokens.accentColor;
+                        } else {
+                            variant = 'ghost';
+                            style.color = renderTokens.accentColor;
+                        }
+                        
+                        return (
+                            <Button key={item.id} asChild variant={variant} style={style}>
+                                <a href={item.url} target="_blank" rel="noopener noreferrer">{item.label}</a>
+                            </Button>
+                        )
+                    })}
+                </div>
+            </section>
+          )}
+
           {/* Placeholder for My Rack */}
           <section>
               <div className="text-center">
@@ -297,16 +335,43 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
               </div>
           </section>
 
-          {/* Placeholder for Links */}
-           <section>
-              <div className="text-center">
-                  <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>Quick Links</h2>
-              </div>
-              <div className={cn("mt-8 text-center p-12 border-2 border-dashed rounded-2xl", renderTokens.cardClass)}>
-                  <p className={cn(templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Important links and calls-to-action will appear here.</p>
-              </div>
-          </section>
         </main>
+
+        {footer?.enabled && (
+            <section className="mt-16 md:mt-24 border-t pt-12 md:pt-16" style={{ borderColor: 'var(--boutique-accent)' }}>
+                {footer.layout === 'minimal' && (
+                    <div className="text-center">
+                        <p className={cn("text-sm", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>{footer.message || brandProfile?.brandName}</p>
+                    </div>
+                )}
+                {footer.layout === 'centered' && (
+                    <div className="text-center max-w-xl mx-auto">
+                        <h3 className={cn("text-2xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{fontFamily: 'var(--boutique-font-heading)'}}>{footer.headline || 'Join Our Community'}</h3>
+                        <p className={cn("mt-2 text-lg", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>{footer.message || 'Stay up to date with the latest drops and sales.'}</p>
+                        {footer.ctaLabel && footer.ctaUrl && (
+                            <div className="mt-6">
+                                <Button size="lg" asChild style={{ backgroundColor: 'var(--boutique-accent)', color: 'var(--boutique-accent-text)' }}>
+                                    <a href={footer.ctaUrl} target="_blank" rel="noopener noreferrer">{footer.ctaLabel}</a>
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
+                {footer.layout === 'split' && (
+                    <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+                        <div className="text-center md:text-left">
+                            <h3 className={cn("text-2xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{fontFamily: 'var(--boutique-font-heading)'}}>{footer.headline}</h3>
+                            <p className={cn("mt-1", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>{footer.message}</p>
+                        </div>
+                        {footer.ctaLabel && footer.ctaUrl && (
+                             <Button size="lg" asChild style={{ backgroundColor: 'var(--boutique-accent)', color: 'var(--boutique-accent-text)' }} className="flex-shrink-0">
+                                <a href={footer.ctaUrl} target="_blank" rel="noopener noreferrer">{footer.ctaLabel}</a>
+                            </Button>
+                        )}
+                    </div>
+                )}
+            </section>
+        )}
 
         <footer className={cn('text-center border-t mt-16 md:mt-24 pt-8', templateId === 'street-bold' ? 'border-white/20' : 'border-border/40', theme.footerWrap)}>
           <p className={cn("text-xs", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Powered by Boutique Curator</p>

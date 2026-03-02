@@ -53,6 +53,28 @@ export interface BoutiqueSettings extends DocumentData {
   bannerEnabled?: boolean | null;
   bannerHeight?: 'sm' | 'md' | 'lg' | null;
   bannerOpacity?: number | null;
+  quickLinks?: {
+    enabled?: boolean;
+    items?: {
+      id: string;
+      label: string;
+      url: string;
+      style?: 'primary' | 'secondary' | 'text';
+    }[];
+  };
+  social?: {
+    facebookEnabled?: boolean;
+    facebookUrl?: string | null;
+    position?: 'left' | 'right';
+  };
+  footer?: {
+    enabled?: boolean;
+    layout?: 'minimal' | 'centered' | 'split';
+    headline?: string | null;
+    message?: string | null;
+    ctaLabel?: string | null;
+    ctaUrl?: string | null;
+  };
   updatedAt?: any;
 }
 

@@ -59,15 +59,20 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 import {
   AlertTriangle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
-  Eye,
-  Loader2,
-  Save,
-  XCircle,
-  Heart,
-  Palette,
   Copy,
+  Eye,
+  Facebook,
+  Heart,
+  Loader2,
+  Palette,
   PictureInPicture,
+  Plus,
+  Save,
+  Trash2,
+  XCircle,
 } from 'lucide-react';
 
 import {
@@ -188,6 +193,9 @@ export default function MyBoutiquePage() {
           bannerEnabled: currentSettings?.bannerEnabled ?? true,
           bannerHeight: currentSettings?.bannerHeight ?? 'md',
           bannerOpacity: currentSettings?.bannerOpacity ?? 0.18,
+          quickLinks: currentSettings?.quickLinks ?? { enabled: false, items: [] },
+          social: currentSettings?.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
+          footer: currentSettings?.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' }
         });
 
         setIsInitialized(true);
@@ -271,6 +279,9 @@ export default function MyBoutiquePage() {
         bannerEnabled: localSettings.bannerEnabled,
         bannerHeight: localSettings.bannerHeight,
         bannerOpacity: localSettings.bannerOpacity,
+        quickLinks: localSettings.quickLinks,
+        social: localSettings.social,
+        footer: localSettings.footer,
       };
 
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
@@ -450,18 +461,24 @@ export default function MyBoutiquePage() {
 
     return outfits.find((o) => o.id === featuredId);
   }, [localSettings.featuredOutfitId, outfits]);
+  
+  const livePreviewProfile = useMemo(() => ({
+    ...brandProfile,
+    ...localSettings
+  }), [brandProfile, localSettings]);
 
   const isConfigDirty = useMemo(() => {
     if (!boutiqueSettings) return false;
     return (
-      (localSettings.featuredOutfitId || 'auto') !==
-        (boutiqueSettings.featuredOutfitId || 'auto') ||
-      (localSettings.templateId ?? 'editorial') !==
-        (boutiqueSettings.templateId ?? 'editorial') ||
+      (localSettings.featuredOutfitId || 'auto') !== (boutiqueSettings.featuredOutfitId || 'auto') ||
+      (localSettings.templateId ?? 'editorial') !== (boutiqueSettings.templateId ?? 'editorial') ||
       (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none') ||
       (localSettings.bannerEnabled ?? true) !== (boutiqueSettings.bannerEnabled ?? true) ||
       (localSettings.bannerHeight ?? 'md') !== (boutiqueSettings.bannerHeight ?? 'md') ||
-      (localSettings.bannerOpacity ?? 0.18) !== (boutiqueSettings.bannerOpacity ?? 0.18)
+      (localSettings.bannerOpacity ?? 0.18) !== (boutiqueSettings.bannerOpacity ?? 0.18) ||
+      JSON.stringify(localSettings.quickLinks) !== JSON.stringify(boutiqueSettings.quickLinks) ||
+      JSON.stringify(localSettings.social) !== JSON.stringify(boutiqueSettings.social) ||
+      JSON.stringify(localSettings.footer) !== JSON.stringify(boutiqueSettings.footer)
     );
   }, [localSettings, boutiqueSettings]);
 
@@ -500,93 +517,7 @@ export default function MyBoutiquePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-1 space-y-6">
-          <Alert className="border-muted">
-            <Heart className="h-4 w-4" />
-            <AlertTitle>Boutique styling comes from My Brand</AlertTitle>
-            <AlertDescription>
-              If you don&apos;t like how your boutique looks, update your{' '}
-              <Link href="/my-brand" className="underline">
-                Brand Colors &amp; Fonts
-              </Link>{' '}
-              in <strong>My Brand</strong>. Your boutique will automatically match.
-            </AlertDescription>
-          </Alert>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Palette className="h-5 w-5 text-accent" /> Brand Snapshot
-              </CardTitle>
-              <CardDescription>
-                Read-only preview from your{' '}
-                <Link href="/my-brand" className="underline">
-                  Brand Profile
-                </Link>
-                .
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {brandProfile ? (
-                <div className="space-y-6">
-                  <div>
-                    <Label>Brand Colors</Label>
-                    <div className="flex items-center gap-3 mt-2">
-                      {brandProfile.brandColors &&
-                      brandProfile.brandColors.some((c) => !!c) ? (
-                        brandProfile.brandColors
-                          .filter((c) => !!c)
-                          .map((color, i) => (
-                            <div key={i} className="text-center">
-                              <div
-                                className="h-10 w-10 rounded-md border"
-                                style={{ backgroundColor: color! }}
-                              ></div>
-                              <p className="text-xs font-mono text-muted-foreground mt-1">
-                                {color}
-                              </p>
-                            </div>
-                          ))
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          No colors set.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div>
-                    <Label>Fonts</Label>
-                    <div className="mt-2 space-y-1 rounded-md border p-3 text-sm">
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">
-                          Primary (Headings)
-                        </span>
-                        <span className="font-semibold">
-                          {brandProfile.primaryFont || 'Default'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-muted-foreground">
-                          Secondary (Body)
-                        </span>
-                        <span className="font-semibold">
-                          {brandProfile.secondaryFont || 'Default'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No brand profile found.{' '}
-                  <Link href="/my-brand" className="underline">
-                    Set up My Brand
-                  </Link>{' '}
-                  to see your snapshot.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-          
           <Card>
             <CardHeader>
               <CardTitle>Publishing</CardTitle>
@@ -663,8 +594,53 @@ export default function MyBoutiquePage() {
               </Form>
             </CardContent>
           </Card>
-
+          
           <Card>
+            <CardHeader>
+              <CardTitle>Page Content</CardTitle>
+              <CardDescription>
+                Choose what to feature on your boutique page.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Featured Outfit</Label>
+                <Select
+                  value={(localSettings.featuredOutfitId as any) || 'auto'}
+                  onValueChange={(v) =>
+                    setLocalSettings((prev) => ({ ...prev, featuredOutfitId: v as any }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select an outfit..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="auto">Auto (newest published look)</SelectItem>
+                    {outfits?.map((outfit) => (
+                      <SelectItem key={outfit.id} value={outfit.id}>
+                        {outfit.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Button
+                onClick={handleConfigSave}
+                disabled={isSaving || !isConfigDirty}
+                className="w-full"
+              >
+                {isSaving ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="mr-2 h-4 w-4" />
+                )}
+                Save Configuration
+              </Button>
+            </CardContent>
+          </Card>
+
+           <Card>
             <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                     <Palette className="h-5 w-5 text-accent" /> Boutique Designer
@@ -732,102 +708,217 @@ export default function MyBoutiquePage() {
               </div>
             </CardContent>
           </Card>
+          
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center gap-2">
+                        <PictureInPicture className="h-5 w-5 text-accent" /> Banner
+                    </CardTitle>
+                <CardDescription>
+                    Configure the top banner area of your boutique.
+                </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                    <div className="flex items-center space-x-4 rounded-lg border p-4">
+                        <Switch
+                            checked={localSettings.bannerEnabled ?? true}
+                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, bannerEnabled: checked }))}
+                        />
+                        <Label className="flex-grow">
+                            Banner Enabled
+                        </Label>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Height</Label>
+                        <Select
+                            value={localSettings.bannerHeight ?? 'md'}
+                            onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerHeight: v as any}))}
+                        >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="sm">Small</SelectItem>
+                                <SelectItem value="md">Medium</SelectItem>
+                                <SelectItem value="lg">Large</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Intensity</Label>
+                        <Select
+                            value={String(localSettings.bannerOpacity ?? 0.18)}
+                            onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerOpacity: parseFloat(v)}))}
+                        >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="0.12">Subtle</SelectItem>
+                                <SelectItem value="0.18">Medium</SelectItem>
+                                <SelectItem value="0.28">Strong</SelectItem>
+                                <SelectItem value="0.40">Bold</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                </CardContent>
+            </Card>
 
-           <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <PictureInPicture className="h-5 w-5 text-accent" /> Banner
-                </CardTitle>
-              <CardDescription>
-                Configure the top banner area of your boutique.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-                <div className="flex items-center space-x-4 rounded-lg border p-4">
-                    <Switch
-                        checked={localSettings.bannerEnabled ?? true}
-                        onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, bannerEnabled: checked }))}
-                    />
-                    <Label className="flex-grow">
-                        Banner Enabled
-                    </Label>
-                </div>
-                <div className="space-y-2">
-                    <Label>Height</Label>
-                    <Select
-                        value={localSettings.bannerHeight ?? 'md'}
-                        onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerHeight: v as any}))}
-                    >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="sm">Small</SelectItem>
-                            <SelectItem value="md">Medium</SelectItem>
-                            <SelectItem value="lg">Large</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-                <div className="space-y-2">
-                    <Label>Intensity</Label>
-                    <Select
-                        value={String(localSettings.bannerOpacity ?? 0.18)}
-                        onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerOpacity: parseFloat(v)}))}
-                    >
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="0.12">Subtle</SelectItem>
-                            <SelectItem value="0.18">Medium</SelectItem>
-                            <SelectItem value="0.28">Strong</SelectItem>
-                            <SelectItem value="0.40">Bold</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-            </CardContent>
-           </Card>
+            <Card>
+                <CardHeader>
+                    <CardTitle>Quick Links</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center space-x-4 rounded-lg border p-4">
+                        <Switch
+                            checked={localSettings.quickLinks?.enabled ?? false}
+                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, quickLinks: { ...prev.quickLinks, enabled: checked } }))}
+                        />
+                        <Label className="flex-grow">Show Quick Links</Label>
+                    </div>
+                    {localSettings.quickLinks?.enabled && (
+                        <div className="space-y-3">
+                            {localSettings.quickLinks?.items?.map((item, index) => (
+                                <div key={item.id} className="p-3 border rounded-md space-y-3 bg-muted/50">
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-grow space-y-2">
+                                            <Input 
+                                                placeholder="Label" 
+                                                value={item.label}
+                                                onChange={(e) => {
+                                                    const newItems = [...(localSettings.quickLinks?.items || [])];
+                                                    newItems[index].label = e.target.value;
+                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                }}
+                                            />
+                                            <Input 
+                                                placeholder="URL" 
+                                                value={item.url}
+                                                onChange={(e) => {
+                                                    const newItems = [...(localSettings.quickLinks?.items || [])];
+                                                    newItems[index].url = e.target.value;
+                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                }}
+                                            />
+                                            <Select
+                                                value={item.style || 'primary'}
+                                                onValueChange={(style) => {
+                                                    const newItems = [...(localSettings.quickLinks?.items || [])];
+                                                    newItems[index].style = style as any;
+                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                }}
+                                            >
+                                                <SelectTrigger><SelectValue /></SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="primary">Primary</SelectItem>
+                                                    <SelectItem value="secondary">Secondary</SelectItem>
+                                                    <SelectItem value="text">Text</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        </div>
+                                        <div className="flex flex-col gap-2">
+                                            <Button type="button" size="icon" variant="ghost" disabled={index === 0} onClick={() => {
+                                                const newItems = [...(localSettings.quickLinks?.items || [])];
+                                                [newItems[index], newItems[index-1]] = [newItems[index-1], newItems[index]];
+                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                            }}><ArrowUp className="h-4 w-4" /></Button>
+                                            <Button type="button" size="icon" variant="ghost" disabled={index === (localSettings.quickLinks?.items?.length || 0) - 1} onClick={() => {
+                                                const newItems = [...(localSettings.quickLinks?.items || [])];
+                                                [newItems[index], newItems[index+1]] = [newItems[index+1], newItems[index]];
+                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                            }}><ArrowDown className="h-4 w-4" /></Button>
+                                            <Button type="button" size="icon" variant="ghost" onClick={() => {
+                                                const newItems = (localSettings.quickLinks?.items || []).filter(i => i.id !== item.id);
+                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                            }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                            {(localSettings.quickLinks?.items?.length || 0) < 6 && (
+                                <Button type="button" variant="outline" className="w-full" onClick={() => {
+                                    const newItems = [...(localSettings.quickLinks?.items || []), { id: crypto.randomUUID(), label: '', url: '', style: 'primary' }];
+                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                }}><Plus className="mr-2 h-4 w-4" /> Add Link</Button>
+                            )}
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
+            
+            <Card>
+                <CardHeader><CardTitle>Social</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center space-x-4 rounded-lg border p-4">
+                        <Switch
+                            checked={localSettings.social?.facebookEnabled ?? false}
+                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, social: { ...prev.social, facebookEnabled: checked } }))}
+                        />
+                        <Label className="flex-grow">Floating Facebook Button</Label>
+                    </div>
+                     <div className="space-y-2">
+                        <Label>Facebook URL</Label>
+                        <Input 
+                            placeholder="https://facebook.com/your-page"
+                            value={localSettings.social?.facebookUrl || ''}
+                            onChange={(e) => setLocalSettings(prev => ({...prev, social: {...prev.social, facebookUrl: e.target.value}}))}
+                        />
+                     </div>
+                     <div className="space-y-2">
+                        <Label>Position</Label>
+                        <Select
+                            value={localSettings.social?.position || 'right'}
+                            onValueChange={(pos) => setLocalSettings(prev => ({...prev, social: {...prev.social, position: pos as any}}))}
+                        >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="left">Left</SelectItem>
+                                <SelectItem value="right">Right</SelectItem>
+                            </SelectContent>
+                        </Select>
+                     </div>
+                </CardContent>
+            </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Page Content</CardTitle>
-              <CardDescription>
-                Choose what to feature on your boutique page.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label>Featured Outfit</Label>
-                <Select
-                  value={(localSettings.featuredOutfitId as any) || 'auto'}
-                  onValueChange={(v) =>
-                    setLocalSettings((prev) => ({ ...prev, featuredOutfitId: v as any }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an outfit..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="auto">Auto (newest published look)</SelectItem>
-                    {outfits?.map((outfit) => (
-                      <SelectItem key={outfit.id} value={outfit.id}>
-                        {outfit.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <Card>
+                <CardHeader><CardTitle>Footer</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                     <div className="flex items-center space-x-4 rounded-lg border p-4">
+                        <Switch
+                            checked={localSettings.footer?.enabled ?? true}
+                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, footer: { ...prev.footer, enabled: checked } }))}
+                        />
+                        <Label className="flex-grow">Show Footer</Label>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Layout</Label>
+                        <Select
+                            value={localSettings.footer?.layout || 'minimal'}
+                            onValueChange={(layout) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, layout: layout as any}}))}
+                        >
+                            <SelectTrigger><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="minimal">Minimal</SelectItem>
+                                <SelectItem value="centered">Centered</SelectItem>
+                                <SelectItem value="split">Split</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Headline</Label>
+                        <Input value={localSettings.footer?.headline || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, headline: e.target.value}}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Message</Label>
+                        <Input value={localSettings.footer?.message || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, message: e.target.value}}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>CTA Label</Label>
+                        <Input value={localSettings.footer?.ctaLabel || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, ctaLabel: e.target.value}}))} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>CTA URL</Label>
+                        <Input value={localSettings.footer?.ctaUrl || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, ctaUrl: e.target.value}}))} />
+                    </div>
+                </CardContent>
+            </Card>
 
-              <Button
-                onClick={handleConfigSave}
-                disabled={isSaving || !isConfigDirty}
-                className="w-full"
-              >
-                {isSaving ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="mr-2 h-4 w-4" />
-                )}
-                Save Configuration
-              </Button>
-            </CardContent>
-          </Card>
 
           {isAdmin && (
             <Card>
@@ -881,15 +972,10 @@ export default function MyBoutiquePage() {
             </CardHeader>
             <CardContent>
               <BoutiqueLivePreview
-                brandProfile={brandProfile}
+                brandProfile={livePreviewProfile as any}
                 featuredOutfit={featuredOutfit}
                 templateId={localSettings.templateId ?? 'editorial'}
                 patternId={localSettings.patternId ?? 'none'}
-                bannerSettings={{
-                    enabled: localSettings.bannerEnabled ?? true,
-                    height: localSettings.bannerHeight ?? 'md',
-                    opacity: localSettings.bannerOpacity ?? 0.18,
-                }}
               />
             </CardContent>
           </Card>
