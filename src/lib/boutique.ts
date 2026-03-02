@@ -50,6 +50,9 @@ export interface BoutiqueSettings extends DocumentData {
   handle: string | null;
   templateId?: BoutiqueTemplateId | null;
   patternId?: BoutiquePatternId | null;
+  bannerEnabled?: boolean | null;
+  bannerHeight?: 'sm' | 'md' | 'lg' | null;
+  bannerOpacity?: number | null;
   updatedAt?: any;
 }
 
@@ -71,6 +74,9 @@ export interface PublicBoutiqueProfile {
   logoUrl: string | null;
   templateId?: BoutiqueTemplateId | null;
   patternId?: BoutiquePatternId | null;
+  bannerEnabled?: boolean | null;
+  bannerHeight?: 'sm' | 'md' | 'lg' | null;
+  bannerOpacity?: number | null;
   featuredOutfit: {
     id: string;
     title: string | null;
@@ -356,8 +362,15 @@ export const syncPublicBoutiqueData = async (
     brandName: brandProfile.brandName ?? null,
     tagline: brandProfile.tagline ?? null,
     logoUrl: brandProfile.logoUrl ?? null,
+    logoStyle: brandProfile.logoStyle ?? 'auto',
+    brandColors: brandProfile.brandColors ?? [],
+    primaryFont: brandProfile.primaryFont ?? null,
+    secondaryFont: brandProfile.secondaryFont ?? null,
     templateId: settings.templateId ?? 'editorial',
     patternId: settings.patternId ?? 'none',
+    bannerEnabled: settings.bannerEnabled ?? true,
+    bannerHeight: settings.bannerHeight ?? 'md',
+    bannerOpacity: settings.bannerOpacity ?? 0.18,
     featuredOutfit: featuredOutfit
       ? {
           id: featuredOutfit.id,

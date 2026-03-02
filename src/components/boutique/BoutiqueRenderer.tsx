@@ -17,7 +17,7 @@ import { cn } from '@/lib/utils';
 import { PublicClaimButton } from './PublicClaimButton';
 
 type Props = {
-  brandProfile: Partial<BrandProfilePublicBits> | null;
+  brandProfile: Partial<BrandProfilePublicBits & PublicBoutiqueProfile> | null;
   featuredOutfit: PublicBoutiqueProfile['featuredOutfit'];
   templateId: BoutiqueTemplateId;
   patternId: BoutiquePatternId;
@@ -50,7 +50,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-2xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-60',
+        overlayOpacityClass: 'opacity-75',
         ornaments: 'editorial',
       };
     case 'soft-luxe':
@@ -64,7 +64,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-60', 
+        overlayOpacityClass: 'opacity-75', 
         ornaments: 'luxe',
       };
     case 'playful-pop':
@@ -78,7 +78,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-60', 
+        overlayOpacityClass: 'opacity-75', 
         ornaments: 'pop',
       };
     case 'modern-minimal':
@@ -92,7 +92,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-3',
         cardWrap: 'rounded-none overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40',
+        overlayOpacityClass: 'opacity-50',
         ornaments: 'minimal',
       };
     case 'street-bold':
@@ -106,7 +106,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-lg overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40', 
+        overlayOpacityClass: 'opacity-50', 
         ornaments: 'street',
       };
     case 'romantic-vintage':
@@ -120,7 +120,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-60', 
+        overlayOpacityClass: 'opacity-75', 
         ornaments: 'vintage',
       };
   }
@@ -138,12 +138,38 @@ function Ornaments({ kind }: { kind: ThemeLayout['ornaments'] }) {
   }
 }
 
+const hexToRgba = (hex: string, alpha: number): string => {
+  if (!hex || !hex.startsWith('#')) return `rgba(17,24,39,${alpha})`;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
+
+
 export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, patternId }: Props) => {
   const renderTokens = useMemo(() => computeRenderTokens(brandProfile, templateId, patternId), [brandProfile, templateId, patternId]);
   const theme = useMemo(() => getThemeLayout(templateId), [templateId]);
   
   const logoStyle = brandProfile?.logoStyle ?? 'auto';
   const logoIsStyled = logoStyle === 'circle' || logoStyle === 'rounded';
+
+  const bannerEnabled = brandProfile?.bannerEnabled ?? true;
+  const bannerHeightValue = brandProfile?.bannerHeight ?? 'md';
+  const bannerOpacity = brandProfile?.bannerOpacity ?? 0.18;
+  const bannerAccentColor = renderTokens.accentColor.startsWith('#') ? renderTokens.accentColor : '#EAE6E4';
+
+  const bannerHeightClass = {
+    sm: 'h-32',
+    md: 'h-44',
+    lg: 'h-56',
+  }[bannerHeightValue];
+  
+  const bannerStyle: React.CSSProperties = {
+    background: `linear-gradient(180deg, ${hexToRgba(bannerAccentColor, bannerOpacity)} 0%, transparent 100%)`
+  };
+
 
   const rootVars: React.CSSProperties = {
     ['--boutique-accent' as any]: renderTokens.accentColor,
@@ -163,13 +189,13 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
       )} 
       style={{ ...rootVars, background: 'var(--boutique-bg)', fontFamily: 'var(--boutique-font-body)' }}
     >
-      {renderTokens.bannerEnabled && (
+      {bannerEnabled && (
         <div 
             className={cn(
                 'absolute top-0 left-0 right-0 w-full',
-                renderTokens.bannerHeightClass
+                bannerHeightClass
             )}
-            style={renderTokens.bannerStyle}
+            style={bannerStyle}
         />
       )}
       <div className={cn('absolute inset-0 pointer-events-none', theme.overlayOpacityClass)} style={renderTokens.patternStyles} />

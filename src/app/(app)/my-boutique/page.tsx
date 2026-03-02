@@ -67,6 +67,7 @@ import {
   Heart,
   Palette,
   Copy,
+  PictureInPicture,
 } from 'lucide-react';
 
 import {
@@ -169,6 +170,9 @@ export default function MyBoutiquePage() {
             handle: null,
             templateId: 'editorial',
             patternId: 'none',
+            bannerEnabled: true,
+            bannerHeight: 'md',
+            bannerOpacity: 0.18,
           };
           await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
           currentSettings = newSettingsData as unknown as BoutiqueSettings;
@@ -181,6 +185,9 @@ export default function MyBoutiquePage() {
           featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
           templateId: currentSettings?.templateId ?? 'editorial',
           patternId: currentSettings?.patternId ?? 'none',
+          bannerEnabled: currentSettings?.bannerEnabled ?? true,
+          bannerHeight: currentSettings?.bannerHeight ?? 'md',
+          bannerOpacity: currentSettings?.bannerOpacity ?? 0.18,
         });
 
         setIsInitialized(true);
@@ -261,6 +268,9 @@ export default function MyBoutiquePage() {
             : (localSettings.featuredOutfitId as any),
         templateId: localSettings.templateId,
         patternId: localSettings.patternId,
+        bannerEnabled: localSettings.bannerEnabled,
+        bannerHeight: localSettings.bannerHeight,
+        bannerOpacity: localSettings.bannerOpacity,
       };
 
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
@@ -448,7 +458,10 @@ export default function MyBoutiquePage() {
         (boutiqueSettings.featuredOutfitId || 'auto') ||
       (localSettings.templateId ?? 'editorial') !==
         (boutiqueSettings.templateId ?? 'editorial') ||
-      (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none')
+      (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none') ||
+      (localSettings.bannerEnabled ?? true) !== (boutiqueSettings.bannerEnabled ?? true) ||
+      (localSettings.bannerHeight ?? 'md') !== (boutiqueSettings.bannerHeight ?? 'md') ||
+      (localSettings.bannerOpacity ?? 0.18) !== (boutiqueSettings.bannerOpacity ?? 0.18)
     );
   }, [localSettings, boutiqueSettings]);
 
@@ -720,6 +733,57 @@ export default function MyBoutiquePage() {
             </CardContent>
           </Card>
 
+           <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <PictureInPicture className="h-5 w-5 text-accent" /> Banner
+                </CardTitle>
+              <CardDescription>
+                Configure the top banner area of your boutique.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex items-center space-x-4 rounded-lg border p-4">
+                    <Switch
+                        checked={localSettings.bannerEnabled ?? true}
+                        onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, bannerEnabled: checked }))}
+                    />
+                    <Label className="flex-grow">
+                        Banner Enabled
+                    </Label>
+                </div>
+                <div className="space-y-2">
+                    <Label>Height</Label>
+                    <Select
+                        value={localSettings.bannerHeight ?? 'md'}
+                        onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerHeight: v as any}))}
+                    >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="sm">Small</SelectItem>
+                            <SelectItem value="md">Medium</SelectItem>
+                            <SelectItem value="lg">Large</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+                <div className="space-y-2">
+                    <Label>Intensity</Label>
+                    <Select
+                        value={String(localSettings.bannerOpacity ?? 0.18)}
+                        onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerOpacity: parseFloat(v)}))}
+                    >
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="0.12">Subtle</SelectItem>
+                            <SelectItem value="0.18">Medium</SelectItem>
+                            <SelectItem value="0.28">Strong</SelectItem>
+                            <SelectItem value="0.40">Bold</SelectItem>
+                        </SelectContent>
+                    </Select>
+                </div>
+            </CardContent>
+           </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Page Content</CardTitle>
@@ -821,6 +885,11 @@ export default function MyBoutiquePage() {
                 featuredOutfit={featuredOutfit}
                 templateId={localSettings.templateId ?? 'editorial'}
                 patternId={localSettings.patternId ?? 'none'}
+                bannerSettings={{
+                    enabled: localSettings.bannerEnabled ?? true,
+                    height: localSettings.bannerHeight ?? 'md',
+                    opacity: localSettings.bannerOpacity ?? 0.18,
+                }}
               />
             </CardContent>
           </Card>

@@ -8,16 +8,24 @@ import type {
   BoutiqueTemplateId,
 } from '@/lib/brand/brandPublicBits';
 
+type BannerSettings = {
+    enabled: boolean;
+    height: 'sm' | 'md' | 'lg';
+    opacity: number;
+}
+
 export const BoutiqueLivePreview = ({
   brandProfile,
   featuredOutfit,
   templateId,
   patternId,
+  bannerSettings
 }: {
   brandProfile: BrandProfilePublicBits | null;
   featuredOutfit: Outfit | undefined;
   templateId: BoutiqueTemplateId;
   patternId: BoutiquePatternId;
+  bannerSettings: BannerSettings;
 }) => {
   const featuredOutfitSummary = featuredOutfit
     ? {
@@ -32,9 +40,16 @@ export const BoutiqueLivePreview = ({
       }
     : null;
 
+    const liveProfile = {
+        ...(brandProfile || {}),
+        bannerEnabled: bannerSettings.enabled,
+        bannerHeight: bannerSettings.height,
+        bannerOpacity: bannerSettings.opacity,
+    };
+
   return (
     <BoutiqueRenderer
-      brandProfile={brandProfile}
+      brandProfile={liveProfile}
       featuredOutfit={featuredOutfitSummary}
       templateId={templateId}
       patternId={patternId}
