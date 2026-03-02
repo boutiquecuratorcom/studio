@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -11,8 +12,6 @@ import { useUser, useFirestore, useDoc } from '@/firebase';
 import { useOutfits } from '@/lib/outfits';
 import type {
   BrandProfilePublicBits,
-  BoutiqueTemplateId,
-  BoutiquePatternId,
 } from '@/lib/brand/brandPublicBits';
 
 import {
@@ -55,7 +54,6 @@ import {
   FormItem,
   FormMessage,
 } from '@/components/ui/form';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 import {
   AlertTriangle,
@@ -64,8 +62,7 @@ import {
   CheckCircle2,
   Copy,
   Eye,
-  Facebook,
-  Heart,
+  ImageIcon,
   Loader2,
   Palette,
   PictureInPicture,
@@ -88,6 +85,7 @@ import {
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
 import { BOUTIQUE_PATTERNS, BOUTIQUE_TEMPLATES } from '@/lib/brand/brandPublicBits';
 import { Input } from '@/components/ui/input';
+import { getFontByName } from '@/lib/fonts';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -462,10 +460,10 @@ export default function MyBoutiquePage() {
     return outfits.find((o) => o.id === featuredId);
   }, [localSettings.featuredOutfitId, outfits]);
   
-  const livePreviewProfile = useMemo(() => ({
-    ...brandProfile,
-    ...localSettings
-  }), [brandProfile, localSettings]);
+    const livePreviewProfile = useMemo(() => ({
+        ...brandProfile,
+        ...localSettings
+    }), [brandProfile, localSettings]);
 
   const isConfigDirty = useMemo(() => {
     if (!boutiqueSettings) return false;
@@ -651,21 +649,6 @@ export default function MyBoutiquePage() {
             </CardHeader>
             <CardContent className="space-y-6">
                <div className="space-y-2">
-                <Label>Logo Style</Label>
-                <div className="flex items-center justify-between rounded-lg border p-3">
-                    <p className="text-sm font-medium">
-                        {
-                            brandProfile?.logoStyle === 'circle' ? 'Circle Badge' :
-                            brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' :
-                            'Auto (Natural Shape)'
-                        }
-                    </p>
-                    <Button variant="link" asChild className="text-xs h-auto p-0">
-                        <Link href="/my-brand">Change in My Brand</Link>
-                    </Button>
-                </div>
-              </div>
-               <div className="space-y-2">
                 <Label>Theme</Label>
                 <Select
                   value={(localSettings.templateId as any) || 'editorial'}
@@ -709,6 +692,65 @@ export default function MyBoutiquePage() {
             </CardContent>
           </Card>
           
+            <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    {brandProfile ? (
+                        <div className="space-y-6">
+                            <div>
+                                <Label className="text-xs text-muted-foreground">Logo Style</Label>
+                                <div className="text-sm font-medium">
+                                    { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
+                                </div>
+                            </div>
+                            <div>
+                                <Label className="text-xs text-muted-foreground">Colors</Label>
+                                <div className="flex items-center gap-2 mt-2">
+                                {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
+                                    brandProfile.brandColors.map((color, i) =>
+                                        color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
+                                    )
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">No colors set</p>
+                                )}
+                                </div>
+                            </div>
+                             <div>
+                                <Label className="text-xs text-muted-foreground">Fonts</Label>
+                                <div className="mt-2 space-y-2">
+                                    <div className="flex items-baseline justify-between gap-2">
+                                        <span className="text-sm">Primary</span>
+                                        <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
+                                            {brandProfile.primaryFont || 'Default'}
+                                        </span>
+                                    </div>
+                                    <div className="flex items-baseline justify-between gap-2">
+                                        <span className="text-sm">Secondary</span>
+                                        <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
+                                            {brandProfile.secondaryFont || 'Default'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                             <p className="text-xs text-muted-foreground text-center pt-4 border-t">
+                                To change these,{' '}
+                                <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
+                             </p>
+                        </div>
+                    ) : (
+                         <p className="text-xs text-muted-foreground text-center p-4">
+                            Set up{' '}
+                            <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
+                            {' '}to see your snapshot.
+                         </p>
+                    )}
+                </CardContent>
+            </Card>
+
             <Card>
                 <CardHeader>
                     <CardTitle className="flex items-center gap-2">
@@ -768,7 +810,7 @@ export default function MyBoutiquePage() {
                     <div className="flex items-center space-x-4 rounded-lg border p-4">
                         <Switch
                             checked={localSettings.quickLinks?.enabled ?? false}
-                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, quickLinks: { ...prev.quickLinks, enabled: checked } }))}
+                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, quickLinks: { ...prev.quickLinks, items: prev.quickLinks?.items || [], enabled: checked } }))}
                         />
                         <Label className="flex-grow">Show Quick Links</Label>
                     </div>
@@ -784,7 +826,7 @@ export default function MyBoutiquePage() {
                                                 onChange={(e) => {
                                                     const newItems = [...(localSettings.quickLinks?.items || [])];
                                                     newItems[index].label = e.target.value;
-                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled }}));
                                                 }}
                                             />
                                             <Input 
@@ -793,7 +835,7 @@ export default function MyBoutiquePage() {
                                                 onChange={(e) => {
                                                     const newItems = [...(localSettings.quickLinks?.items || [])];
                                                     newItems[index].url = e.target.value;
-                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled }}));
                                                 }}
                                             />
                                             <Select
@@ -801,7 +843,7 @@ export default function MyBoutiquePage() {
                                                 onValueChange={(style) => {
                                                     const newItems = [...(localSettings.quickLinks?.items || [])];
                                                     newItems[index].style = style as any;
-                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled }}));
                                                 }}
                                             >
                                                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -816,16 +858,16 @@ export default function MyBoutiquePage() {
                                             <Button type="button" size="icon" variant="ghost" disabled={index === 0} onClick={() => {
                                                 const newItems = [...(localSettings.quickLinks?.items || [])];
                                                 [newItems[index], newItems[index-1]] = [newItems[index-1], newItems[index]];
-                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
                                             }}><ArrowUp className="h-4 w-4" /></Button>
                                             <Button type="button" size="icon" variant="ghost" disabled={index === (localSettings.quickLinks?.items?.length || 0) - 1} onClick={() => {
                                                 const newItems = [...(localSettings.quickLinks?.items || [])];
                                                 [newItems[index], newItems[index+1]] = [newItems[index+1], newItems[index]];
-                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
                                             }}><ArrowDown className="h-4 w-4" /></Button>
                                             <Button type="button" size="icon" variant="ghost" onClick={() => {
                                                 const newItems = (localSettings.quickLinks?.items || []).filter(i => i.id !== item.id);
-                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
                                             }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                         </div>
                                     </div>
@@ -834,7 +876,7 @@ export default function MyBoutiquePage() {
                             {(localSettings.quickLinks?.items?.length || 0) < 6 && (
                                 <Button type="button" variant="outline" className="w-full" onClick={() => {
                                     const newItems = [...(localSettings.quickLinks?.items || []), { id: crypto.randomUUID(), label: '', url: '', style: 'primary' }];
-                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems}}));
+                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
                                 }}><Plus className="mr-2 h-4 w-4" /> Add Link</Button>
                             )}
                         </div>
@@ -974,8 +1016,6 @@ export default function MyBoutiquePage() {
               <BoutiqueLivePreview
                 brandProfile={livePreviewProfile as any}
                 featuredOutfit={featuredOutfit}
-                templateId={localSettings.templateId ?? 'editorial'}
-                patternId={localSettings.patternId ?? 'none'}
               />
             </CardContent>
           </Card>
