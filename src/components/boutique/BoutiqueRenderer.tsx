@@ -50,7 +50,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-2xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-75',
+        overlayOpacityClass: 'opacity-60',
         ornaments: 'editorial',
       };
     case 'soft-luxe':
@@ -64,7 +64,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-75', 
+        overlayOpacityClass: 'opacity-60', 
         ornaments: 'luxe',
       };
     case 'playful-pop':
@@ -78,7 +78,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-75', 
+        overlayOpacityClass: 'opacity-60', 
         ornaments: 'pop',
       };
     case 'modern-minimal':
@@ -92,7 +92,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-3',
         cardWrap: 'rounded-none overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-50',
+        overlayOpacityClass: 'opacity-40',
         ornaments: 'minimal',
       };
     case 'street-bold':
@@ -106,7 +106,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-lg overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-50', 
+        overlayOpacityClass: 'opacity-40', 
         ornaments: 'street',
       };
     case 'romantic-vintage':
@@ -120,7 +120,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-75', 
+        overlayOpacityClass: 'opacity-60', 
         ornaments: 'vintage',
       };
   }
@@ -221,36 +221,37 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
         <main className="space-y-16 md:space-y-24">
           <section>
             {featuredOutfit ? (
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 md:gap-12 items-center">
-                <Card className={cn('w-full overflow-hidden group', theme.cardWrap, renderTokens.cardClass)}>
-                  <div className="relative aspect-[4/5] w-full">
-                    <Image src={featuredOutfit.imageUrl || 'https://picsum.photos/seed/boutique-fallback/800/1000'} alt={featuredOutfit.title || 'Featured Outfit'} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                  </div>
-                </Card>
-                <div className="text-center lg:text-left flex flex-col items-center lg:items-start">
-                  <h2 className={cn("text-sm uppercase tracking-widest mb-2", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Featured Look</h2>
-                  <h3 className={cn(
-                      "text-3xl md:text-4xl font-semibold leading-tight",
-                      theme.nameClass,
-                      templateId === 'street-bold' && 'text-white'
-                  )} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
-                    {featuredOutfit.title}
-                  </h3>
-                  <p className={cn("mt-4 max-w-md text-lg", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>
-                    {featuredOutfit.description || `${featuredOutfit.itemCount} curated items to create the perfect look.`}
-                  </p>
-                  <div className={cn("mt-6", theme.ctaWrap)}>
-                     <PublicClaimButton 
-                        outfitSummary={featuredOutfit} 
-                        accentColor={renderTokens.accentColor} 
-                        buttonStyle={renderTokens.buttonStyle} 
-                        style={{ fontFamily: 'var(--boutique-font-button)' }}
-                        className="px-8 py-6 text-base"
-                    />
-                  </div>
+                <div className="flex flex-col items-center gap-6 md:gap-8">
+                    <div className="w-full max-w-xl">
+                        <Card className={cn('w-full overflow-hidden group', theme.cardWrap, renderTokens.cardClass)}>
+                            <div className="relative aspect-[4/5] w-full">
+                                <Image src={featuredOutfit.imageUrl || 'https://picsum.photos/seed/boutique-fallback/800/1000'} alt={featuredOutfit.title || 'Featured Outfit'} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                            </div>
+                        </Card>
+                    </div>
+                    <div className="text-center flex flex-col items-center">
+                        <h2 className={cn("text-sm uppercase tracking-widest mb-2", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Featured Look</h2>
+                        <h3 className={cn(
+                            "text-3xl md:text-4xl font-semibold leading-tight",
+                             templateId === 'street-bold' ? 'text-white' : theme.nameClass
+                        )} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
+                            {featuredOutfit.title}
+                        </h3>
+                        <p className={cn("mt-4 max-w-md text-lg", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>
+                            {featuredOutfit.description || `${featuredOutfit.itemCount} curated items to create the perfect look.`}
+                        </p>
+                        <div className={cn("mt-6", theme.ctaWrap)}>
+                            <PublicClaimButton 
+                                outfitSummary={featuredOutfit} 
+                                accentColor={renderTokens.accentColor} 
+                                buttonStyle={renderTokens.buttonStyle} 
+                                style={{ fontFamily: 'var(--boutique-font-button)' }}
+                                className="px-8 py-6 text-base"
+                            />
+                        </div>
+                    </div>
                 </div>
-              </div>
             ) : (
               <div className={cn("aspect-video w-full rounded-2xl flex flex-col items-center justify-center text-center p-4 border", renderTokens.cardClass)}>
                 <ImageIcon className="h-10 w-10 mb-2 text-muted-foreground" />
