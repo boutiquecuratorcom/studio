@@ -28,7 +28,7 @@ export const validateHexColor = (
   if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
 
   if (hex.length === 3) {
-    const [r, g, b] = m[1].split('');
+    const [r, g, b] = hex.split('');
     return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
   }
 
@@ -89,8 +89,8 @@ const PATTERNS: Record<BoutiquePatternId, CSSProperties> = {
 
   polka: {
     backgroundImage:
-      'radial-gradient(currentColor 0.7px, transparent 0.8px)',
-    backgroundSize: '14px 14px',
+      'radial-gradient(currentColor 1.5px, transparent 1.5px)',
+    backgroundSize: '20px 20px',
   },
 
   pinstripe: {
@@ -111,9 +111,8 @@ const PATTERNS: Record<BoutiquePatternId, CSSProperties> = {
   },
 
   waves: {
-    backgroundImage:
-      'radial-gradient(circle at 50% 0%, currentColor 10%, transparent 11%), radial-gradient(circle at 50% 100%, currentColor 10%, transparent 11%)',
-    backgroundSize: '24px 24px',
+    backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 80 40\' width=\'80\' height=\'40\'%3e%3cpath fill=\'none\' stroke=\'currentColor\' stroke-width=\'1.5\' d=\'M0 20 Q 20 0 40 20 T 80 20\'%3e%3c/path%3e%3c/svg%3e")',
+    backgroundSize: '40px',
   },
 
   confetti: {
@@ -230,7 +229,7 @@ export const computeRenderTokens = (
       ? tokens.accentColor
       : '#111827';
   
-  let patternOpacity = templateId === 'street-bold' ? 0.15 : 0.12;
+  let patternOpacity = templateId === 'street-bold' ? 0.25 : 0.2;
 
   tokens.patternStyles = {
     ...basePattern,
