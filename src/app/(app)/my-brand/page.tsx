@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useDoc, useFirestore, useStorage, useUser } from '@/firebase';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, serverTimestamp, setDoc, getDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
 import {
   Building,
@@ -207,6 +207,7 @@ export default function MyBrandPage() {
   const [isUploading, setIsUploading] = useState(false);
   
   const hasLoggedRef = useRef(false);
+  const formInitializedRef = useRef(false);
 
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
@@ -261,13 +262,11 @@ export default function MyBrandPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    if (brandProfileData) {
+    if (brandProfileData && !formInitializedRef.current) {
       if (!hasLoggedRef.current) {
         logBrandProfile(brandProfileData, 'MyBrandPage');
         hasLoggedRef.current = true;
       }
-      // If the form has unsaved changes, don't overwrite the user's input
-      if (formState.isDirty) return;
 
       const data: any = brandProfileData;
       const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
@@ -297,8 +296,9 @@ export default function MyBrandPage() {
         postingFrequency: data.postingFrequency || undefined,
         promoStyle: data.promoStyle || undefined,
       });
+      formInitializedRef.current = true;
     }
-  }, [brandProfileData, reset, formState.isDirty]);
+  }, [brandProfileData, reset]);
 
 
   // --- Handlers ---
@@ -342,7 +342,7 @@ export default function MyBrandPage() {
   };
 
   const onSubmit = async (data: BrandProfileFormValues) => {
-    if (!brandProfileRef) {
+    if (!brandProfileRef || !user) {
       toast({
         variant: 'destructive',
         title: 'Save failed',
@@ -367,24 +367,33 @@ export default function MyBrandPage() {
 
     payload.brandColors = normalizedColors;
 
+    console.log('[SAVE My Brand] start', { uid: user.uid, payload });
+
     try {
       await setDoc(
         brandProfileRef,
         { ...payload, updatedAt: serverTimestamp() },
         { merge: true }
       );
+      
+      console.log('[SAVE My Brand] success');
+      
+      const snap = await getDoc(brandProfileRef);
+      console.log('[SAVE My Brand] readback exists:', snap.exists(), 'data:', snap.data());
 
       toast({
         title: 'My Brand Saved!',
         description: 'Your changes have been saved.',
       });
+      
+      reset(data);
 
-    } catch (error: any) {
-      console.error('Firestore save error:', error);
+    } catch (error: any) => {
+      console.error('[SAVE My Brand] error', error);
       toast({
         variant: 'destructive',
         title: 'Save failed',
-        description: error.message,
+        description: error.message || 'An unknown error occurred.',
       });
     } finally {
       setIsSaving(false);
@@ -1097,3 +1106,5 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   );
 }
+
+    

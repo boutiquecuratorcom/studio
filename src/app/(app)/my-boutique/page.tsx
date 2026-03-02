@@ -169,7 +169,8 @@ export default function MyBoutiquePage() {
   const handleEnabledToggle = async (enabled: boolean) => {
     if (!user || !firestore) return;
 
-    if (enabled && !handle?.handle) {
+    const normalizedSettings = normalizeBoutiqueSettings(boutiqueSettings);
+    if (enabled && !normalizedSettings.handle) {
       toast({
         variant: 'destructive',
         title: 'Cannot go live',
@@ -181,21 +182,24 @@ export default function MyBoutiquePage() {
     setIsSyncing(true);
     toast({ title: 'Updating boutique status...', description: 'Please wait.' });
 
+    const boutiqueSettingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+    const publicBoutiqueRef = handle?.handle ? doc(firestore, `publicBoutiques/${handle.handle}`) : null;
+
+    console.log('[SAVE Boutique Status] start', { uid: user.uid, enabled });
+
     try {
       if (enabled) {
         await syncPublicBoutiqueData(firestore, user.uid, handle!.handle);
-        await updateDoc(doc(firestore, `publicBoutiques/${handle!.handle}`), {
-          enabled: true,
-        });
+        if (publicBoutiqueRef) await updateDoc(publicBoutiqueRef, { enabled: true });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
       } else {
-        if (handle?.handle) {
-          await updateDoc(doc(firestore, `publicBoutiques/${handle.handle}`), {
-            enabled: false,
-          });
-        }
+        if (publicBoutiqueRef) await updateDoc(publicBoutiqueRef, { enabled: false });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
       }
+      
+      console.log('[SAVE Boutique Status] success');
+      const snap = await getDoc(boutiqueSettingsRef);
+      console.log('[SAVE Boutique Status] readback exists:', snap.exists(), 'data:', snap.data());
 
       setLocalSettings((prev) => ({ ...prev, enabled }));
 
@@ -204,6 +208,7 @@ export default function MyBoutiquePage() {
         description: `Your boutique is now ${enabled ? 'live' : 'private'}.`,
       });
     } catch (e: any) {
+      console.error('[SAVE Boutique Status] error', e);
       toast({
         variant: 'destructive',
         title: 'Update Failed',
@@ -219,39 +224,48 @@ export default function MyBoutiquePage() {
     if (!user || !firestore) return;
 
     setIsSaving(true);
-    try {
-      const settingsToSave: Partial<BoutiqueSettings> = {
-        featuredOutfitId:
-          localSettings.featuredOutfitId === 'auto'
-            ? null
-            : (localSettings.featuredOutfitId as any),
-        templateId: localSettings.templateId,
-        patternId: localSettings.patternId,
-        accentColorIndex: localSettings.accentColorIndex,
-        bannerEnabled: localSettings.bannerEnabled,
-        bannerHeight: localSettings.bannerHeight,
-        bannerOpacity: localSettings.bannerOpacity,
-        announcementEnabled: localSettings.announcementEnabled,
-        announcementText: localSettings.announcementText,
-        announcementHref: localSettings.announcementHref,
-        announcementCtaLabel: localSettings.announcementCtaLabel,
-        announcementColorSource: localSettings.announcementColorSource,
-        quickLinks: localSettings.quickLinks,
-        social: localSettings.social,
-        footer: localSettings.footer,
-        showFeaturedLook: localSettings.showFeaturedLook,
-        showOutfits: localSettings.showOutfits,
-        showRack: localSettings.showRack,
-      };
 
+    const settingsToSave: Partial<BoutiqueSettings> = {
+      featuredOutfitId:
+        localSettings.featuredOutfitId === 'auto'
+          ? null
+          : (localSettings.featuredOutfitId as any),
+      templateId: localSettings.templateId,
+      patternId: localSettings.patternId,
+      accentColorIndex: localSettings.accentColorIndex,
+      bannerEnabled: localSettings.bannerEnabled,
+      bannerHeight: localSettings.bannerHeight,
+      bannerOpacity: localSettings.bannerOpacity,
+      announcementEnabled: localSettings.announcementEnabled,
+      announcementText: localSettings.announcementText,
+      announcementHref: localSettings.announcementHref,
+      announcementCtaLabel: localSettings.announcementCtaLabel,
+      announcementColorSource: localSettings.announcementColorSource,
+      quickLinks: localSettings.quickLinks,
+      social: localSettings.social,
+      footer: localSettings.footer,
+      showFeaturedLook: localSettings.showFeaturedLook,
+      showOutfits: localSettings.showOutfits,
+      showRack: localSettings.showRack,
+    };
+    
+    const boutiqueSettingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+    console.log('[SAVE Boutique Config] start', { uid: user.uid, payload: settingsToSave });
+
+    try {
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
 
       if (handle?.handle) {
         await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
       }
+      
+      console.log('[SAVE Boutique Config] success');
+      const snap = await getDoc(boutiqueSettingsRef);
+      console.log('[SAVE Boutique Config] readback exists:', snap.exists(), 'data:', snap.data());
 
       toast({ title: 'Configuration Saved!' });
     } catch (e: any) {
+      console.error('[SAVE Boutique Config] error', e);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
@@ -434,10 +448,10 @@ export default function MyBoutiquePage() {
       localSettings.templateId !== normalizedDbSettings.templateId ||
       localSettings.patternId !== normalizedDbSettings.patternId ||
       localSettings.accentColorIndex !== normalizedDbSettings.accentColorIndex ||
-      localSettings.bannerEnabled !== normalizedDbSettings.bannerEnabled ||
+      withDefaultBool(localSettings.bannerEnabled, true) !== withDefaultBool(normalizedDbSettings.bannerEnabled, true) ||
       localSettings.bannerHeight !== normalizedDbSettings.bannerHeight ||
       localSettings.bannerOpacity !== normalizedDbSettings.bannerOpacity ||
-      localSettings.announcementEnabled !== normalizedDbSettings.announcementEnabled ||
+      withDefaultBool(localSettings.announcementEnabled, false) !== withDefaultBool(normalizedDbSettings.announcementEnabled, false) ||
       localSettings.announcementText !== normalizedDbSettings.announcementText ||
       localSettings.announcementHref !== normalizedDbSettings.announcementHref ||
       localSettings.announcementCtaLabel !== normalizedDbSettings.announcementCtaLabel ||
@@ -445,9 +459,9 @@ export default function MyBoutiquePage() {
       JSON.stringify(localSettings.quickLinks) !== JSON.stringify(normalizedDbSettings.quickLinks) ||
       JSON.stringify(localSettings.social) !== JSON.stringify(normalizedDbSettings.social) ||
       JSON.stringify(localSettings.footer) !== JSON.stringify(normalizedDbSettings.footer) ||
-      localSettings.showFeaturedLook !== normalizedDbSettings.showFeaturedLook ||
-      localSettings.showOutfits !== normalizedDbSettings.showOutfits ||
-      localSettings.showRack !== normalizedDbSettings.showRack
+      withDefaultBool(localSettings.showFeaturedLook, true) !== withDefaultBool(normalizedDbSettings.showFeaturedLook, true) ||
+      withDefaultBool(localSettings.showOutfits, true) !== withDefaultBool(normalizedDbSettings.showOutfits, true) ||
+      withDefaultBool(localSettings.showRack, true) !== withDefaultBool(normalizedDbSettings.showRack, true)
     );
   }, [localSettings, boutiqueSettings]);
 
@@ -639,6 +653,65 @@ export default function MyBoutiquePage() {
            <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {brandProfile ? (
+                    <div className="space-y-6">
+                        <div>
+                            <Label className="text-xs text-muted-foreground">Logo Style</Label>
+                            <div className="text-sm font-medium">
+                                { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
+                            </div>
+                        </div>
+                        <div>
+                            <Label className="text-xs text-muted-foreground">Colors</Label>
+                            <div className="flex items-center gap-2 mt-2">
+                            {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
+                                brandProfile.brandColors.map((color, i) =>
+                                    color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
+                                )
+                            ) : (
+                                <p className="text-xs text-muted-foreground">No colors set</p>
+                            )}
+                            </div>
+                        </div>
+                          <div>
+                            <Label className="text-xs text-muted-foreground">Fonts</Label>
+                            <div className="mt-2 space-y-2">
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="text-sm">Primary</span>
+                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
+                                        {brandProfile.primaryFont || 'Default'}
+                                    </span>
+                                </div>
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="text-sm">Secondary</span>
+                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
+                                        {brandProfile.secondaryFont || 'Default'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                          <p className="text-xs text-muted-foreground text-center pt-4 border-t">
+                            To change these,{' '}
+                            <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
+                          </p>
+                    </div>
+                ) : (
+                      <p className="text-xs text-muted-foreground text-center p-4">
+                        Set up{' '}
+                        <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
+                        {' '}to see your snapshot.
+                      </p>
+                )}
+            </CardContent>
+          </Card>
+          
+           <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
                   <Palette className="h-5 w-5 text-accent" /> Boutique Designer
               </CardTitle>
               <CardDescription>
@@ -709,65 +782,6 @@ export default function MyBoutiquePage() {
               </div>
             </CardContent>
           </Card>
-
-           <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                  {brandProfile ? (
-                      <div className="space-y-6">
-                          <div>
-                              <Label className="text-xs text-muted-foreground">Logo Style</Label>
-                              <div className="text-sm font-medium">
-                                  { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
-                              </div>
-                          </div>
-                          <div>
-                              <Label className="text-xs text-muted-foreground">Colors</Label>
-                              <div className="flex items-center gap-2 mt-2">
-                              {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
-                                  brandProfile.brandColors.map((color, i) =>
-                                      color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
-                                  )
-                              ) : (
-                                  <p className="text-xs text-muted-foreground">No colors set</p>
-                              )}
-                              </div>
-                          </div>
-                           <div>
-                              <Label className="text-xs text-muted-foreground">Fonts</Label>
-                              <div className="mt-2 space-y-2">
-                                  <div className="flex items-baseline justify-between gap-2">
-                                      <span className="text-sm">Primary</span>
-                                      <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
-                                          {brandProfile.primaryFont || 'Default'}
-                                      </span>
-                                  </div>
-                                  <div className="flex items-baseline justify-between gap-2">
-                                      <span className="text-sm">Secondary</span>
-                                      <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
-                                          {brandProfile.secondaryFont || 'Default'}
-                                      </span>
-                                  </div>
-                              </div>
-                          </div>
-                           <p className="text-xs text-muted-foreground text-center pt-4 border-t">
-                              To change these,{' '}
-                              <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
-                           </p>
-                      </div>
-                  ) : (
-                       <p className="text-xs text-muted-foreground text-center p-4">
-                          Set up{' '}
-                          <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
-                          {' '}to see your snapshot.
-                       </p>
-                  )}
-              </CardContent>
-            </Card>
           
             <Card>
                 <CardHeader>
@@ -1127,3 +1141,5 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
+
+    
