@@ -22,7 +22,7 @@ export const BoutiqueLivePreview = ({
   const featuredOutfitSummary = featuredOutfit
     ? {
         id: featuredOutfit.id,
-        title: featuredOutfit.title,
+        title: featuredOutfit.title ?? null,
         imageUrl: featuredOutfit.cover?.imageUrl || null,
         description: featuredOutfit.storefrontDescription || null,
         itemCount: Array.isArray(featuredOutfit.linkedRackItemIds)
@@ -41,5 +41,3 @@ export const BoutiqueLivePreview = ({
     />
   );
 };
-
-    

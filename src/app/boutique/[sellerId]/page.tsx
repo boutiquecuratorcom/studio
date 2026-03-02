@@ -1,15 +1,11 @@
 'use client';
 
-import { useParams, notFound } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import { usePublicBoutiqueByHandle } from '@/lib/boutique';
 import { BoutiqueRenderer } from '@/components/boutique/BoutiqueRenderer';
 import { Store, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import type {
-  BoutiquePatternId,
-  BoutiqueTemplateId,
-} from '@/lib/brand/brandPublicBits';
 
 function BoutiqueLoading() {
   return (
@@ -24,7 +20,9 @@ function BoutiqueNotAvailable() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-muted text-center p-4">
       <Store className="h-16 w-16 text-muted-foreground mb-4" />
       <h1 className="text-2xl font-bold">Boutique Not Available</h1>
-      <p className="text-muted-foreground">This boutique is not public yet. Check back soon.</p>
+      <p className="text-muted-foreground">
+        This boutique is not public yet (or does not exist). Check back soon.
+      </p>
       <Button asChild variant="link" className="mt-4">
         <Link href="/">Back to Boutique Curator</Link>
       </Button>
@@ -40,13 +38,10 @@ export default function PublicBoutiquePage() {
 
   if (loading) return <BoutiqueLoading />;
 
-  if (!error && !publicProfile) notFound();
-
   if (error || !publicProfile?.enabled) return <BoutiqueNotAvailable />;
 
-  // Hardcoded defaults for Step 2
-  const templateId: BoutiqueTemplateId = 'editorial';
-  const patternId: BoutiquePatternId = 'none';
+  const templateId = publicProfile.templateId ?? 'editorial';
+  const patternId = publicProfile.patternId ?? 'none';
 
   return (
     <BoutiqueRenderer
@@ -57,5 +52,3 @@ export default function PublicBoutiquePage() {
     />
   );
 }
-
-    

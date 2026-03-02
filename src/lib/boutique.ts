@@ -24,6 +24,10 @@ import type { User } from 'firebase/auth';
 import { z } from 'zod';
 import type { BrandProfile } from '@/ai/flows/schemas';
 import { type Outfit, type OutfitClaim } from './outfits';
+import {
+  type BoutiqueTemplateId,
+  type BoutiquePatternId,
+} from '@/lib/brand/brandPublicBits';
 
 // ---- Helpers ----
 type AnyRecord = Record<string, any>;
@@ -44,6 +48,8 @@ export interface BoutiqueSettings extends DocumentData {
   enabled: boolean;
   featuredOutfitId: string | null;
   handle: string | null;
+  templateId?: BoutiqueTemplateId | null;
+  patternId?: BoutiquePatternId | null;
   updatedAt?: any;
 }
 
@@ -63,6 +69,8 @@ export interface PublicBoutiqueProfile {
   brandName: string | null;
   tagline: string | null;
   logoUrl: string | null;
+  templateId?: BoutiqueTemplateId | null;
+  patternId?: BoutiquePatternId | null;
   featuredOutfit: {
     id: string;
     title: string | null;
@@ -348,6 +356,8 @@ export const syncPublicBoutiqueData = async (
     brandName: brandProfile.brandName ?? null,
     tagline: brandProfile.tagline ?? null,
     logoUrl: brandProfile.logoUrl ?? null,
+    templateId: settings.templateId ?? 'editorial',
+    patternId: settings.patternId ?? 'none',
     featuredOutfit: featuredOutfit
       ? {
           id: featuredOutfit.id,

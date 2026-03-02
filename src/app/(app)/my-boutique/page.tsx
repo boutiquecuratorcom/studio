@@ -161,6 +161,8 @@ export default function MyBoutiquePage() {
             enabled: false,
             featuredOutfitId: null,
             handle: null,
+            templateId: 'editorial',
+            patternId: 'none',
           };
           await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
           currentSettings = newSettingsData as unknown as BoutiqueSettings;
@@ -171,6 +173,8 @@ export default function MyBoutiquePage() {
         setLocalSettings({
           enabled: currentSettings?.enabled ?? false,
           featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
+          templateId: currentSettings?.templateId ?? 'editorial',
+          patternId: currentSettings?.patternId ?? 'none',
         });
 
         setIsInitialized(true);
@@ -249,6 +253,8 @@ export default function MyBoutiquePage() {
           localSettings.featuredOutfitId === 'auto'
             ? null
             : (localSettings.featuredOutfitId as any),
+        templateId: localSettings.templateId,
+        patternId: localSettings.patternId,
       };
 
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
@@ -426,7 +432,10 @@ export default function MyBoutiquePage() {
     if (!boutiqueSettings) return false;
     return (
       (localSettings.featuredOutfitId || 'auto') !==
-      (boutiqueSettings.featuredOutfitId || 'auto')
+      (boutiqueSettings.featuredOutfitId || 'auto') ||
+      (localSettings.templateId ?? 'editorial') !==
+        (boutiqueSettings.templateId ?? 'editorial') ||
+      (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none')
     );
   }, [localSettings, boutiqueSettings]);
 
@@ -458,10 +467,6 @@ export default function MyBoutiquePage() {
       </div>
     );
   }
-
-  // Hardcode defaults for now, as per the directive. UI controls will be added later.
-  const templateId: BoutiqueTemplateId = 'editorial';
-  const patternId: BoutiquePatternId = 'none';
 
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
@@ -619,8 +624,8 @@ export default function MyBoutiquePage() {
               <BoutiqueLivePreview
                 brandProfile={brandProfile}
                 featuredOutfit={featuredOutfit}
-                templateId={templateId}
-                patternId={patternId}
+                templateId={localSettings.templateId ?? 'editorial'}
+                patternId={localSettings.patternId ?? 'none'}
               />
             </CardContent>
           </Card>
@@ -629,5 +634,3 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
-
-    

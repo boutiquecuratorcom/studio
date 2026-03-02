@@ -1,3 +1,9 @@
+/**
+ * @fileOverview Boutique theme token computation logic.
+ * Pure functions: no Firestore writes, no UI, no side effects.
+ */
+
+import type { CSSProperties } from 'react';
 import type {
   BrandProfilePublicBits,
   BoutiquePatternId,
@@ -5,45 +11,58 @@ import type {
   BoutiqueTemplateId,
 } from './brand/brandPublicBits';
 import { getFontByName, isButtonSafeFont } from './fonts';
-import type { CSSProperties } from 'react';
 
-// --- Color Utilities ---
+// -------------------------
+// Color utilities
+// -------------------------
 
-/**
- * Validates a string as a hex color.
- * @returns The normalized hex color (e.g., #RRGGBB) or null if invalid.
- */
-export const validateHexColor = (color: string | null | undefined): string | null => {
+export const validateHexColor = (
+  color: string | null | undefined
+): string | null => {
   if (!color) return null;
-
   const raw = color.trim();
-  const hex = raw.startsWith('#') ? raw.slice(1) : raw;
+  const withHash = raw.startsWith('#') ? raw : `#${raw}`;
+  const hex = withHash.slice(1);
 
-  // Only allow 3 or 6
-  if (!/^([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(hex)) return null;
+  // allow exactly 3 or 6 hex chars
+  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
 
   if (hex.length === 3) {
-    return `#${hex[0]}${hex[0]}${hex[1]}${hex[1]}${hex[2]}${hex[2]}`.toUpperCase();
+    const r = hex[0];
+    const g = hex[1];
+    const b = hex[2];
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
   }
 
   return `#${hex}`.toUpperCase();
 };
 
-/**
- * Calculates a contrasting text color for a given hex background.
- * Returns a near-black for light backgrounds and white for dark backgrounds.
- */
 export const getContrastingTextColor = (hex: string): string => {
+  // hex assumed validated as #RRGGBB
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
 
-  // perceived luminance
+  // relative luminance (simple)
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+
+  // Tailwind gray-900 vs white
   return luma > 140 ? '#111827' : '#FFFFFF';
 };
 
-// --- Theme & Pattern Definitions ---
+const hexToRgba = (hex: string, alpha: number): string => {
+  const h = validateHexColor(hex);
+  if (!h) return `rgba(17,24,39,${alpha})`;
+  const r = parseInt(h.slice(1, 3), 16);
+  const g = parseInt(h.slice(3, 5), 16);
+  const b = parseInt(h.slice(5, 7), 16);
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
+
+// -------------------------
+// Defaults
+// -------------------------
 
 const THEME_DEFAULTS: BoutiqueRenderTokens = {
   accentColor: 'hsl(var(--accent))',
@@ -63,48 +82,120 @@ const THEME_DEFAULTS: BoutiqueRenderTokens = {
   patternStyles: {},
 };
 
+// -------------------------
+// Pattern definitions (scoped)
+// -------------------------
+
 const PATTERNS: Record<BoutiquePatternId, CSSProperties> = {
   none: {},
+
   polka: {
-    backgroundImage: 'radial-gradient(var(--pattern-color) 0.8px, transparent 0.8px)',
+    backgroundImage:
+      'radial-gradient(currentColor 0.7px, transparent 0.8px)',
     backgroundSize: '14px 14px',
   },
+
   pinstripe: {
-    backgroundImage: 'linear-gradient(90deg, var(--pattern-color) 1px, transparent 1px)',
-    backgroundSize: '10px 10px',
+    backgroundImage:
+      'repeating-linear-gradient(45deg, currentColor 0, currentColor 1px, transparent 1px, transparent 8px)',
   },
+
   grid: {
     backgroundImage:
-      'linear-gradient(var(--pattern-color) 1px, transparent 1px), linear-gradient(90deg, var(--pattern-color) 1px, transparent 1px)',
+      'linear-gradient(currentColor 1px, transparent 1px), linear-gradient(90deg, currentColor 1px, transparent 1px)',
     backgroundSize: '18px 18px',
   },
+
   domino: {
     backgroundImage:
-      'radial-gradient(circle at 25% 25%, var(--pattern-color) 2px, transparent 2.2px), radial-gradient(circle at 75% 75%, var(--pattern-color) 2px, transparent 2.2px)',
-    backgroundSize: '26px 26px',
+      'radial-gradient(circle at 25% 25%, currentColor 12%, transparent 13%), radial-gradient(circle at 75% 75%, currentColor 12%, transparent 13%)',
+    backgroundSize: '22px 22px',
   },
+
   waves: {
     backgroundImage:
-      'radial-gradient(circle at 50% 0%, var(--pattern-color) 12%, transparent 13%), radial-gradient(circle at 50% 100%, var(--pattern-color) 12%, transparent 13%)',
+      'radial-gradient(circle at 50% 0%, currentColor 10%, transparent 11%), radial-gradient(circle at 50% 100%, currentColor 10%, transparent 11%)',
     backgroundSize: '24px 24px',
   },
+
   confetti: {
     backgroundImage:
-      'radial-gradient(var(--pattern-color) 1px, transparent 1px), radial-gradient(var(--pattern-color) 1px, transparent 1px)',
+      'radial-gradient(currentColor 1px, transparent 1px), radial-gradient(currentColor 1px, transparent 1px)',
+    backgroundPosition: '0 0, 8px 12px',
     backgroundSize: '18px 18px',
-    backgroundPosition: '0 0, 9px 9px',
   },
+
   linen: {
     backgroundImage:
-      'linear-gradient(45deg, var(--pattern-color) 1px, transparent 1px), linear-gradient(-45deg, var(--pattern-color) 1px, transparent 1px)',
-    backgroundSize: '16px 16px',
+      'repeating-linear-gradient(0deg, currentColor 0, currentColor 1px, transparent 1px, transparent 8px), repeating-linear-gradient(90deg, currentColor 0, currentColor 1px, transparent 1px, transparent 8px)',
+    backgroundSize: '22px 22px',
   },
 };
 
-/**
- * Computes the final render tokens for the boutique based on brand and theme settings.
- * This function is PURE and is intended to be called ONLY from BoutiqueRenderer.
- */
+// -------------------------
+// Template overrides (6 themes)
+// Minimal but distinct. Later we’ll expand layouts in the renderer.
+// -------------------------
+
+const applyTemplateOverrides = (
+  tokens: BoutiqueRenderTokens,
+  templateId: BoutiqueTemplateId
+) => {
+  switch (templateId) {
+    case 'editorial':
+      tokens.backgroundColor = 'hsl(var(--background))';
+      tokens.cardClass = 'bg-card text-card-foreground';
+      tokens.buttonStyle = 'solid';
+      tokens.headerClass = 'pt-10 space-y-3';
+      tokens.bodyClass = '';
+      break;
+
+    case 'soft-luxe':
+      tokens.backgroundColor = '#F8F5F2';
+      tokens.cardClass = 'bg-white/70 backdrop-blur rounded-xl shadow-sm border';
+      tokens.buttonStyle = 'solid';
+      tokens.headerClass = 'pt-10 space-y-4';
+      tokens.bodyClass = '';
+      break;
+
+    case 'playful-pop':
+      tokens.backgroundColor = '#FFFFFF';
+      tokens.cardClass = 'bg-card text-card-foreground rounded-xl shadow-md';
+      tokens.buttonStyle = 'solid';
+      tokens.headerClass = 'pt-10 space-y-4';
+      tokens.bodyClass = '';
+      break;
+
+    case 'modern-minimal':
+      tokens.backgroundColor = '#FFFFFF';
+      tokens.cardClass = 'bg-transparent border border-border shadow-none';
+      tokens.buttonStyle = 'outline';
+      tokens.headerClass = 'pt-10 space-y-3';
+      tokens.bodyClass = '';
+      break;
+
+    case 'street-bold':
+      tokens.backgroundColor = '#0B0B0E';
+      tokens.cardClass = 'bg-white/5 border border-white/10 text-white';
+      tokens.buttonStyle = 'solid';
+      tokens.headerClass = 'pt-10 space-y-4';
+      tokens.bodyClass = '';
+      break;
+
+    case 'romantic-vintage':
+      tokens.backgroundColor = '#FFF7F2';
+      tokens.cardClass = 'bg-white/60 border border-black/10 rounded-2xl shadow-sm';
+      tokens.buttonStyle = 'outline';
+      tokens.headerClass = 'pt-10 space-y-4';
+      tokens.bodyClass = '';
+      break;
+  }
+};
+
+// -------------------------
+// Main computation
+// -------------------------
+
 export const computeRenderTokens = (
   brandProfile: BrandProfilePublicBits | null | undefined,
   templateId: BoutiqueTemplateId,
@@ -112,66 +203,43 @@ export const computeRenderTokens = (
 ): BoutiqueRenderTokens => {
   const tokens: BoutiqueRenderTokens = { ...THEME_DEFAULTS };
 
-  // 1) Brand defaults
+  // 1) Brand accent
   const brandAccent = validateHexColor(brandProfile?.brandColors?.[0] ?? null);
   if (brandAccent) {
     tokens.accentColor = brandAccent;
     tokens.accentTextColor = getContrastingTextColor(brandAccent);
   }
 
-  const primaryFont = getFontByName(brandProfile?.primaryFont ?? undefined);
-  if (primaryFont) {
+  // 2) Fonts
+  const primaryFont = getFontByName(brandProfile?.primaryFont);
+  if (primaryFont?.cssFamily) {
     tokens.headingFontFamily = primaryFont.cssFamily;
   }
 
-  const secondaryFont = getFontByName(brandProfile?.secondaryFont ?? undefined);
-  if (secondaryFont) {
+  const secondaryFont = getFontByName(brandProfile?.secondaryFont);
+  if (secondaryFont?.cssFamily) {
     tokens.bodyFontFamily = secondaryFont.cssFamily;
     if (isButtonSafeFont(secondaryFont.name)) {
       tokens.buttonFontFamily = secondaryFont.cssFamily;
+    } else {
+      tokens.buttonFontFamily = tokens.bodyFontFamily;
     }
   }
 
-  // 2) Template overrides (expand later)
-  switch (templateId) {
-    case 'modern-minimal':
-      tokens.backgroundColor = '#FFFFFF';
-      tokens.cardClass = 'bg-transparent border-none shadow-none';
-      tokens.buttonStyle = 'outline';
-      break;
+  // 3) Template overrides
+  applyTemplateOverrides(tokens, templateId);
 
-    case 'soft-luxe':
-      tokens.backgroundColor = '#F8F5F2';
-      tokens.cardClass = 'bg-white/70 rounded-xl shadow-sm';
-      break;
+  // 4) Pattern styles (scoped) — tint with accent, subtle by default
+  const basePattern = PATTERNS[patternId] ?? {};
+  const accentForPattern =
+    typeof tokens.accentColor === 'string' && tokens.accentColor.startsWith('#')
+      ? tokens.accentColor
+      : '#111827';
 
-    case 'playful-pop':
-      tokens.cardClass = 'bg-card/90 rounded-xl shadow-sm';
-      break;
-
-    case 'street-bold':
-      tokens.cardClass = 'bg-card rounded-none border-2';
-      tokens.buttonStyle = 'solid';
-      break;
-
-    case 'romantic-vintage':
-      tokens.backgroundColor = '#FBF7F3';
-      tokens.cardClass = 'bg-white/80 rounded-2xl shadow-sm';
-      break;
-
-    case 'editorial':
-    default:
-      // keep defaults
-      break;
-  }
-
-  // 3) Pattern styles
-  // Pattern color aligned to accent, but subtle. If accent is hsl(var(--accent)),
-  // this still works because CSS var is used.
   tokens.patternStyles = {
-    ...PATTERNS[patternId],
-    // subtle overlay color
-    ['--pattern-color' as any]: 'color-mix(in srgb, var(--boutique-accent) 12%, transparent)',
+    ...basePattern,
+    // this becomes "currentColor" inside the overlay
+    color: hexToRgba(accentForPattern, templateId === 'street-bold' ? 0.22 : 0.10),
   };
 
   return tokens;
