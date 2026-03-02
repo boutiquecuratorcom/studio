@@ -1016,6 +1016,8 @@ export default function MyBoutiquePage() {
               <BoutiqueLivePreview
                 brandProfile={livePreviewProfile as any}
                 featuredOutfit={featuredOutfit}
+                templateId={localSettings.templateId ?? 'editorial'}
+                patternId={localSettings.patternId ?? 'none'}
               />
             </CardContent>
           </Card>
