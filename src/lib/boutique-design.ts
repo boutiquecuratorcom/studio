@@ -70,6 +70,9 @@ const THEME_DEFAULTS: BoutiqueRenderTokens = {
   headingFontFamily: 'var(--font-headline)',
   bodyFontFamily: 'var(--font-body)',
   buttonFontFamily: 'var(--font-body)',
+  
+  announcementBackgroundColor: 'hsl(var(--accent))',
+  announcementTextColor: 'hsl(var(--accent-foreground))',
 
   buttonStyle: 'solid',
 
@@ -237,6 +240,22 @@ export const computeRenderTokens = (
     tokens.accentColor = brandAccent;
     tokens.accentTextColor = getContrastingTextColor(brandAccent);
   }
+  
+  // Announcement Bar Color
+  const announcementColorSource = brandProfile?.announcementColorSource ?? 'accent';
+  let announcementBgColorHex = tokens.accentColor; // Default to main accent color
+
+  if (announcementColorSource === 'color2' && brandProfile?.brandColors?.[1]) {
+    const color2 = validateHexColor(brandProfile.brandColors[1]);
+    if (color2) announcementBgColorHex = color2;
+  } else if (announcementColorSource === 'color3' && brandProfile?.brandColors?.[2]) {
+    const color3 = validateHexColor(brandProfile.brandColors[2]);
+    if (color3) announcementBgColorHex = color3;
+  }
+
+  tokens.announcementBackgroundColor = announcementBgColorHex;
+  tokens.announcementTextColor = getContrastingTextColor(announcementBgColorHex);
+
 
   // 2) Fonts
   const primaryFont = getFontByName(brandProfile?.primaryFont);

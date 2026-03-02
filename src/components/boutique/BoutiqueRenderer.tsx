@@ -13,7 +13,7 @@ import type {
   BrandProfilePublicBits,
   BoutiqueRenderTokens,
 } from '@/lib/brand/brandPublicBits';
-import { computeRenderTokens, getContrastingTextColor } from '@/lib/boutique-design';
+import { computeRenderTokens } from '@/lib/boutique-design';
 import { cn } from '@/lib/utils';
 import { PublicClaimButton } from './PublicClaimButton';
 import type { InventoryItem } from '@/lib/inventory';
@@ -23,7 +23,6 @@ import { Input } from '../ui/input';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { ItemQuickViewModal } from './ItemQuickViewModal';
 import { OutfitQuickViewModal } from './OutfitQuickViewModal';
-
 
 const validateHexColor = (color: string | null | undefined): string | null => {
     if (!color) return null;
@@ -308,8 +307,8 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
       <div 
         className="w-full text-center py-2.5 px-4"
         style={{
-          backgroundColor: renderTokens.accentColor,
-          color: renderTokens.accentTextColor,
+          backgroundColor: renderTokens.announcementBackgroundColor,
+          color: renderTokens.announcementTextColor,
         }}
       >
         <div className={cn("w-full mx-auto flex items-center justify-center gap-4", theme.containerWidth)}>
@@ -320,8 +319,8 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
                     size="sm" 
                     asChild 
                     style={{
-                        borderColor: renderTokens.accentTextColor,
-                        color: renderTokens.accentTextColor,
+                        borderColor: renderTokens.announcementTextColor,
+                        color: renderTokens.announcementTextColor,
                     }} 
                     className="hover:bg-white/20 hover:text-inherit"
                 >

@@ -50,6 +50,7 @@ export interface BoutiqueSettings extends DocumentData {
   announcementText?: string | null;
   announcementHref?: string | null;
   announcementCtaLabel?: string | null;
+  announcementColorSource?: 'accent' | 'color2' | 'color3' | null;
   quickLinks?: {
     enabled?: boolean;
     items?: {
@@ -100,6 +101,7 @@ export interface PublicBoutiqueProfile extends BrandProfilePublicBits {
   announcementText?: string | null;
   announcementHref?: string | null;
   announcementCtaLabel?: string | null;
+  announcementColorSource?: 'accent' | 'color2' | 'color3' | null;
   featuredOutfit: {
     id: string;
     title: string | null;
@@ -405,6 +407,7 @@ export const syncPublicBoutiqueData = async (
     announcementText: settings.announcementText ?? null,
     announcementHref: settings.announcementHref ?? null,
     announcementCtaLabel: settings.announcementCtaLabel ?? null,
+    announcementColorSource: settings.announcementColorSource ?? 'accent',
     quickLinks: settings.quickLinks ?? { enabled: false, items: [] },
     social: settings.social ?? { facebookEnabled: false, position: 'right', facebookUrl: null },
     footer: settings.footer ?? { enabled: true, layout: 'minimal', headline: null, message: null, ctaLabel: null, ctaUrl: null },

@@ -42,6 +42,7 @@ export type BrandProfilePublicBits = {
    * Defaults to 0 if null or invalid.
    */
   accentColorIndex?: 0 | 1 | 2 | null;
+  announcementColorSource?: 'accent' | 'color2' | 'color3' | null;
 };
 
 // --- Boutique Theme Engine Types ---
@@ -81,6 +82,9 @@ export interface BoutiqueRenderTokens {
   headingFontFamily: string;
   bodyFontFamily: string;
   buttonFontFamily: string;
+
+  announcementBackgroundColor: string;
+  announcementTextColor: string;
 
   buttonStyle: 'solid' | 'outline' | 'ghost';
 
