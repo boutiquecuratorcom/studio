@@ -27,24 +27,24 @@ export const getContrastingTextColor = (hex: string): string => {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   const luma = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-  return luma > 128 ? '#000000' : '#FFFFFF';
+  return luma > 128 ? '#111827' : '#FFFFFF'; // Using Tailwind's gray-900 for black
 };
 
 
 // --- Theme & Pattern Definitions ---
 
-const THEME_DEFAULTS = {
+const THEME_DEFAULTS: BoutiqueRenderTokens = {
   accentColor: 'hsl(var(--accent))',
   accentTextColor: 'hsl(var(--accent-foreground))',
   backgroundColor: 'hsl(var(--background))',
   headingFontFamily: 'var(--font-headline)',
   bodyFontFamily: 'var(--font-body)',
   buttonFontFamily: 'var(--font-body)',
-  buttonTextColor: 'var(--font-body)',
   buttonStyle: 'solid' as const,
   cardClass: 'bg-card text-card-foreground',
   headerClass: '',
   bodyClass: '',
+  patternStyles: {},
 };
 
 const PATTERNS: Record<BoutiquePatternId, React.CSSProperties> = {

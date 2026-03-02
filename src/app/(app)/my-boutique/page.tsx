@@ -8,7 +8,7 @@ import * as z from 'zod';
 
 import { useUser, useFirestore, useDoc } from '@/firebase';
 import { useOutfits } from '@/lib/outfits';
-import { type BrandProfilePublicBits } from '@/lib/brand/brandPublicBits';
+import type { BrandProfilePublicBits } from '@/lib/brand/brandPublicBits';
 
 import {
   type BoutiqueSettings,
