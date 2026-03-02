@@ -168,6 +168,32 @@ const SectionSkeleton = ({ cols = 3 }: { cols?: number }) => (
   </div>
 );
 
+const validateHexColor = (color: string | null | undefined): string | null => {
+    if (!color) return null;
+    const raw = color.trim();
+    const withHash = raw.startsWith('#') ? raw : `#${raw}`;
+    const hex = withHash.slice(1);
+  
+    if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
+  
+    if (hex.length === 3) {
+      const [r, g, b] = hex.split('');
+      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+    }
+  
+    return `#${hex}`.toUpperCase();
+};
+  
+const hexToRgba = (hex: string, alpha: number): string => {
+    const h = validateHexColor(hex);
+    if (!h) return `rgba(17,24,39,${alpha})`; // fallback to a dark color
+    const r = parseInt(h.slice(1, 3), 16);
+    const g = parseInt(h.slice(3, 5), 16);
+    const b = parseInt(h.slice(5, 7), 16);
+    const a = Math.max(0, Math.min(1, alpha));
+    return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
+
 export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'items' | 'outfits'>('all');
@@ -214,7 +240,7 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
   }[bannerHeightValue];
   
   const bannerStyle: React.CSSProperties = {
-    background: `linear-gradient(180deg, ${renderTokens.hexToRgba(bannerAccentColor, 1)} 0%, transparent 100%)`
+    background: `linear-gradient(180deg, ${hexToRgba(bannerAccentColor, bannerOpacity)} 0%, transparent 100%)`
   };
 
 
