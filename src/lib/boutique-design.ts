@@ -221,14 +221,18 @@ const applyTemplateOverrides = (
 // -------------------------
 
 export const computeRenderTokens = (
-  brandProfile: BrandProfilePublicBits | null | undefined,
+  brandProfile: Partial<BrandProfilePublicBits> | null | undefined,
   templateId: BoutiqueTemplateId,
   patternId: BoutiquePatternId
 ): BoutiqueRenderTokens => {
   const tokens: BoutiqueRenderTokens = { ...THEME_DEFAULTS };
 
   // 1) Brand accent
-  const brandAccent = validateHexColor(brandProfile?.brandColors?.[0] ?? null);
+  const index = brandProfile?.accentColorIndex ?? 0;
+  const brandAccent = validateHexColor(
+    brandProfile?.brandColors?.[index] ?? brandProfile?.brandColors?.[0] ?? null
+  );
+
   if (brandAccent) {
     tokens.accentColor = brandAccent;
     tokens.accentTextColor = getContrastingTextColor(brandAccent);

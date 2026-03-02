@@ -42,9 +42,14 @@ export interface BoutiqueSettings extends DocumentData {
   handle: string | null;
   templateId?: BoutiqueTemplateId | null;
   patternId?: BoutiquePatternId | null;
+  accentColorIndex?: 0 | 1 | 2 | null;
   bannerEnabled?: boolean | null;
   bannerHeight?: 'sm' | 'md' | 'lg' | null;
   bannerOpacity?: number | null;
+  announcementEnabled?: boolean | null;
+  announcementText?: string | null;
+  announcementHref?: string | null;
+  announcementCtaLabel?: string | null;
   quickLinks?: {
     enabled?: boolean;
     items?: {
@@ -91,6 +96,10 @@ export interface PublicBoutiqueProfile extends BrandProfilePublicBits {
   bannerEnabled?: boolean | null;
   bannerHeight?: 'sm' | 'md' | 'lg' | null;
   bannerOpacity?: number | null;
+  announcementEnabled?: boolean | null;
+  announcementText?: string | null;
+  announcementHref?: string | null;
+  announcementCtaLabel?: string | null;
   featuredOutfit: {
     id: string;
     title: string | null;
@@ -388,9 +397,14 @@ export const syncPublicBoutiqueData = async (
     secondaryFont: brandProfile.secondaryFont ?? null,
     templateId: settings.templateId ?? 'editorial',
     patternId: settings.patternId ?? 'none',
+    accentColorIndex: settings.accentColorIndex ?? 0,
     bannerEnabled: settings.bannerEnabled ?? true,
     bannerHeight: settings.bannerHeight ?? 'md',
     bannerOpacity: settings.bannerOpacity ?? 0.18,
+    announcementEnabled: settings.announcementEnabled ?? false,
+    announcementText: settings.announcementText ?? null,
+    announcementHref: settings.announcementHref ?? null,
+    announcementCtaLabel: settings.announcementCtaLabel ?? null,
     quickLinks: settings.quickLinks ?? { enabled: false, items: [] },
     social: settings.social ?? { facebookEnabled: false, position: 'right', facebookUrl: null },
     footer: settings.footer ?? { enabled: true, layout: 'minimal', headline: null, message: null, ctaLabel: null, ctaUrl: null },

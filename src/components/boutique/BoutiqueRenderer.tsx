@@ -11,8 +11,9 @@ import type {
   BoutiquePatternId,
   BoutiqueTemplateId,
   BrandProfilePublicBits,
+  BoutiqueRenderTokens,
 } from '@/lib/brand/brandPublicBits';
-import { computeRenderTokens } from '@/lib/boutique-design';
+import { computeRenderTokens, getContrastingTextColor } from '@/lib/boutique-design';
 import { cn } from '@/lib/utils';
 import { PublicClaimButton } from './PublicClaimButton';
 import type { InventoryItem } from '@/lib/inventory';
@@ -171,32 +172,6 @@ const SectionSkeleton = ({ cols = 3 }: { cols?: number }) => (
   </div>
 );
 
-const validateHexColor = (color: string | null | undefined): string | null => {
-    if (!color) return null;
-    const raw = color.trim();
-    const withHash = raw.startsWith('#') ? raw : `#${raw}`;
-    const hex = withHash.slice(1);
-  
-    if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
-  
-    if (hex.length === 3) {
-      const [r, g, b] = hex.split('');
-      return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
-    }
-  
-    return `#${hex}`.toUpperCase();
-};
-  
-const hexToRgba = (hex: string, alpha: number): string => {
-    const h = validateHexColor(hex);
-    if (!h) return `rgba(17,24,39,${alpha})`; // fallback to a dark color
-    const r = parseInt(h.slice(1, 3), 16);
-    const g = parseInt(h.slice(3, 5), 16);
-    const b = parseInt(h.slice(5, 7), 16);
-    const a = Math.max(0, Math.min(1, alpha));
-    return `rgba(${r}, ${g}, ${b}, ${a})`;
-};
-
 const normalize = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -205,7 +180,8 @@ const tokenize = (s: string) =>
 
 const matchesTokens = (haystack: string, tokens: string[]) => {
   if (!tokens.length) return true;
-  return tokens.every(token => haystack.includes(token));
+  const normalizedHaystack = normalize(haystack);
+  return tokens.every(token => normalizedHaystack.includes(token));
 };
 
 export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading, showFeaturedLook, showOutfits, showRack }: Props) {
@@ -221,12 +197,12 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
     if (tokens.length === 0) return rackItems;
 
     return rackItems.filter(item => {
-      const haystack = normalize([
+      const haystack = [
         item.title,
         item.type,
         ...(item.sizes ?? []),
         ...(item.searchKeywords ?? [])
-      ].filter(Boolean).join(' '));
+      ].filter(Boolean).join(' ');
 
       return matchesTokens(haystack, tokens);
     });
@@ -237,11 +213,11 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
     if (tokens.length === 0) return outfits;
     
     return outfits.filter(outfit => {
-      const haystack = normalize([
+      const haystack = [
         outfit.title,
         outfit.storefrontDescription,
         outfit.internalNotes
-      ].filter(Boolean).join(' '));
+      ].filter(Boolean).join(' ');
 
       return matchesTokens(haystack, tokens);
     });
@@ -258,9 +234,22 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
   const logoStyle = brandProfile?.logoStyle ?? 'auto';
   const logoIsStyled = logoStyle === 'circle' || logoStyle === 'rounded';
 
-  const bannerEnabled = brandProfile?.bannerEnabled ?? true;
-  const bannerHeightValue = brandProfile?.bannerHeight ?? 'md';
-  const bannerOpacity = brandProfile?.bannerOpacity ?? 0.18;
+  const {
+    announcementEnabled,
+    announcementText,
+    announcementHref,
+    announcementCtaLabel,
+    bannerEnabled,
+    bannerHeight,
+    bannerOpacity,
+    quickLinks,
+    social,
+    footer,
+  } = brandProfile ?? {};
+
+  const isBannerEnabled = bannerEnabled ?? true;
+  const bannerHeightValue = bannerHeight ?? 'md';
+  const bannerOpacityValue = bannerOpacity ?? 0.18;
   const bannerAccentColor = renderTokens.accentColor.startsWith('#') ? renderTokens.accentColor : '#EAE6E4';
 
   const bannerHeightClass = {
@@ -270,7 +259,7 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
   }[bannerHeightValue];
   
   const bannerStyle: React.CSSProperties = {
-    background: `linear-gradient(180deg, ${hexToRgba(bannerAccentColor, bannerOpacity)} 0%, transparent 100%)`
+    background: `linear-gradient(180deg, ${hexToRgba(bannerAccentColor, bannerOpacityValue)} 0%, transparent 100%)`
   };
 
 
@@ -283,10 +272,38 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
     ['--boutique-font-button' as any]: renderTokens.buttonFontFamily,
   };
   
-  const quickLinks = brandProfile?.quickLinks;
-  const social = brandProfile?.social;
-  const footer = brandProfile?.footer;
-  
+  const announcementBar = (
+    announcementEnabled && announcementText && (
+      <div 
+        className="w-full text-center py-2.5 px-4"
+        style={{
+          backgroundColor: renderTokens.accentColor,
+          color: renderTokens.accentTextColor,
+        }}
+      >
+        <div className={cn("w-full mx-auto flex items-center justify-center gap-4", theme.containerWidth)}>
+            <p className="font-medium text-sm">{announcementText}</p>
+            {announcementHref && announcementCtaLabel && (
+                <Button 
+                    variant="outline" 
+                    size="sm" 
+                    asChild 
+                    style={{
+                        borderColor: renderTokens.accentTextColor,
+                        color: renderTokens.accentTextColor,
+                    }} 
+                    className="hover:bg-white/20 hover:text-inherit"
+                >
+                    <a href={announcementHref} target="_blank" rel="noopener noreferrer">
+                        {announcementCtaLabel}
+                    </a>
+                </Button>
+            )}
+        </div>
+      </div>
+    )
+  );
+
   return (
     <>
     <ItemQuickViewModal item={activeItem} onOpenChange={(isOpen) => !isOpen && setActiveItem(null)} theme={renderTokens} />
@@ -295,12 +312,12 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
     <div 
       className={cn(
         'min-h-screen relative overflow-x-hidden', 
-        theme.pagePadding, 
+        !isBannerEnabled && theme.pagePadding,
         templateId === 'street-bold' ? 'text-white' : 'text-foreground'
       )} 
       style={{ ...rootVars, background: 'var(--boutique-bg)', fontFamily: 'var(--boutique-font-body)' }}
     >
-      {bannerEnabled && (
+      {isBannerEnabled && (
         <div 
             className={cn(
                 'absolute top-0 left-0 right-0 w-full',
@@ -327,7 +344,9 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
         </a>
       )}
 
-      <div className={cn('w-full mx-auto px-4 md:px-6 relative z-10', theme.containerWidth)}>
+      {announcementBar}
+
+      <div className={cn('w-full mx-auto px-4 md:px-6 relative z-10', theme.containerWidth, isBannerEnabled && theme.pagePadding)}>
         
         <header className={cn('flex flex-col items-center text-center mb-12 md:mb-16', theme.headerWrap, renderTokens.headerClass)}>
           <div className={cn('relative mb-4', theme.logoContainer)}>

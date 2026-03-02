@@ -68,6 +68,7 @@ import {
   Save,
   Trash2,
   XCircle,
+  Megaphone,
 } from 'lucide-react';
 
 import {
@@ -85,6 +86,7 @@ import { BOUTIQUE_PATTERNS, BOUTIQUE_TEMPLATES } from '@/lib/brand/brandPublicBi
 import { Input } from '@/components/ui/input';
 import { getFontByName } from '@/lib/fonts';
 import { useInventoryItems } from '@/lib/inventory';
+import { cn } from '@/lib/utils';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -174,9 +176,11 @@ export default function MyBoutiquePage() {
             handle: null,
             templateId: 'editorial',
             patternId: 'none',
+            accentColorIndex: 0,
             bannerEnabled: true,
             bannerHeight: 'md',
             bannerOpacity: 0.18,
+            announcementEnabled: false,
           };
           await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
           currentSettings = newSettingsData as unknown as BoutiqueSettings;
@@ -189,9 +193,14 @@ export default function MyBoutiquePage() {
           featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
           templateId: currentSettings?.templateId ?? 'editorial',
           patternId: currentSettings?.patternId ?? 'none',
+          accentColorIndex: currentSettings?.accentColorIndex ?? 0,
           bannerEnabled: currentSettings?.bannerEnabled ?? true,
           bannerHeight: currentSettings?.bannerHeight ?? 'md',
           bannerOpacity: currentSettings?.bannerOpacity ?? 0.18,
+          announcementEnabled: currentSettings?.announcementEnabled ?? false,
+          announcementText: currentSettings?.announcementText ?? '',
+          announcementHref: currentSettings?.announcementHref ?? '',
+          announcementCtaLabel: currentSettings?.announcementCtaLabel ?? '',
           quickLinks: currentSettings?.quickLinks ?? { enabled: false, items: [] },
           social: currentSettings?.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
           footer: currentSettings?.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' },
@@ -278,9 +287,14 @@ export default function MyBoutiquePage() {
             : (localSettings.featuredOutfitId as any),
         templateId: localSettings.templateId,
         patternId: localSettings.patternId,
+        accentColorIndex: localSettings.accentColorIndex,
         bannerEnabled: localSettings.bannerEnabled,
         bannerHeight: localSettings.bannerHeight,
         bannerOpacity: localSettings.bannerOpacity,
+        announcementEnabled: localSettings.announcementEnabled,
+        announcementText: localSettings.announcementText,
+        announcementHref: localSettings.announcementHref,
+        announcementCtaLabel: localSettings.announcementCtaLabel,
         quickLinks: localSettings.quickLinks,
         social: localSettings.social,
         footer: localSettings.footer,
@@ -477,9 +491,14 @@ export default function MyBoutiquePage() {
       (localSettings.featuredOutfitId || 'auto') !== (boutiqueSettings.featuredOutfitId || 'auto') ||
       (localSettings.templateId ?? 'editorial') !== (boutiqueSettings.templateId ?? 'editorial') ||
       (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none') ||
+      (localSettings.accentColorIndex ?? 0) !== (boutiqueSettings.accentColorIndex ?? 0) ||
       (localSettings.bannerEnabled ?? true) !== (boutiqueSettings.bannerEnabled ?? true) ||
       (localSettings.bannerHeight ?? 'md') !== (boutiqueSettings.bannerHeight ?? 'md') ||
       (localSettings.bannerOpacity ?? 0.18) !== (boutiqueSettings.bannerOpacity ?? 0.18) ||
+      (localSettings.announcementEnabled ?? false) !== (boutiqueSettings.announcementEnabled ?? false) ||
+      (localSettings.announcementText ?? '') !== (boutiqueSettings.announcementText ?? '') ||
+      (localSettings.announcementHref ?? '') !== (boutiqueSettings.announcementHref ?? '') ||
+      (localSettings.announcementCtaLabel ?? '') !== (boutiqueSettings.announcementCtaLabel ?? '') ||
       JSON.stringify(localSettings.quickLinks) !== JSON.stringify(boutiqueSettings.quickLinks) ||
       JSON.stringify(localSettings.social) !== JSON.stringify(boutiqueSettings.social) ||
       JSON.stringify(localSettings.footer) !== JSON.stringify(boutiqueSettings.footer) ||
@@ -740,10 +759,30 @@ export default function MyBoutiquePage() {
                     <Palette className="h-5 w-5 text-accent" /> Boutique Designer
                 </CardTitle>
               <CardDescription>
-                Choose a theme and accent pattern for your public boutique.
+                Choose a theme, accent color, and pattern for your public boutique.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Accent Color (from My Brand)</Label>
+                <div className="flex items-center gap-2 rounded-lg border p-2">
+                  {[0, 1, 2].map(index => (
+                    <button
+                      key={index}
+                      type="button"
+                      onClick={() => setLocalSettings(prev => ({ ...prev, accentColorIndex: index as any }))}
+                      className={cn(
+                        "h-10 w-10 flex-1 rounded-md border-2 transition-all hover:scale-105 active:scale-100",
+                        (localSettings.accentColorIndex ?? 0) === index ? 'ring-2 ring-offset-2 ring-ring border-primary' : 'border-transparent',
+                        !brandProfile?.brandColors?.[index] && 'bg-muted pointer-events-none'
+                      )}
+                      style={{ backgroundColor: brandProfile?.brandColors?.[index] ?? undefined }}
+                      title={`Use Brand Color ${index + 1}`}
+                    />
+                  ))}
+                </div>
+              </div>
+
                <div className="space-y-2">
                 <Label>Theme</Label>
                 <Select
@@ -838,6 +877,53 @@ export default function MyBoutiquePage() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                      <Megaphone className="h-5 w-5 text-accent" /> Announcement Bar
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center space-x-4 rounded-lg border p-4">
+                        <Switch
+                            checked={localSettings.announcementEnabled ?? false}
+                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, announcementEnabled: checked }))}
+                        />
+                        <Label className="flex-grow">Show Announcement</Label>
+                    </div>
+                    {localSettings.announcementEnabled && (
+                      <div className="space-y-3">
+                          <div className="space-y-2">
+                              <Label>Text</Label>
+                              <Input 
+                                  placeholder="e.g., Free shipping on orders over $100" 
+                                  value={localSettings.announcementText || ''}
+                                  onChange={(e) => setLocalSettings(prev => ({...prev, announcementText: e.target.value}))}
+                              />
+                          </div>
+                          <div className="space-y-2">
+                              <Label>Link URL (Optional)</Label>
+                              <Input 
+                                  type="url"
+                                  placeholder="https://..."
+                                  value={localSettings.announcementHref || ''}
+                                  onChange={(e) => setLocalSettings(prev => ({...prev, announcementHref: e.target.value}))}
+                              />
+                          </div>
+                          <div className="space-y-2">
+                              <Label>CTA Label (Optional)</Label>
+                              <Input 
+                                  placeholder="e.g., Shop Now" 
+                                  value={localSettings.announcementCtaLabel || ''}
+                                  onChange={(e) => setLocalSettings(prev => ({...prev, announcementCtaLabel: e.target.value}))}
+                              />
+                          </div>
+                      </div>
+                    )}
+                </CardContent>
+            </Card>
+
 
             <Card>
                 <CardHeader>

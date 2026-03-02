@@ -36,6 +36,12 @@ export type BrandProfilePublicBits = {
 
   toneOfVoice?: string | null;
   targetCustomer?: string | null;
+
+  /**
+   * The index of the brandColors array to use for the main accent.
+   * Defaults to 0 if null or invalid.
+   */
+  accentColorIndex?: 0 | 1 | 2 | null;
 };
 
 // --- Boutique Theme Engine Types ---
