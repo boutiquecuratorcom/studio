@@ -51,6 +51,9 @@ export default function PublicBoutiquePage() {
 
   const templateId = publicProfile.templateId ?? 'editorial';
   const patternId = publicProfile.patternId ?? 'none';
+  const showFeaturedLook = publicProfile.showFeaturedLook ?? true;
+  const showOutfits = publicProfile.showOutfits ?? true;
+  const showRack = publicProfile.showRack ?? true;
 
   return (
     <BoutiqueRenderer
@@ -62,6 +65,9 @@ export default function PublicBoutiquePage() {
       outfits={publishedOutfits}
       rackLoading={rackLoading}
       outfitsLoading={outfitsLoading}
+      showFeaturedLook={showFeaturedLook}
+      showOutfits={showOutfits}
+      showRack={showRack}
     />
   );
 }

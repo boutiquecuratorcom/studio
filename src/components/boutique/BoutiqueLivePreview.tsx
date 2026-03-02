@@ -18,6 +18,9 @@ export const BoutiqueLivePreview = ({
   outfits,
   rackLoading,
   outfitsLoading,
+  showFeaturedLook,
+  showOutfits,
+  showRack,
 }: {
   brandProfile: BrandProfilePublicBits | null;
   featuredOutfit: Outfit | undefined;
@@ -27,6 +30,9 @@ export const BoutiqueLivePreview = ({
   outfits: Outfit[] | null;
   rackLoading: boolean;
   outfitsLoading: boolean;
+  showFeaturedLook: boolean;
+  showOutfits: boolean;
+  showRack: boolean;
 }) => {
   const featuredOutfitSummary = featuredOutfit
     ? {
@@ -51,6 +57,9 @@ export const BoutiqueLivePreview = ({
       outfits={outfits}
       rackLoading={rackLoading}
       outfitsLoading={outfitsLoading}
+      showFeaturedLook={showFeaturedLook}
+      showOutfits={showOutfits}
+      showRack={showRack}
     />
   );
 };

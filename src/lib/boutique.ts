@@ -67,6 +67,9 @@ export interface BoutiqueSettings extends DocumentData {
     ctaLabel?: string | null;
     ctaUrl?: string | null;
   };
+  showFeaturedLook?: boolean | null;
+  showOutfits?: boolean | null;
+  showRack?: boolean | null;
   updatedAt?: any;
 }
 
@@ -99,6 +102,9 @@ export interface PublicBoutiqueProfile extends BrandProfilePublicBits {
   quickLinks?: BoutiqueSettings['quickLinks'];
   social?: BoutiqueSettings['social'];
   footer?: BoutiqueSettings['footer'];
+  showFeaturedLook?: boolean | null;
+  showOutfits?: boolean | null;
+  showRack?: boolean | null;
   updatedAt: any;
 }
 
@@ -388,6 +394,9 @@ export const syncPublicBoutiqueData = async (
     quickLinks: settings.quickLinks ?? { enabled: false, items: [] },
     social: settings.social ?? { facebookEnabled: false, position: 'right', facebookUrl: null },
     footer: settings.footer ?? { enabled: true, layout: 'minimal', headline: null, message: null, ctaLabel: null, ctaUrl: null },
+    showFeaturedLook: settings.showFeaturedLook ?? true,
+    showOutfits: settings.showOutfits ?? true,
+    showRack: settings.showRack ?? true,
     featuredOutfit: featuredOutfit
       ? {
           id: featuredOutfit.id,

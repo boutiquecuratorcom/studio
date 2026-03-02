@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -196,7 +194,10 @@ export default function MyBoutiquePage() {
           bannerOpacity: currentSettings?.bannerOpacity ?? 0.18,
           quickLinks: currentSettings?.quickLinks ?? { enabled: false, items: [] },
           social: currentSettings?.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
-          footer: currentSettings?.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' }
+          footer: currentSettings?.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' },
+          showFeaturedLook: currentSettings?.showFeaturedLook ?? true,
+          showOutfits: currentSettings?.showOutfits ?? true,
+          showRack: currentSettings?.showRack ?? true,
         });
 
         setIsInitialized(true);
@@ -283,6 +284,9 @@ export default function MyBoutiquePage() {
         quickLinks: localSettings.quickLinks,
         social: localSettings.social,
         footer: localSettings.footer,
+        showFeaturedLook: localSettings.showFeaturedLook,
+        showOutfits: localSettings.showOutfits,
+        showRack: localSettings.showRack,
       };
 
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
@@ -478,7 +482,10 @@ export default function MyBoutiquePage() {
       (localSettings.bannerOpacity ?? 0.18) !== (boutiqueSettings.bannerOpacity ?? 0.18) ||
       JSON.stringify(localSettings.quickLinks) !== JSON.stringify(boutiqueSettings.quickLinks) ||
       JSON.stringify(localSettings.social) !== JSON.stringify(boutiqueSettings.social) ||
-      JSON.stringify(localSettings.footer) !== JSON.stringify(boutiqueSettings.footer)
+      JSON.stringify(localSettings.footer) !== JSON.stringify(boutiqueSettings.footer) ||
+      (localSettings.showFeaturedLook ?? true) !== (boutiqueSettings.showFeaturedLook ?? true) ||
+      (localSettings.showOutfits ?? true) !== (boutiqueSettings.showOutfits ?? true) ||
+      (localSettings.showRack ?? true) !== (boutiqueSettings.showRack ?? true)
     );
   }, [localSettings, boutiqueSettings]);
 
@@ -625,6 +632,34 @@ export default function MyBoutiquePage() {
                 </Select>
               </div>
 
+              <div className="space-y-4 pt-6 border-t">
+                  <div className="flex items-center justify-between">
+                      <Label htmlFor="show-featured" className="font-normal">Show Featured Look</Label>
+                      <Switch
+                          id="show-featured"
+                          checked={localSettings.showFeaturedLook ?? true}
+                          onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showFeaturedLook: checked }))}
+                      />
+                  </div>
+                  <div className="flex items-center justify-between">
+                      <Label htmlFor="show-outfits" className="font-normal">Show My Outfits</Label>
+                      <Switch
+                          id="show-outfits"
+                          checked={localSettings.showOutfits ?? true}
+                          onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showOutfits: checked }))}
+                      />
+                  </div>
+                  <div className="flex items-center justify-between">
+                      <Label htmlFor="show-rack" className="font-normal">Show My Rack</Label>
+                      <Switch
+                          id="show-rack"
+                          checked={localSettings.showRack ?? true}
+                          onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showRack: checked }))}
+                      />
+                  </div>
+              </div>
+
+
               <Button
                 onClick={handleConfigSave}
                 disabled={isSaving || !isConfigDirty}
@@ -639,65 +674,65 @@ export default function MyBoutiquePage() {
               </Button>
             </CardContent>
           </Card>
-
-           <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                    {brandProfile ? (
-                        <div className="space-y-6">
-                            <div>
-                                <Label className="text-xs text-muted-foreground">Logo Style</Label>
-                                <div className="text-sm font-medium">
-                                    { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
-                                </div>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                  <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+                {brandProfile ? (
+                    <div className="space-y-6">
+                        <div>
+                            <Label className="text-xs text-muted-foreground">Logo Style</Label>
+                            <div className="text-sm font-medium">
+                                { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
                             </div>
-                            <div>
-                                <Label className="text-xs text-muted-foreground">Colors</Label>
-                                <div className="flex items-center gap-2 mt-2">
-                                {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
-                                    brandProfile.brandColors.map((color, i) =>
-                                        color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
-                                    )
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">No colors set</p>
-                                )}
-                                </div>
-                            </div>
-                             <div>
-                                <Label className="text-xs text-muted-foreground">Fonts</Label>
-                                <div className="mt-2 space-y-2">
-                                    <div className="flex items-baseline justify-between gap-2">
-                                        <span className="text-sm">Primary</span>
-                                        <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
-                                            {brandProfile.primaryFont || 'Default'}
-                                        </span>
-                                    </div>
-                                    <div className="flex items-baseline justify-between gap-2">
-                                        <span className="text-sm">Secondary</span>
-                                        <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
-                                            {brandProfile.secondaryFont || 'Default'}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-                             <p className="text-xs text-muted-foreground text-center pt-4 border-t">
-                                To change these,{' '}
-                                <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
-                             </p>
                         </div>
-                    ) : (
-                         <p className="text-xs text-muted-foreground text-center p-4">
-                            Set up{' '}
-                            <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
-                            {' '}to see your snapshot.
+                        <div>
+                            <Label className="text-xs text-muted-foreground">Colors</Label>
+                            <div className="flex items-center gap-2 mt-2">
+                            {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
+                                brandProfile.brandColors.map((color, i) =>
+                                    color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
+                                )
+                            ) : (
+                                <p className="text-xs text-muted-foreground">No colors set</p>
+                            )}
+                            </div>
+                        </div>
+                         <div>
+                            <Label className="text-xs text-muted-foreground">Fonts</Label>
+                            <div className="mt-2 space-y-2">
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="text-sm">Primary</span>
+                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
+                                        {brandProfile.primaryFont || 'Default'}
+                                    </span>
+                                </div>
+                                <div className="flex items-baseline justify-between gap-2">
+                                    <span className="text-sm">Secondary</span>
+                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
+                                        {brandProfile.secondaryFont || 'Default'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                         <p className="text-xs text-muted-foreground text-center pt-4 border-t">
+                            To change these,{' '}
+                            <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
                          </p>
-                    )}
-                </CardContent>
-            </Card>
+                    </div>
+                ) : (
+                     <p className="text-xs text-muted-foreground text-center p-4">
+                        Set up{' '}
+                        <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
+                        {' '}to see your snapshot.
+                     </p>
+                )}
+            </CardContent>
+          </Card>
 
            <Card>
             <CardHeader>
@@ -1024,6 +1059,9 @@ export default function MyBoutiquePage() {
                 outfits={outfits}
                 rackLoading={rackLoading}
                 outfitsLoading={outfitsLoading}
+                showFeaturedLook={localSettings.showFeaturedLook ?? true}
+                showOutfits={localSettings.showOutfits ?? true}
+                showRack={localSettings.showRack ?? true}
               />
             </CardContent>
           </Card>

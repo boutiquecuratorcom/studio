@@ -32,6 +32,9 @@ type Props = {
   outfits: Outfit[] | null;
   rackLoading: boolean;
   outfitsLoading: boolean;
+  showFeaturedLook: boolean;
+  showOutfits: boolean;
+  showRack: boolean;
 };
 
 type ThemeLayout = {
@@ -205,7 +208,7 @@ const matchesTokens = (haystack: string, tokens: string[]) => {
   return tokens.every(token => haystack.includes(token));
 };
 
-export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading }: Props) {
+export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading, showFeaturedLook, showOutfits, showRack }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'items' | 'outfits'>('all');
   const [activeItem, setActiveItem] = useState<InventoryItem | null>(null);
@@ -214,7 +217,7 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
   const tokens = useMemo(() => tokenize(searchTerm), [searchTerm]);
 
   const filteredItems = useMemo(() => {
-    if (!rackItems || (filter !== 'all' && filter !== 'items')) return [];
+    if (!rackItems) return [];
     if (tokens.length === 0) return rackItems;
 
     return rackItems.filter(item => {
@@ -227,10 +230,10 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
 
       return matchesTokens(haystack, tokens);
     });
-  }, [rackItems, tokens, filter]);
+  }, [rackItems, tokens]);
 
   const filteredOutfits = useMemo(() => {
-    if (!outfits || (filter !== 'all' && filter !== 'outfits')) return [];
+    if (!outfits) return [];
     if (tokens.length === 0) return outfits;
     
     return outfits.filter(outfit => {
@@ -242,7 +245,7 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
 
       return matchesTokens(haystack, tokens);
     });
-  }, [outfits, tokens, filter]);
+  }, [outfits, tokens]);
 
   const fullFeaturedOutfit = useMemo(() => {
     if (!featuredOutfit || !outfits) return null;
@@ -368,51 +371,54 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
         </header>
         
         <main className="space-y-16 md:space-y-24">
-          <section>
-            {featuredOutfit ? (
-                <div 
-                  className="flex flex-col items-center gap-6 md:gap-8"
-                >
-                    <div 
-                      className="w-full max-w-xl cursor-pointer group"
-                      onClick={() => fullFeaturedOutfit && setActiveOutfit(fullFeaturedOutfit)}
-                    >
-                        <Card className={cn('w-full overflow-hidden transition-shadow duration-300 group-hover:shadow-xl', theme.cardWrap, renderTokens.cardClass)}>
-                            <div className="relative aspect-[4/5] w-full">
-                                <Image src={featuredOutfit.imageUrl || 'https://picsum.photos/seed/boutique-fallback/800/1000'} alt={featuredOutfit.title || 'Featured Outfit'} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
-                                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
-                            </div>
-                        </Card>
-                    </div>
-                    <div className="text-center flex flex-col items-center">
-                        <h2 className={cn("text-sm uppercase tracking-widest mb-2", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Featured Look</h2>
-                        <h3 className={cn(
-                            "text-3xl md:text-4xl font-semibold leading-tight",
-                             templateId === 'street-bold' ? 'text-white' : 'text-foreground'
-                        )} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
-                            {featuredOutfit.title}
-                        </h3>
-                        <p className={cn("mt-4 max-w-md text-lg", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>
-                            {featuredOutfit.description || `${featuredOutfit.itemCount} curated items to create the perfect look.`}
-                        </p>
-                        <div className={cn("mt-6", theme.ctaWrap)}>
-                            <PublicClaimButton 
-                                outfitSummary={featuredOutfit} 
-                                accentColor={renderTokens.accentColor} 
-                                buttonStyle={renderTokens.buttonStyle} 
-                                style={{ fontFamily: 'var(--boutique-font-button)' }}
-                                className="px-8 py-6 text-base"
-                            />
-                        </div>
-                    </div>
+          {showFeaturedLook && (
+            <section>
+              {featuredOutfit ? (
+                  <div 
+                    className="flex flex-col items-center gap-6 md:gap-8"
+                  >
+                      <div 
+                        className="w-full max-w-xl cursor-pointer group"
+                        onClick={() => fullFeaturedOutfit && setActiveOutfit(fullFeaturedOutfit)}
+                      >
+                          <Card className={cn('w-full overflow-hidden transition-shadow duration-300 group-hover:shadow-xl', theme.cardWrap, renderTokens.cardClass)}>
+                              <div className="relative aspect-[4/5] w-full">
+                                  <Image src={featuredOutfit.imageUrl || 'https://picsum.photos/seed/boutique-fallback/800/1000'} alt={featuredOutfit.title || 'Featured Outfit'} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+                              </div>
+                          </Card>
+                      </div>
+                      <div className="text-center flex flex-col items-center">
+                          <h2 className={cn("text-sm uppercase tracking-widest mb-2", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Featured Look</h2>
+                          <h3 className={cn(
+                              "text-3xl md:text-4xl font-semibold leading-tight",
+                               templateId === 'street-bold' ? 'text-white' : 'text-foreground'
+                          )} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
+                              {featuredOutfit.title}
+                          </h3>
+                          <p className={cn("mt-4 max-w-md text-lg", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>
+                              {featuredOutfit.description || `${featuredOutfit.itemCount} curated items to create the perfect look.`}
+                          </p>
+                          <div className={cn("mt-6", theme.ctaWrap)}>
+                              <PublicClaimButton 
+                                  outfitSummary={featuredOutfit} 
+                                  accentColor={renderTokens.accentColor} 
+                                  buttonStyle={renderTokens.buttonStyle} 
+                                  style={{ fontFamily: 'var(--boutique-font-button)' }}
+                                  className="px-8 py-6 text-base"
+                              />
+                          </div>
+                      </div>
+                  </div>
+              ) : (
+                <div className={cn("aspect-video w-full rounded-2xl flex flex-col items-center justify-center text-center p-4 border", renderTokens.cardClass)}>
+                  <ImageIcon className="h-10 w-10 mb-2 text-muted-foreground" />
+                  <p className="font-medium text-muted-foreground">Your featured look will appear here</p>
                 </div>
-            ) : (
-              <div className={cn("aspect-video w-full rounded-2xl flex flex-col items-center justify-center text-center p-4 border", renderTokens.cardClass)}>
-                <ImageIcon className="h-10 w-10 mb-2 text-muted-foreground" />
-                <p className="font-medium text-muted-foreground">Your featured look will appear here</p>
-              </div>
-            )}
-          </section>
+              )}
+            </section>
+          )}
+
 
           {quickLinks?.enabled && quickLinks.items && quickLinks.items.length > 0 && (
             <section className="text-center">
@@ -464,35 +470,8 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
               </Tabs>
             </div>
           </div>
-
-          {(filter === 'all' || filter === 'items') && (
-            <section>
-                <div className="text-center">
-                    <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
-                    <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Curated items from the collection.</p>
-                </div>
-                <div className="mt-8">
-                    {rackLoading ? <SectionSkeleton cols={4} />
-                      : !filteredItems || filteredItems.length === 0 ? <EmptyState icon={<Shirt className="h-12 w-12 text-muted-foreground/50" />} title={searchTerm ? "No Matching Items" : "Rack is Empty"} description={searchTerm ? "Try a different search." : "Items added to 'My Rack' will appear here."} />
-                      : (
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                          {filteredItems.map(item => (
-                            <Card key={item.id} onClick={() => setActiveItem(item)} className={cn("overflow-hidden group cursor-pointer", renderTokens.cardClass)}>
-                              <div className="relative aspect-square w-full">
-                                <Image src={item.image.thumbUrl || 'https://picsum.photos/seed/item-fallback/400/400'} alt={item.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
-                              </div>
-                              <div className="p-3">
-                                <h4 className="font-semibold truncate text-sm" style={{fontFamily: 'var(--boutique-font-heading)'}}>{item.title}</h4>
-                              </div>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
-                </div>
-            </section>
-          )}
-
-          {(filter === 'all' || filter === 'outfits') && (
+          
+          {showOutfits && (filter === 'all' || filter === 'outfits') && (
             <section>
                 <div className="text-center">
                     <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>My Outfits</h2>
@@ -515,6 +494,33 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
                         ))}
                       </div>
                     )}
+                </div>
+            </section>
+          )}
+
+          {showRack && (filter === 'all' || filter === 'items') && (
+            <section>
+                <div className="text-center">
+                    <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
+                    <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Curated items from the collection.</p>
+                </div>
+                <div className="mt-8">
+                    {rackLoading ? <SectionSkeleton cols={4} />
+                      : !filteredItems || filteredItems.length === 0 ? <EmptyState icon={<Shirt className="h-12 w-12 text-muted-foreground/50" />} title={searchTerm ? "No Matching Items" : "Rack is Empty"} description={searchTerm ? "Try a different search." : "Items added to 'My Rack' will appear here."} />
+                      : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                          {filteredItems.map(item => (
+                            <Card key={item.id} onClick={() => setActiveItem(item)} className={cn("overflow-hidden group cursor-pointer", renderTokens.cardClass)}>
+                              <div className="relative aspect-square w-full">
+                                <Image src={item.image.thumbUrl || 'https://picsum.photos/seed/item-fallback/400/400'} alt={item.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                              </div>
+                              <div className="p-3">
+                                <h4 className="font-semibold truncate text-sm" style={{fontFamily: 'var(--boutique-font-heading)'}}>{item.title}</h4>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
                 </div>
             </section>
           )}
