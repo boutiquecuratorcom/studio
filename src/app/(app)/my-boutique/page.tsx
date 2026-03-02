@@ -90,6 +90,9 @@ import { cn } from '@/lib/utils';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
+const withDefaultBool = (v: boolean | null | undefined, d: boolean) =>
+  v === null || v === undefined ? d : v;
+
 export default function MyBoutiquePage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
@@ -119,16 +122,7 @@ export default function MyBoutiquePage() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
 
-  const initStartedRef = useRef(false);
-  const isMountedRef = useRef(true);
   const hasLoggedRef = useRef(false);
-
-  useEffect(() => {
-    isMountedRef.current = true;
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, []);
 
   useEffect(() => {
     if (!hasLoggedRef.current && brandProfile) {
@@ -159,74 +153,42 @@ export default function MyBoutiquePage() {
   }, [handle, handleForm]);
 
   useEffect(() => {
-    if (userLoading || settingsLoading || brandLoading) return;
-    if (!user || !firestore) return;
-    if (initStartedRef.current) return;
+    // Wait until settings are loaded from Firestore
+    if (settingsLoading) {
+      return;
+    }
+    // Only initialize the local state once
+    if (isInitialized) {
+      return;
+    }
 
-    initStartedRef.current = true;
+    const initialData = boutiqueSettings || {};
 
-    const performInitialization = async () => {
-      try {
-        let currentSettings = boutiqueSettings;
+    setLocalSettings({
+      enabled: withDefaultBool(initialData.enabled, false),
+      featuredOutfitId: initialData.featuredOutfitId || 'auto',
+      templateId: initialData.templateId ?? 'editorial',
+      patternId: initialData.patternId ?? 'none',
+      accentColorIndex: initialData.accentColorIndex ?? 0,
+      bannerEnabled: withDefaultBool(initialData.bannerEnabled, true),
+      bannerHeight: initialData.bannerHeight ?? 'md',
+      bannerOpacity: initialData.bannerOpacity ?? 0.18,
+      announcementEnabled: withDefaultBool(initialData.announcementEnabled, false),
+      announcementText: initialData.announcementText ?? '',
+      announcementHref: initialData.announcementHref ?? '',
+      announcementCtaLabel: initialData.announcementCtaLabel ?? '',
+      announcementColorSource: initialData.announcementColorSource ?? 'accent',
+      quickLinks: initialData.quickLinks ?? { enabled: false, items: [] },
+      social: initialData.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
+      footer: initialData.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' },
+      showFeaturedLook: withDefaultBool(initialData.showFeaturedLook, true),
+      showOutfits: withDefaultBool(initialData.showOutfits, true),
+      showRack: withDefaultBool(initialData.showRack, true),
+    });
 
-        if (!currentSettings) {
-          const newSettingsData = {
-            enabled: false,
-            featuredOutfitId: null,
-            handle: null,
-            templateId: 'editorial',
-            patternId: 'none',
-            accentColorIndex: 0,
-            bannerEnabled: true,
-            bannerHeight: 'md',
-            bannerOpacity: 0.18,
-            announcementEnabled: false,
-            announcementColorSource: 'accent',
-          };
-          await updateBoutiqueSettings(firestore, user.uid, newSettingsData);
-          currentSettings = newSettingsData as unknown as BoutiqueSettings;
-        }
+    setIsInitialized(true);
+  }, [boutiqueSettings, settingsLoading, isInitialized]);
 
-        if (!isMountedRef.current) return;
-
-        setLocalSettings({
-          enabled: currentSettings?.enabled ?? false,
-          featuredOutfitId: currentSettings?.featuredOutfitId || 'auto',
-          templateId: currentSettings?.templateId ?? 'editorial',
-          patternId: currentSettings?.patternId ?? 'none',
-          accentColorIndex: currentSettings?.accentColorIndex ?? 0,
-          bannerEnabled: currentSettings?.bannerEnabled ?? true,
-          bannerHeight: currentSettings?.bannerHeight ?? 'md',
-          bannerOpacity: currentSettings?.bannerOpacity ?? 0.18,
-          announcementEnabled: currentSettings?.announcementEnabled ?? false,
-          announcementText: currentSettings?.announcementText ?? '',
-          announcementHref: currentSettings?.announcementHref ?? '',
-          announcementCtaLabel: currentSettings?.announcementCtaLabel ?? '',
-          announcementColorSource: currentSettings?.announcementColorSource ?? 'accent',
-          quickLinks: currentSettings?.quickLinks ?? { enabled: false, items: [] },
-          social: currentSettings?.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
-          footer: currentSettings?.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' },
-          showFeaturedLook: currentSettings?.showFeaturedLook ?? true,
-          showOutfits: currentSettings?.showOutfits ?? true,
-          showRack: currentSettings?.showRack ?? true,
-        });
-
-        setIsInitialized(true);
-      } catch (e) {
-        initStartedRef.current = false;
-        throw e;
-      }
-    };
-
-    performInitialization();
-  }, [
-    user,
-    firestore,
-    userLoading,
-    settingsLoading,
-    brandLoading,
-    boutiqueSettings,
-  ]);
 
   const handleEnabledToggle = async (enabled: boolean) => {
     if (!user || !firestore) return;
@@ -308,7 +270,7 @@ export default function MyBoutiquePage() {
 
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
 
-      if (boutiqueSettings?.enabled && handle) {
+      if (handle?.handle) {
         await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
       }
 
@@ -489,16 +451,16 @@ export default function MyBoutiquePage() {
     }), [brandProfile, localSettings]);
 
   const isConfigDirty = useMemo(() => {
-    if (!boutiqueSettings) return false;
+    if (!boutiqueSettings || !isInitialized) return false;
     return (
       (localSettings.featuredOutfitId || 'auto') !== (boutiqueSettings.featuredOutfitId || 'auto') ||
       (localSettings.templateId ?? 'editorial') !== (boutiqueSettings.templateId ?? 'editorial') ||
       (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none') ||
       (localSettings.accentColorIndex ?? 0) !== (boutiqueSettings.accentColorIndex ?? 0) ||
-      (localSettings.bannerEnabled ?? true) !== (boutiqueSettings.bannerEnabled ?? true) ||
+      withDefaultBool(localSettings.bannerEnabled, true) !== withDefaultBool(boutiqueSettings.bannerEnabled, true) ||
       (localSettings.bannerHeight ?? 'md') !== (boutiqueSettings.bannerHeight ?? 'md') ||
       (localSettings.bannerOpacity ?? 0.18) !== (boutiqueSettings.bannerOpacity ?? 0.18) ||
-      (localSettings.announcementEnabled ?? false) !== (boutiqueSettings.announcementEnabled ?? false) ||
+      withDefaultBool(localSettings.announcementEnabled, false) !== withDefaultBool(boutiqueSettings.announcementEnabled, false) ||
       (localSettings.announcementText ?? '') !== (boutiqueSettings.announcementText ?? '') ||
       (localSettings.announcementHref ?? '') !== (boutiqueSettings.announcementHref ?? '') ||
       (localSettings.announcementCtaLabel ?? '') !== (boutiqueSettings.announcementCtaLabel ?? '') ||
@@ -506,11 +468,11 @@ export default function MyBoutiquePage() {
       JSON.stringify(localSettings.quickLinks) !== JSON.stringify(boutiqueSettings.quickLinks) ||
       JSON.stringify(localSettings.social) !== JSON.stringify(boutiqueSettings.social) ||
       JSON.stringify(localSettings.footer) !== JSON.stringify(boutiqueSettings.footer) ||
-      (localSettings.showFeaturedLook ?? true) !== (boutiqueSettings.showFeaturedLook ?? true) ||
-      (localSettings.showOutfits ?? true) !== (boutiqueSettings.showOutfits ?? true) ||
-      (localSettings.showRack ?? true) !== (boutiqueSettings.showRack ?? true)
+      withDefaultBool(localSettings.showFeaturedLook, true) !== withDefaultBool(boutiqueSettings.showFeaturedLook, true) ||
+      withDefaultBool(localSettings.showOutfits, true) !== withDefaultBool(boutiqueSettings.showOutfits, true) ||
+      withDefaultBool(localSettings.showRack, true) !== withDefaultBool(boutiqueSettings.showRack, true)
     );
-  }, [localSettings, boutiqueSettings]);
+  }, [localSettings, boutiqueSettings, isInitialized]);
 
   const renderHeader = () => (
     <header className="mb-12">
@@ -660,7 +622,7 @@ export default function MyBoutiquePage() {
                       <Label htmlFor="show-featured" className="font-normal">Show Featured Look</Label>
                       <Switch
                           id="show-featured"
-                          checked={localSettings.showFeaturedLook ?? true}
+                          checked={withDefaultBool(localSettings.showFeaturedLook, true)}
                           onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showFeaturedLook: checked }))}
                       />
                   </div>
@@ -668,7 +630,7 @@ export default function MyBoutiquePage() {
                       <Label htmlFor="show-outfits" className="font-normal">Show My Outfits</Label>
                       <Switch
                           id="show-outfits"
-                          checked={localSettings.showOutfits ?? true}
+                          checked={withDefaultBool(localSettings.showOutfits, true)}
                           onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showOutfits: checked }))}
                       />
                   </div>
@@ -676,7 +638,7 @@ export default function MyBoutiquePage() {
                       <Label htmlFor="show-rack" className="font-normal">Show My Rack</Label>
                       <Switch
                           id="show-rack"
-                          checked={localSettings.showRack ?? true}
+                          checked={withDefaultBool(localSettings.showRack, true)}
                           onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showRack: checked }))}
                       />
                   </div>
@@ -698,66 +660,7 @@ export default function MyBoutiquePage() {
             </CardContent>
           </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-                {brandProfile ? (
-                    <div className="space-y-6">
-                        <div>
-                            <Label className="text-xs text-muted-foreground">Logo Style</Label>
-                            <div className="text-sm font-medium">
-                                { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
-                            </div>
-                        </div>
-                        <div>
-                            <Label className="text-xs text-muted-foreground">Colors</Label>
-                            <div className="flex items-center gap-2 mt-2">
-                            {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
-                                brandProfile.brandColors.map((color, i) =>
-                                    color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
-                                )
-                            ) : (
-                                <p className="text-xs text-muted-foreground">No colors set</p>
-                            )}
-                            </div>
-                        </div>
-                         <div>
-                            <Label className="text-xs text-muted-foreground">Fonts</Label>
-                            <div className="mt-2 space-y-2">
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm">Primary</span>
-                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
-                                        {brandProfile.primaryFont || 'Default'}
-                                    </span>
-                                </div>
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm">Secondary</span>
-                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
-                                        {brandProfile.secondaryFont || 'Default'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                         <p className="text-xs text-muted-foreground text-center pt-4 border-t">
-                            To change these,{' '}
-                            <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
-                         </p>
-                    </div>
-                ) : (
-                     <p className="text-xs text-muted-foreground text-center p-4">
-                        Set up{' '}
-                        <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
-                        {' '}to see your snapshot.
-                     </p>
-                )}
-            </CardContent>
-          </Card>
-
-          <Card>
+           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                   <Palette className="h-5 w-5 text-accent" /> Boutique Designer
@@ -830,6 +733,65 @@ export default function MyBoutiquePage() {
               </div>
             </CardContent>
           </Card>
+
+           <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                  {brandProfile ? (
+                      <div className="space-y-6">
+                          <div>
+                              <Label className="text-xs text-muted-foreground">Logo Style</Label>
+                              <div className="text-sm font-medium">
+                                  { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
+                              </div>
+                          </div>
+                          <div>
+                              <Label className="text-xs text-muted-foreground">Colors</Label>
+                              <div className="flex items-center gap-2 mt-2">
+                              {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
+                                  brandProfile.brandColors.map((color, i) =>
+                                      color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
+                                  )
+                              ) : (
+                                  <p className="text-xs text-muted-foreground">No colors set</p>
+                              )}
+                              </div>
+                          </div>
+                           <div>
+                              <Label className="text-xs text-muted-foreground">Fonts</Label>
+                              <div className="mt-2 space-y-2">
+                                  <div className="flex items-baseline justify-between gap-2">
+                                      <span className="text-sm">Primary</span>
+                                      <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
+                                          {brandProfile.primaryFont || 'Default'}
+                                      </span>
+                                  </div>
+                                  <div className="flex items-baseline justify-between gap-2">
+                                      <span className="text-sm">Secondary</span>
+                                      <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
+                                          {brandProfile.secondaryFont || 'Default'}
+                                      </span>
+                                  </div>
+                              </div>
+                          </div>
+                           <p className="text-xs text-muted-foreground text-center pt-4 border-t">
+                              To change these,{' '}
+                              <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
+                           </p>
+                      </div>
+                  ) : (
+                       <p className="text-xs text-muted-foreground text-center p-4">
+                          Set up{' '}
+                          <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
+                          {' '}to see your snapshot.
+                       </p>
+                  )}
+              </CardContent>
+            </Card>
           
             <Card>
                 <CardHeader>
@@ -843,7 +805,7 @@ export default function MyBoutiquePage() {
                 <CardContent className="space-y-6">
                     <div className="flex items-center space-x-4 rounded-lg border p-4">
                         <Switch
-                            checked={localSettings.bannerEnabled ?? true}
+                            checked={withDefaultBool(localSettings.bannerEnabled, true)}
                             onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, bannerEnabled: checked }))}
                         />
                         <Label className="flex-grow">
@@ -891,7 +853,7 @@ export default function MyBoutiquePage() {
                 <CardContent className="space-y-4">
                     <div className="flex items-center space-x-4 rounded-lg border p-4">
                         <Switch
-                            checked={localSettings.announcementEnabled ?? false}
+                            checked={withDefaultBool(localSettings.announcementEnabled, false)}
                             onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, announcementEnabled: checked }))}
                         />
                         <Label className="flex-grow">Show Announcement</Label>
@@ -916,8 +878,8 @@ export default function MyBoutiquePage() {
                                 <SelectContent>
                                     <SelectItem value="accent">
                                         <div className="flex items-center gap-2">
-                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[0] || 'transparent' }}></div>
-                                            <span>Primary Brand Color (accent)</span>
+                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[localSettings.accentColorIndex ?? 0] || 'transparent' }}></div>
+                                            <span>Accent Color</span>
                                         </div>
                                     </SelectItem>
                                     <SelectItem value="color2" disabled={!brandProfile?.brandColors?.[1]}>
@@ -1079,7 +1041,7 @@ export default function MyBoutiquePage() {
                 <CardContent className="space-y-4">
                      <div className="flex items-center space-x-4 rounded-lg border p-4">
                         <Switch
-                            checked={localSettings.footer?.enabled ?? true}
+                            checked={withDefaultBool(localSettings.footer?.enabled, true)}
                             onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, footer: { ...prev.footer, enabled: checked } }))}
                         />
                         <Label className="flex-grow">Show Footer</Label>
@@ -1178,9 +1140,9 @@ export default function MyBoutiquePage() {
                 outfits={outfits}
                 rackLoading={rackLoading}
                 outfitsLoading={outfitsLoading}
-                showFeaturedLook={localSettings.showFeaturedLook ?? true}
-                showOutfits={localSettings.showOutfits ?? true}
-                showRack={localSettings.showRack ?? true}
+                showFeaturedLook={withDefaultBool(localSettings.showFeaturedLook, true)}
+                showOutfits={withDefaultBool(localSettings.showOutfits, true)}
+                showRack={withDefaultBool(localSettings.showRack, true)}
               />
             </CardContent>
           </Card>
