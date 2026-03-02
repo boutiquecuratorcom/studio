@@ -1,3 +1,4 @@
+
 'use client';
 
 import Image from 'next/image';
@@ -49,7 +50,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-2xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40',
+        overlayOpacityClass: 'opacity-75',
         ornaments: 'editorial',
       };
     case 'soft-luxe':
@@ -63,7 +64,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40', 
+        overlayOpacityClass: 'opacity-75', 
         ornaments: 'luxe',
       };
     case 'playful-pop':
@@ -77,7 +78,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40', 
+        overlayOpacityClass: 'opacity-75', 
         ornaments: 'pop',
       };
     case 'modern-minimal':
@@ -91,7 +92,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-3',
         cardWrap: 'rounded-none overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-30',
+        overlayOpacityClass: 'opacity-50',
         ornaments: 'minimal',
       };
     case 'street-bold':
@@ -105,7 +106,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-lg overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-25', 
+        overlayOpacityClass: 'opacity-50', 
         ornaments: 'street',
       };
     case 'romantic-vintage':
@@ -119,7 +120,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40', 
+        overlayOpacityClass: 'opacity-75', 
         ornaments: 'vintage',
       };
   }

@@ -89,8 +89,8 @@ const PATTERNS: Record<BoutiquePatternId, CSSProperties> = {
 
   polka: {
     backgroundImage:
-      'radial-gradient(currentColor 1.5px, transparent 1.5px)',
-    backgroundSize: '20px 20px',
+      'radial-gradient(currentColor 10px, transparent 10px)',
+    backgroundSize: '80px 80px',
   },
 
   pinstripe: {
@@ -229,7 +229,7 @@ export const computeRenderTokens = (
       ? tokens.accentColor
       : '#111827';
   
-  let patternOpacity = templateId === 'street-bold' ? 0.25 : 0.2;
+  let patternOpacity = templateId === 'street-bold' ? 0.25 : 0.4;
 
   tokens.patternStyles = {
     ...basePattern,
