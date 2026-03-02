@@ -11,8 +11,9 @@ import type {
   BoutiqueTemplateId,
   BrandProfilePublicBits,
 } from '@/lib/brand/brandPublicBits';
-import { computeRenderTokens, type BoutiqueRenderTokens } from '@/lib/boutique-design';
+import { computeRenderTokens } from '@/lib/boutique-design';
 import { cn } from '@/lib/utils';
+import { PublicClaimButton } from './PublicClaimButton';
 
 type Props = {
   brandProfile: Partial<BrandProfilePublicBits> | null;
@@ -48,7 +49,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-2xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40',
+        overlayOpacityClass: 'opacity-50',
         ornaments: 'editorial',
       };
     case 'soft-luxe':
@@ -62,7 +63,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-35',
+        overlayOpacityClass: 'opacity-100', // controlled in token
         ornaments: 'luxe',
       };
     case 'playful-pop':
@@ -76,7 +77,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-45',
+        overlayOpacityClass: 'opacity-100', // controlled in token
         ornaments: 'pop',
       };
     case 'modern-minimal':
@@ -88,9 +89,9 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         nameClass: 'text-3xl md:text-4xl leading-tight tracking-tight font-semibold',
         taglineClass: 'text-base leading-relaxed',
         ctaWrap: 'pt-3',
-        cardWrap: 'rounded-2xl overflow-hidden',
+        cardWrap: 'rounded-none overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-25',
+        overlayOpacityClass: 'opacity-40',
         ornaments: 'minimal',
       };
     case 'street-bold':
@@ -102,9 +103,9 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         nameClass: 'text-4xl md:text-5xl leading-tight tracking-tight font-extrabold uppercase',
         taglineClass: 'text-sm md:text-base leading-relaxed uppercase tracking-wide',
         ctaWrap: 'pt-2',
-        cardWrap: 'rounded-xl overflow-hidden',
+        cardWrap: 'rounded-lg overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-25',
+        overlayOpacityClass: 'opacity-100', // controlled in token
         ornaments: 'street',
       };
     case 'romantic-vintage':
@@ -118,7 +119,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-35',
+        overlayOpacityClass: 'opacity-100', // controlled in token
         ornaments: 'vintage',
       };
   }
@@ -140,9 +141,6 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
   const renderTokens = useMemo(() => computeRenderTokens(brandProfile, templateId, patternId), [brandProfile, templateId, patternId]);
   const theme = useMemo(() => getThemeLayout(templateId), [templateId]);
   
-  const claimMode = featuredOutfit?.outfitClaim?.mode || 'individual';
-  const outfitClaimUrl = featuredOutfit?.outfitClaim?.claim?.url;
-  const outfitClaimLabel = featuredOutfit?.outfitClaim?.claim?.label || 'Claim Now';
   const logoStyle = brandProfile?.logoStyle ?? 'auto';
   const logoIsStyled = logoStyle === 'circle' || logoStyle === 'rounded';
 
@@ -157,30 +155,15 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
   
   const bannerEnabled = false;
 
-  const ClaimButton = () => {
-    const style: React.CSSProperties = {
-      backgroundColor: renderTokens.buttonStyle === 'solid' ? 'var(--boutique-accent)' : 'transparent',
-      borderColor: renderTokens.buttonStyle === 'outline' ? 'var(--boutique-accent)' : 'transparent',
-      color: renderTokens.buttonStyle === 'solid' ? 'var(--boutique-accent-text)' : 'var(--boutique-accent)',
-      fontFamily: 'var(--boutique-font-button)',
-    };
-    const variant = renderTokens.buttonStyle === 'outline' ? 'outline' : 'default';
-    if (claimMode === 'outfit' && outfitClaimUrl) {
-      return (
-        <Button size="lg" style={style} variant={variant} asChild className="px-8 py-6 text-base">
-          <a href={outfitClaimUrl} target="_blank" rel="noopener noreferrer">{outfitClaimLabel}</a>
-        </Button>
-      );
-    }
-    return (
-      <Button size="lg" style={style} variant={variant} className="pointer-events-none px-8 py-6 text-base">
-        Claim a Look
-      </Button>
-    );
-  };
-
   return (
-    <div className={cn('min-h-screen text-foreground relative overflow-x-hidden', theme.pagePadding)} style={{ ...rootVars, backgroundColor: 'var(--boutique-bg)', fontFamily: 'var(--boutique-font-body)' }}>
+    <div 
+      className={cn(
+        'min-h-screen relative overflow-x-hidden', 
+        theme.pagePadding, 
+        templateId === 'street-bold' ? 'text-white' : 'text-foreground'
+      )} 
+      style={{ ...rootVars, background: 'var(--boutique-bg)', fontFamily: 'var(--boutique-font-body)' }}
+    >
       <div className={cn('absolute inset-0 pointer-events-none', theme.overlayOpacityClass)} style={renderTokens.patternStyles} />
       <div className="absolute inset-0 pointer-events-none"><Ornaments kind={theme.ornaments} /></div>
       
@@ -224,7 +207,7 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
             <h1 className={cn(theme.nameClass)} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
               {brandProfile?.brandName || 'Your Boutique Name'}
             </h1>
-            <p className={cn('max-w-2xl mx-auto text-muted-foreground', theme.taglineClass)}>
+            <p className={cn('max-w-2xl mx-auto', templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground', theme.taglineClass)}>
               {brandProfile?.tagline || 'Your amazing tagline goes here.'}
             </p>
           </div>
@@ -241,20 +224,26 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
                   </div>
                 </Card>
                 <div className="text-center lg:text-left flex flex-col items-center lg:items-start">
-                  <h2 className="text-sm uppercase tracking-widest text-muted-foreground mb-2">Featured Look</h2>
+                  <h2 className={cn("text-sm uppercase tracking-widest mb-2", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Featured Look</h2>
                   <h3 className={cn("text-3xl md:text-4xl font-semibold leading-tight", theme.nameClass)} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
                     {featuredOutfit.title}
                   </h3>
-                  <p className="mt-4 max-w-md text-lg text-muted-foreground">
+                  <p className={cn("mt-4 max-w-md text-lg", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>
                     {featuredOutfit.description || `${featuredOutfit.itemCount} curated items to create the perfect look.`}
                   </p>
                   <div className={cn("mt-6", theme.ctaWrap)}>
-                    <ClaimButton />
+                     <PublicClaimButton 
+                        outfitSummary={featuredOutfit} 
+                        accentColor={renderTokens.accentColor} 
+                        buttonStyle={renderTokens.buttonStyle} 
+                        style={{ fontFamily: 'var(--boutique-font-button)' }}
+                        className="px-8 py-6 text-base"
+                    />
                   </div>
                 </div>
               </div>
             ) : (
-              <div className="aspect-video w-full rounded-2xl flex flex-col items-center justify-center text-center p-4 bg-card border border-border/40">
+              <div className={cn("aspect-video w-full rounded-2xl flex flex-col items-center justify-center text-center p-4 border", renderTokens.cardClass)}>
                 <ImageIcon className="h-10 w-10 mb-2 text-muted-foreground" />
                 <p className="font-medium text-muted-foreground">Your featured look will appear here</p>
               </div>
@@ -265,10 +254,10 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
           <section>
               <div className="text-center">
                   <h2 className="text-3xl font-semibold" style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
-                  <p className="text-muted-foreground mt-2">Curated items from the collection.</p>
+                  <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Curated items from the collection.</p>
               </div>
-              <div className="mt-8 text-center p-12 bg-card/50 border-2 border-dashed rounded-2xl">
-                  <p className="text-muted-foreground">Rack items will be displayed here soon.</p>
+              <div className={cn("mt-8 text-center p-12 border-2 border-dashed rounded-2xl", renderTokens.cardClass)}>
+                  <p className={cn(templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Rack items will be displayed here soon.</p>
               </div>
           </section>
 
@@ -277,14 +266,14 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
               <div className="text-center">
                   <h2 className="text-3xl font-semibold" style={{ fontFamily: 'var(--boutique-font-heading)' }}>Quick Links</h2>
               </div>
-              <div className="mt-8 text-center p-12 bg-card/50 border-2 border-dashed rounded-2xl">
-                  <p className="text-muted-foreground">Important links and calls-to-action will appear here.</p>
+              <div className={cn("mt-8 text-center p-12 border-2 border-dashed rounded-2xl", renderTokens.cardClass)}>
+                  <p className={cn(templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Important links and calls-to-action will appear here.</p>
               </div>
           </section>
         </main>
 
-        <footer className={cn('text-center border-t mt-16 md:mt-24 pt-8 border-border/40', theme.footerWrap)}>
-          <p className="text-xs text-muted-foreground">Powered by Boutique Curator</p>
+        <footer className={cn('text-center border-t mt-16 md:mt-24 pt-8', templateId === 'street-bold' ? 'border-white/20' : 'border-border/40', theme.footerWrap)}>
+          <p className={cn("text-xs", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Powered by Boutique Curator</p>
         </footer>
       </div>
     </div>

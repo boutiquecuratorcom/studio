@@ -28,9 +28,7 @@ export const validateHexColor = (
   if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
 
   if (hex.length === 3) {
-    const r = hex[0];
-    const g = hex[1];
-    const b = hex[2];
+    const [r, g, b] = m[1].split('');
     return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
   }
 
@@ -141,53 +139,49 @@ const applyTemplateOverrides = (
   tokens: BoutiqueRenderTokens,
   templateId: BoutiqueTemplateId
 ) => {
+  const accentIsHex = tokens.accentColor.startsWith('#');
+
   switch (templateId) {
     case 'editorial':
-      tokens.backgroundColor = 'hsl(var(--background))';
+      tokens.backgroundColor = accentIsHex
+        ? `radial-gradient(ellipse at 80% 20%, ${hexToRgba(tokens.accentColor, 0.08)}, hsl(var(--background)) 50%)`
+        : 'hsl(var(--background))';
       tokens.cardClass = 'bg-card text-card-foreground';
       tokens.buttonStyle = 'solid';
-      tokens.headerClass = 'pt-10 space-y-3';
-      tokens.bodyClass = '';
       break;
 
     case 'soft-luxe':
       tokens.backgroundColor = '#F8F5F2';
-      tokens.cardClass = 'bg-white/70 backdrop-blur rounded-xl shadow-sm border';
+      tokens.cardClass = 'bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-black/5';
       tokens.buttonStyle = 'solid';
-      tokens.headerClass = 'pt-10 space-y-4';
-      tokens.bodyClass = '';
       break;
 
     case 'playful-pop':
-      tokens.backgroundColor = '#FFFFFF';
+      tokens.backgroundColor = accentIsHex
+        ? `radial-gradient(ellipse at 20% 20%, ${hexToRgba(tokens.accentColor, 0.15)}, #ffffff 60%)`
+        : '#FFFFFF';
       tokens.cardClass = 'bg-card text-card-foreground rounded-xl shadow-md';
       tokens.buttonStyle = 'solid';
-      tokens.headerClass = 'pt-10 space-y-4';
-      tokens.bodyClass = '';
       break;
 
     case 'modern-minimal':
       tokens.backgroundColor = '#FFFFFF';
       tokens.cardClass = 'bg-transparent border border-border shadow-none';
       tokens.buttonStyle = 'outline';
-      tokens.headerClass = 'pt-10 space-y-3';
-      tokens.bodyClass = '';
       break;
 
     case 'street-bold':
-      tokens.backgroundColor = '#0B0B0E';
+      tokens.backgroundColor = `radial-gradient(ellipse at 50% 0%, #333 0%, #0B0B0E 70%)`;
       tokens.cardClass = 'bg-white/5 border border-white/10 text-white';
       tokens.buttonStyle = 'solid';
-      tokens.headerClass = 'pt-10 space-y-4';
-      tokens.bodyClass = '';
       break;
 
     case 'romantic-vintage':
-      tokens.backgroundColor = '#FFF7F2';
-      tokens.cardClass = 'bg-white/60 border border-black/10 rounded-2xl shadow-sm';
+       tokens.backgroundColor = accentIsHex
+        ? `radial-gradient(ellipse at 50% 100%, ${hexToRgba(tokens.accentColor, 0.12)}, #FFF7F2 50%)`
+        : '#FFF7F2';
+      tokens.cardClass = 'bg-white/50 border border-black/10 rounded-2xl shadow-sm';
       tokens.buttonStyle = 'outline';
-      tokens.headerClass = 'pt-10 space-y-4';
-      tokens.bodyClass = '';
       break;
   }
 };
@@ -235,11 +229,12 @@ export const computeRenderTokens = (
     typeof tokens.accentColor === 'string' && tokens.accentColor.startsWith('#')
       ? tokens.accentColor
       : '#111827';
+  
+  let patternOpacity = templateId === 'street-bold' ? 0.15 : 0.12;
 
   tokens.patternStyles = {
     ...basePattern,
-    // this becomes "currentColor" inside the overlay
-    color: hexToRgba(accentForPattern, templateId === 'street-bold' ? 0.22 : 0.10),
+    color: hexToRgba(accentForPattern, patternOpacity),
   };
 
   return tokens;
