@@ -6,6 +6,9 @@ import { BoutiqueRenderer } from '@/components/boutique/BoutiqueRenderer';
 import { Store, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { useInventoryItems } from '@/lib/inventory';
+import { useOutfits } from '@/lib/outfits';
+import { useMemo } from 'react';
 
 function BoutiqueLoading() {
   return (
@@ -35,6 +38,12 @@ export default function PublicBoutiquePage() {
   const handle = params.sellerId as string;
 
   const { data: publicProfile, loading, error } = usePublicBoutiqueByHandle(handle);
+  
+  const { items: rackItems, loading: rackLoading } = useInventoryItems(publicProfile?.uid || null, null);
+  const { outfits, loading: outfitsLoading } = useOutfits(publicProfile?.uid || null);
+
+  const publishedOutfits = useMemo(() => outfits?.filter(o => o.status === 'published'), [outfits]);
+
 
   if (loading) return <BoutiqueLoading />;
 
@@ -49,6 +58,10 @@ export default function PublicBoutiquePage() {
       featuredOutfit={publicProfile.featuredOutfit}
       templateId={templateId}
       patternId={patternId}
+      rackItems={rackItems}
+      outfits={publishedOutfits}
+      rackLoading={rackLoading}
+      outfitsLoading={outfitsLoading}
     />
   );
 }

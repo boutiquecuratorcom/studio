@@ -86,6 +86,7 @@ import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
 import { BOUTIQUE_PATTERNS, BOUTIQUE_TEMPLATES } from '@/lib/brand/brandPublicBits';
 import { Input } from '@/components/ui/input';
 import { getFontByName } from '@/lib/fonts';
+import { useInventoryItems } from '@/lib/inventory';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -107,6 +108,8 @@ export default function MyBoutiquePage() {
     useDoc<BrandProfilePublicBits>(brandProfileRef);
 
   const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
+  const { items: rackItems, loading: rackLoading } = useInventoryItems(user?.uid, null);
+
 
   const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>(
     {}
@@ -444,7 +447,6 @@ export default function MyBoutiquePage() {
   const loading =
     userLoading ||
     !isInitialized ||
-    outfitsLoading ||
     brandLoading ||
     handleLoading;
 
@@ -1018,6 +1020,10 @@ export default function MyBoutiquePage() {
                 featuredOutfit={featuredOutfit}
                 templateId={localSettings.templateId ?? 'editorial'}
                 patternId={localSettings.patternId ?? 'none'}
+                rackItems={rackItems}
+                outfits={outfits}
+                rackLoading={rackLoading}
+                outfitsLoading={outfitsLoading}
               />
             </CardContent>
           </Card>

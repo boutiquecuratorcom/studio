@@ -7,17 +7,26 @@ import type {
   BoutiquePatternId,
   BoutiqueTemplateId,
 } from '@/lib/brand/brandPublicBits';
+import type { InventoryItem } from '@/lib/inventory';
 
 export const BoutiqueLivePreview = ({
   brandProfile,
   featuredOutfit,
   templateId,
   patternId,
+  rackItems,
+  outfits,
+  rackLoading,
+  outfitsLoading,
 }: {
   brandProfile: BrandProfilePublicBits | null;
   featuredOutfit: Outfit | undefined;
   templateId: BoutiqueTemplateId;
   patternId: BoutiquePatternId;
+  rackItems: InventoryItem[] | null;
+  outfits: Outfit[] | null;
+  rackLoading: boolean;
+  outfitsLoading: boolean;
 }) => {
   const featuredOutfitSummary = featuredOutfit
     ? {
@@ -38,6 +47,10 @@ export const BoutiqueLivePreview = ({
       featuredOutfit={featuredOutfitSummary}
       templateId={templateId}
       patternId={patternId}
+      rackItems={rackItems}
+      outfits={outfits}
+      rackLoading={rackLoading}
+      outfitsLoading={outfitsLoading}
     />
   );
 };

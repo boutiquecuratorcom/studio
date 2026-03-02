@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Store, ImageIcon, Facebook } from 'lucide-react';
+import { Store, ImageIcon, Facebook, Package, Shirt } from 'lucide-react';
 import type { PublicBoutiqueProfile } from '@/lib/boutique';
 import type {
   BoutiquePatternId,
@@ -15,12 +15,19 @@ import type {
 import { computeRenderTokens, getContrastingTextColor } from '@/lib/boutique-design';
 import { cn } from '@/lib/utils';
 import { PublicClaimButton } from './PublicClaimButton';
+import type { InventoryItem } from '@/lib/inventory';
+import type { Outfit } from '@/lib/outfits';
+import { Skeleton } from '../ui/skeleton';
 
 type Props = {
   brandProfile: Partial<BrandProfilePublicBits & PublicBoutiqueProfile> | null;
   featuredOutfit: PublicBoutiqueProfile['featuredOutfit'];
   templateId: BoutiqueTemplateId;
   patternId: BoutiquePatternId;
+  rackItems: InventoryItem[] | null;
+  outfits: Outfit[] | null;
+  rackLoading: boolean;
+  outfitsLoading: boolean;
 };
 
 type ThemeLayout = {
@@ -138,7 +145,26 @@ function Ornaments({ kind }: { kind: ThemeLayout['ornaments'] }) {
   }
 }
 
-export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, patternId }: Props) => {
+const EmptyState = ({ icon, title, description }: { icon: React.ReactNode, title: string, description: string }) => (
+  <div className="text-center p-12 border-2 border-dashed rounded-2xl flex flex-col items-center">
+    <div className="mb-4">{icon}</div>
+    <h4 className="text-lg font-semibold" style={{ fontFamily: 'var(--boutique-font-heading)' }}>{title}</h4>
+    <p className="text-muted-foreground">{description}</p>
+  </div>
+);
+
+const SectionSkeleton = ({ cols = 3 }: { cols?: number }) => (
+  <div className={`grid grid-cols-2 md:grid-cols-${cols > 2 ? 3 : 2} lg:grid-cols-${cols} gap-4 md:gap-6`}>
+    {Array.from({ length: cols }).map((_, i) => (
+      <div key={i} className="space-y-3">
+        <Skeleton className="aspect-square w-full rounded-xl" />
+        <Skeleton className="h-5 w-3/4 rounded" />
+      </div>
+    ))}
+  </div>
+);
+
+export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading }: Props) => {
   const renderTokens = useMemo(() => computeRenderTokens(brandProfile, templateId, patternId), [brandProfile, templateId, patternId]);
   const theme = useMemo(() => getThemeLayout(templateId), [templateId]);
   
@@ -186,10 +212,10 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
       {bannerEnabled && (
         <div 
             className={cn(
-                'absolute top-0 left-0 right-0 w-full opacity-10',
+                'absolute top-0 left-0 right-0 w-full',
                 bannerHeightClass
             )}
-            style={bannerStyle}
+            style={{...bannerStyle, opacity: bannerOpacity }}
         />
       )}
       <div className={cn('absolute inset-0 pointer-events-none', theme.overlayOpacityClass)} style={renderTokens.patternStyles} />
@@ -269,7 +295,7 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
                         <h2 className={cn("text-sm uppercase tracking-widest mb-2", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Featured Look</h2>
                         <h3 className={cn(
                             "text-3xl md:text-4xl font-semibold leading-tight",
-                             templateId === 'street-bold' ? 'text-white' : theme.nameClass
+                             templateId === 'street-bold' ? 'text-white' : 'text-foreground'
                         )} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
                             {featuredOutfit.title}
                         </h3>
@@ -324,14 +350,53 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
             </section>
           )}
 
-          {/* Placeholder for My Rack */}
           <section>
               <div className="text-center">
                   <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
                   <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Curated items from the collection.</p>
               </div>
-              <div className={cn("mt-8 text-center p-12 border-2 border-dashed rounded-2xl", renderTokens.cardClass)}>
-                  <p className={cn(templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Rack items will be displayed here soon.</p>
+              <div className="mt-8">
+                  {rackLoading ? <SectionSkeleton cols={4} />
+                    : !rackItems || rackItems.length === 0 ? <EmptyState icon={<Shirt className="h-12 w-12 text-muted-foreground/50" />} title="Rack is Empty" description="Items added to 'My Rack' will appear here." />
+                    : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                        {rackItems.map(item => (
+                          <Card key={item.id} className={cn("overflow-hidden group", renderTokens.cardClass)}>
+                            <div className="relative aspect-square w-full">
+                              <Image src={item.image.thumbUrl || 'https://picsum.photos/seed/item-fallback/400/400'} alt={item.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                            </div>
+                             <div className="p-3">
+                               <h4 className="font-semibold truncate text-sm" style={{fontFamily: 'var(--boutique-font-heading)'}}>{item.title}</h4>
+                             </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+              </div>
+          </section>
+
+          <section>
+              <div className="text-center">
+                  <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>My Outfits</h2>
+                  <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Styled looks ready to share.</p>
+              </div>
+              <div className="mt-8">
+                {outfitsLoading ? <SectionSkeleton cols={3} />
+                  : !outfits || outfits.length === 0 ? <EmptyState icon={<Package className="h-12 w-12 text-muted-foreground/50" />} title="No Outfits Yet" description="Styled outfits will appear here once they are created." />
+                  : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                      {outfits.map(outfit => (
+                        <Card key={outfit.id} className={cn("overflow-hidden group", renderTokens.cardClass)}>
+                          <div className="relative aspect-video w-full">
+                            <Image src={outfit.cover?.thumbUrl || 'https://picsum.photos/seed/outfit-fallback/600/400'} alt={outfit.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                          </div>
+                           <div className="p-4">
+                             <h4 className="font-semibold" style={{fontFamily: 'var(--boutique-font-heading)'}}>{outfit.title}</h4>
+                           </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
               </div>
           </section>
 
