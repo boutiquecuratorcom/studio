@@ -16,6 +16,14 @@ export type BrandProfilePublicBits = {
   logoUrl?: string | null;
 
   /**
+   * Defines how the logo should be framed in the boutique header.
+   * 'auto': Natural aspect ratio, no cropping.
+   * 'circle': Cropped to a circle.
+   * 'rounded': Cropped to a rounded square.
+   */
+  logoStyle?: 'auto' | 'circle' | 'rounded' | null;
+
+  /**
    * Up to 3 brand colors in hex format. Index [0] is treated as primary/accent.
    */
   brandColors?: (string | null)[];

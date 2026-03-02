@@ -585,6 +585,15 @@ export default function MyBoutiquePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label>Logo Style</Label>
+                <div className="flex items-center justify-between rounded-lg border p-3">
+                    <p className="text-sm font-medium capitalize">{brandProfile?.logoStyle ?? 'auto'}</p>
+                    <Button variant="link" asChild className="text-xs h-auto p-0">
+                        <Link href="/my-brand">Change in My Brand</Link>
+                    </Button>
+                </div>
+              </div>
                <div className="space-y-2">
                 <Label>Theme</Label>
                 <Select
@@ -728,8 +737,8 @@ export default function MyBoutiquePage() {
               <BoutiqueLivePreview
                 brandProfile={brandProfile}
                 featuredOutfit={featuredOutfit}
-                templateId={localSettings.templateId as BoutiqueTemplateId ?? 'editorial'}
-                patternId={localSettings.patternId as BoutiquePatternId ?? 'none'}
+                templateId={localSettings.templateId ?? 'editorial'}
+                patternId={localSettings.patternId ?? 'none'}
               />
             </CardContent>
           </Card>

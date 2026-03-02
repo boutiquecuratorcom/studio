@@ -26,7 +26,6 @@ type ThemeLayout = {
   containerWidth: string;
   headerWrap: string;
   logoContainer: string;
-  logoWrap: string;
   nameClass: string;
   taglineClass: string;
   ctaWrap: string;
@@ -44,7 +43,6 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         containerWidth: 'max-w-5xl',
         headerWrap: 'space-y-4 pt-2',
         logoContainer: 'h-24 w-full flex justify-center',
-        logoWrap: 'rounded-lg',
         nameClass: 'text-4xl md:text-5xl leading-tight tracking-tight font-semibold',
         taglineClass: 'text-base md:text-lg leading-relaxed',
         ctaWrap: 'pt-2',
@@ -59,7 +57,6 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         containerWidth: 'max-w-5xl',
         headerWrap: 'space-y-4 pt-2',
         logoContainer: 'h-24 w-full flex justify-center',
-        logoWrap: 'rounded-xl',
         nameClass: 'text-4xl md:text-5xl leading-tight tracking-tight font-semibold',
         taglineClass: 'text-base md:text-lg leading-relaxed',
         ctaWrap: 'pt-2',
@@ -74,7 +71,6 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         containerWidth: 'max-w-5xl',
         headerWrap: 'space-y-3 pt-2',
         logoContainer: 'h-24 w-full flex justify-center',
-        logoWrap: 'rounded-2xl',
         nameClass: 'text-4xl md:text-5xl leading-tight tracking-tight font-bold',
         taglineClass: 'text-base md:text-lg leading-relaxed',
         ctaWrap: 'pt-2',
@@ -89,7 +85,6 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         containerWidth: 'max-w-5xl',
         headerWrap: 'space-y-4 pt-2',
         logoContainer: 'h-20 w-full flex justify-center',
-        logoWrap: 'rounded-lg',
         nameClass: 'text-3xl md:text-4xl leading-tight tracking-tight font-semibold',
         taglineClass: 'text-base leading-relaxed',
         ctaWrap: 'pt-3',
@@ -104,7 +99,6 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         containerWidth: 'max-w-5xl',
         headerWrap: 'space-y-3 pt-2',
         logoContainer: 'h-24 w-full flex justify-center',
-        logoWrap: 'rounded-md',
         nameClass: 'text-4xl md:text-5xl leading-tight tracking-tight font-extrabold uppercase',
         taglineClass: 'text-sm md:text-base leading-relaxed uppercase tracking-wide',
         ctaWrap: 'pt-2',
@@ -119,7 +113,6 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         containerWidth: 'max-w-5xl',
         headerWrap: 'space-y-4 pt-2',
         logoContainer: 'h-24 w-full flex justify-center',
-        logoWrap: 'rounded-xl',
         nameClass: 'text-4xl md:text-5xl leading-tight tracking-tight font-semibold',
         taglineClass: 'text-base md:text-lg leading-relaxed italic',
         ctaWrap: 'pt-2',
@@ -150,6 +143,8 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
   const claimMode = featuredOutfit?.outfitClaim?.mode || 'individual';
   const outfitClaimUrl = featuredOutfit?.outfitClaim?.claim?.url;
   const outfitClaimLabel = featuredOutfit?.outfitClaim?.claim?.label || 'Claim Now';
+  const logoStyle = brandProfile?.logoStyle ?? 'auto';
+  const logoIsStyled = logoStyle === 'circle' || logoStyle === 'rounded';
 
   const rootVars: React.CSSProperties = {
     ['--boutique-accent' as any]: renderTokens.accentColor,
@@ -200,12 +195,25 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
         <header className={cn('flex flex-col items-center text-center mb-12 md:mb-16', theme.headerWrap, renderTokens.headerClass)}>
           <div className={cn('relative mb-4', theme.logoContainer)}>
             {brandProfile?.logoUrl ? (
-              <Image
-                src={brandProfile.logoUrl}
-                alt={`${brandProfile.brandName || 'Brand'} logo`}
-                fill
-                className={cn('object-contain', theme.logoWrap)}
-              />
+              <div
+                className={cn(
+                  'relative',
+                  logoIsStyled
+                    ? 'h-24 w-24 overflow-hidden border-2 border-card shadow-inner'
+                    : 'h-full w-full',
+                  logoStyle === 'circle' && 'rounded-full',
+                  logoStyle === 'rounded' && 'rounded-2xl'
+                )}
+              >
+                <Image
+                  src={brandProfile.logoUrl}
+                  alt={`${brandProfile.brandName || 'Brand'} logo`}
+                  fill
+                  className={cn(
+                    logoIsStyled ? 'object-cover' : 'object-contain'
+                  )}
+                />
+              </div>
             ) : (
               <div className="h-24 w-24 rounded-lg flex items-center justify-center bg-card border">
                 <Store className="h-10 w-10 text-muted-foreground" />

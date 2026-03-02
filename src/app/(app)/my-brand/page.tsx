@@ -63,6 +63,7 @@ import {
   normalizeFontName,
 } from '@/lib/fonts';
 import { logBrandProfile } from '@/lib/debug/logBrandProfile';
+import { cn } from '@/lib/utils';
 
 /**
  * Accepts:
@@ -130,6 +131,7 @@ const brandProfileSchema = z.object({
     ])
     .optional(),
   logoUrl: z.string().url().optional().or(z.literal('')),
+  logoStyle: z.enum(['auto', 'circle', 'rounded']).optional(),
   // Accept #RGB or #RRGGBB, or empty string
   brandColors: z
     .array(
@@ -183,6 +185,11 @@ const formOptions = {
     'Look More Premium',
     'Build Community',
   ],
+  logoStyle: [
+    { value: 'auto', label: 'Auto (Natural Shape)' },
+    { value: 'circle', label: 'Circle Badge' },
+    { value: 'rounded', label: 'Rounded Card' },
+  ],
   primaryPlatform: ['Facebook', 'Instagram', 'Both'],
   postingFrequency: ['Daily', '3x/week', 'Weekly'],
   promoStyle: ['Flash Sales', 'Lives', 'Outfit Drops', 'Mystery Bundles'],
@@ -222,6 +229,7 @@ export default function MyBrandPage() {
       targetCustomer: undefined,
       primaryGoal: undefined,
       logoUrl: '',
+      logoStyle: 'auto',
       brandColors: ['', '', ''],
       primaryFont: undefined,
       secondaryFont: undefined,
@@ -281,6 +289,7 @@ export default function MyBrandPage() {
         targetCustomer: data.targetCustomer || undefined,
         primaryGoal: data.primaryGoal || undefined,
         logoUrl: data.logoUrl || '',
+        logoStyle: data.logoStyle || 'auto',
         brandColors: paddedColors,
         primaryFont: initialPrimaryFont,
         secondaryFont: initialSecondaryFont,
@@ -649,53 +658,81 @@ export default function MyBrandPage() {
                 <AccordionContent>
                   <CardContent>
                     <div className="space-y-8">
-                      <FormField
-                        control={form.control}
-                        name="logoUrl"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Brand Logo</FormLabel>
-                            <div className="flex items-center gap-6">
-                              <div className="relative h-24 w-24 rounded-full border bg-muted flex-shrink-0 overflow-hidden">
-                                {isUploading ? (
-                                  <div className="flex items-center justify-center h-full w-full">
-                                    <Loader2 className="h-6 w-6 animate-spin" />
-                                  </div>
-                                ) : field.value ? (
-                                  <Image src={field.value} alt="Brand Logo" fill objectFit="cover" />
-                                ) : (
-                                  <div className="flex items-center justify-center h-full w-full">
-                                    <Camera className="h-8 w-8 text-muted-foreground" />
-                                  </div>
-                                )}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 items-start">
+                        <FormField
+                          control={form.control}
+                          name="logoUrl"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Brand Logo</FormLabel>
+                              <div className="flex items-center gap-6">
+                                <div className="relative h-24 w-24 rounded-full border bg-muted flex-shrink-0 overflow-hidden">
+                                  {isUploading ? (
+                                    <div className="flex items-center justify-center h-full w-full">
+                                      <Loader2 className="h-6 w-6 animate-spin" />
+                                    </div>
+                                  ) : field.value ? (
+                                    <Image src={field.value} alt="Brand Logo" fill objectFit="cover" />
+                                  ) : (
+                                    <div className="flex items-center justify-center h-full w-full">
+                                      <Camera className="h-8 w-8 text-muted-foreground" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-grow">
+                                  <FormControl>
+                                    <Button
+                                      type="button"
+                                      variant="outline"
+                                      onClick={() => document.getElementById('logo-upload')?.click()}
+                                      disabled={isUploading}
+                                    >
+                                      <UploadCloud className="mr-2 h-4 w-4" />
+                                      {isUploading ? 'Uploading...' : 'Upload Logo'}
+                                    </Button>
+                                  </FormControl>
+                                  <FormDescription className="mt-2">
+                                    PNG or JPG, up to 5MB. Recommended: 512x512px.
+                                  </FormDescription>
+                                  <input
+                                    type="file"
+                                    id="logo-upload"
+                                    accept="image/png, image/jpeg"
+                                    className="hidden"
+                                    onChange={handleLogoUpload}
+                                  />
+                                </div>
                               </div>
-                              <div className="flex-grow">
+                            </FormItem>
+                          )}
+                        />
+                        <FormField
+                          control={form.control}
+                          name="logoStyle"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>Logo Style</FormLabel>
+                              <Select onValueChange={field.onChange} value={field.value ?? 'auto'}>
                                 <FormControl>
-                                  <Button
-                                    type="button"
-                                    variant="outline"
-                                    onClick={() => document.getElementById('logo-upload')?.click()}
-                                    disabled={isUploading}
-                                  >
-                                    <UploadCloud className="mr-2 h-4 w-4" />
-                                    {isUploading ? 'Uploading...' : 'Upload Logo'}
-                                  </Button>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select a logo style" />
+                                  </SelectTrigger>
                                 </FormControl>
-                                <FormDescription className="mt-2">
-                                  PNG or JPG, up to 5MB. Recommended: 512x512px.
-                                </FormDescription>
-                                <input
-                                  type="file"
-                                  id="logo-upload"
-                                  accept="image/png, image/jpeg"
-                                  className="hidden"
-                                  onChange={handleLogoUpload}
-                                />
-                              </div>
-                            </div>
-                          </FormItem>
-                        )}
-                      />
+                                <SelectContent>
+                                  {formOptions.logoStyle.map((option) => (
+                                    <SelectItem key={option.value} value={option.value}>
+                                      {option.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormDescription>
+                                Choose how to frame your logo on your boutique page.
+                              </FormDescription>
+                            </FormItem>
+                          )}
+                        />
+                      </div>
 
                       <FormField
                         control={form.control}
@@ -961,6 +998,8 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
       </span>
     );
   };
+  
+  const logoStyle = values.logoStyle ?? 'auto';
 
   return (
     <Card className="overflow-hidden">
@@ -973,19 +1012,27 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="text-center space-y-2">
-          {values.logoUrl ? (
-            <Image
-              src={values.logoUrl}
-              alt="brand logo"
-              width={96}
-              height={96}
-              className="mx-auto rounded-full object-cover h-24 w-24 border"
-            />
-          ) : (
-            <div className="mx-auto h-24 w-24 rounded-full bg-muted flex items-center justify-center border">
+          <div className={cn(
+            "relative mx-auto border bg-muted flex items-center justify-center",
+            logoStyle === 'circle' ? 'h-24 w-24 rounded-full' : 'h-24 w-auto max-w-[96px] aspect-square',
+            logoStyle === 'rounded' && 'rounded-xl'
+          )}>
+            {values.logoUrl ? (
+              <Image
+                src={values.logoUrl}
+                alt="brand logo"
+                fill
+                className={cn(
+                  logoStyle === 'auto' ? 'object-contain' : 'object-cover',
+                  logoStyle === 'circle' && 'rounded-full',
+                  logoStyle === 'rounded' && 'rounded-xl'
+                )}
+              />
+            ) : (
               <ImageIcon className="h-10 w-10 text-muted-foreground" />
-            </div>
-          )}
+            )}
+          </div>
+
 
           <div>
             <h3
