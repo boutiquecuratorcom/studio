@@ -64,6 +64,7 @@ import {
   Save,
   XCircle,
   Heart,
+  Palette,
 } from 'lucide-react';
 
 import {
@@ -76,6 +77,7 @@ import {
 } from 'firebase/firestore';
 
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
+import { BOUTIQUE_PATTERNS, BOUTIQUE_TEMPLATES } from '@/lib/brand/brandPublicBits';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -432,7 +434,7 @@ export default function MyBoutiquePage() {
     if (!boutiqueSettings) return false;
     return (
       (localSettings.featuredOutfitId || 'auto') !==
-      (boutiqueSettings.featuredOutfitId || 'auto') ||
+        (boutiqueSettings.featuredOutfitId || 'auto') ||
       (localSettings.templateId ?? 'editorial') !==
         (boutiqueSettings.templateId ?? 'editorial') ||
       (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none')
@@ -522,6 +524,60 @@ export default function MyBoutiquePage() {
                   </AlertDescription>
                 </Alert>
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-5 w-5 text-accent" /> Boutique Designer
+                </CardTitle>
+              <CardDescription>
+                Choose a theme and accent pattern for your public boutique.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+               <div className="space-y-2">
+                <Label>Theme</Label>
+                <Select
+                  value={(localSettings.templateId as any) || 'editorial'}
+                  onValueChange={(v) =>
+                    setLocalSettings((prev) => ({ ...prev, templateId: v as any }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a theme..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOUTIQUE_TEMPLATES.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+               <div className="space-y-2">
+                <Label>Accent Pattern</Label>
+                <Select
+                  value={(localSettings.patternId as any) || 'none'}
+                  onValueChange={(v) =>
+                    setLocalSettings((prev) => ({ ...prev, patternId: v as any }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a pattern..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOUTIQUE_PATTERNS.map((id) => (
+                      <SelectItem key={id} value={id}>
+                         {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardContent>
           </Card>
 
