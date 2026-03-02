@@ -143,6 +143,7 @@ const applyTemplateOverrides = (
   templateId: BoutiqueTemplateId
 ) => {
   const accentIsHex = tokens.accentColor.startsWith('#');
+  const bannerFallbackColor = '#EAE6E4'; // A safe, neutral color for gradients when no hex is present
 
   switch (templateId) {
     case 'editorial':
@@ -153,9 +154,9 @@ const applyTemplateOverrides = (
       tokens.buttonStyle = 'solid';
       tokens.bannerEnabled = true;
       tokens.bannerHeightClass = 'h-40';
-      tokens.bannerStyle = accentIsHex
-          ? { background: `linear-gradient(180deg, ${hexToRgba(tokens.accentColor, 0.05)} 0%, transparent 100%)` }
-          : {};
+      tokens.bannerStyle = { 
+          background: `linear-gradient(180deg, ${hexToRgba(accentIsHex ? tokens.accentColor : bannerFallbackColor, 0.08)} 0%, transparent 100%)`
+      };
       break;
 
     case 'soft-luxe':
@@ -164,7 +165,9 @@ const applyTemplateOverrides = (
       tokens.buttonStyle = 'solid';
       tokens.bannerEnabled = true;
       tokens.bannerHeightClass = 'h-56';
-      tokens.bannerStyle = { background: `linear-gradient(180deg, ${hexToRgba('#F8F5F2', 0.5)} 0%, transparent 100%)` };
+      tokens.bannerStyle = { 
+          background: `linear-gradient(180deg, ${hexToRgba(accentIsHex ? tokens.accentColor : '#FDFBF9', 0.5)} 0%, transparent 100%)`
+      };
       break;
 
     case 'playful-pop':
@@ -175,9 +178,9 @@ const applyTemplateOverrides = (
       tokens.buttonStyle = 'solid';
       tokens.bannerEnabled = true;
       tokens.bannerHeightClass = 'h-48';
-      tokens.bannerStyle = accentIsHex
-          ? { background: `linear-gradient(180deg, ${hexToRgba(tokens.accentColor, 0.1)} 0%, transparent 100%)` }
-          : {};
+      tokens.bannerStyle = { 
+          background: `linear-gradient(180deg, ${hexToRgba(accentIsHex ? tokens.accentColor : bannerFallbackColor, 0.1)} 0%, transparent 100%)`
+      };
       break;
 
     case 'modern-minimal':
@@ -193,7 +196,9 @@ const applyTemplateOverrides = (
       tokens.buttonStyle = 'solid';
       tokens.bannerEnabled = true;
       tokens.bannerHeightClass = 'h-48';
-      tokens.bannerStyle = { background: `linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%)` };
+      tokens.bannerStyle = { 
+          background: `linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%)`
+      };
       break;
 
     case 'romantic-vintage':
@@ -204,9 +209,9 @@ const applyTemplateOverrides = (
       tokens.buttonStyle = 'outline';
       tokens.bannerEnabled = true;
       tokens.bannerHeightClass = 'h-48';
-      tokens.bannerStyle = accentIsHex
-          ? { background: `linear-gradient(180deg, ${hexToRgba(tokens.accentColor, 0.08)} 0%, transparent 100%)` }
-          : {};
+      tokens.bannerStyle = { 
+          background: `linear-gradient(180deg, ${hexToRgba(accentIsHex ? tokens.accentColor : '#FBEADB', 0.15)} 0%, transparent 100%)`
+      };
       break;
   }
 };
