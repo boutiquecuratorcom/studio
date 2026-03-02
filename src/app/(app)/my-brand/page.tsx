@@ -351,6 +351,11 @@ export default function MyBrandPage() {
       return;
     }
 
+    if (!formState.isDirty) {
+      toast({ title: 'No Changes', description: 'There are no changes to save.' });
+      return;
+    }
+
     setIsSaving(true);
     
     // Normalize colors before saving
@@ -386,8 +391,7 @@ export default function MyBrandPage() {
         description: 'Your changes have been saved.',
       });
       
-      reset(data);
-
+      reset(data); // Resets the form's dirty state to the new saved values
     } catch (error: any) {
       console.error('[SAVE My Brand] error', error);
       toast({

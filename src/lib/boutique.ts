@@ -290,10 +290,10 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
       },
       { merge: true }
     );
+    
+    transaction.set(settingsRef, { handle }, { merge: true });
+    transaction.set(userProfileRef, { handle }, { merge: true });
   });
-
-  await setDoc(settingsRef, { handle }, { merge: true });
-  await setDoc(userProfileRef, { handle }, { merge: true });
 };
 
 export const updateHandleTransaction = async (
@@ -351,10 +351,10 @@ export const updateHandleTransaction = async (
       transaction.set(newPublicBoutiqueRef, publicDataToMigrate);
       transaction.delete(oldPublicBoutiqueRef);
     }
+    
+    transaction.set(settingsRef, { handle: newHandle }, { merge: true });
+    transaction.set(userProfileRef, { handle: newHandle }, { merge: true });
   });
-
-  await setDoc(settingsRef, { handle: newHandle }, { merge: true });
-  await setDoc(userProfileRef, { handle: newHandle }, { merge: true });
 };
 
 export const updateBoutiqueSettings = async (
@@ -368,17 +368,21 @@ export const updateBoutiqueSettings = async (
   const updateData: any = { ...data, updatedAt: serverTimestamp() };
 
   // Backfill nested design object for compatibility
-  if (data.templateId || data.patternId) {
-    const existingDesign = docSnap.exists() ? docSnap.data().design || {} : {};
-    
-    const designChanges: any = {};
-    if (data.templateId) {
-        designChanges.template = data.templateId;
-    }
-    if (data.patternId) {
-        designChanges.background = { ...(existingDesign.background || {}), patternId: data.patternId };
-    }
-    updateData.design = { ...existingDesign, ...designChanges };
+  const existingDesign = docSnap.exists() ? docSnap.data().design || {} : {};
+  const designChanges: any = { ...(existingDesign || {}) };
+  let hasDesignChanges = false;
+  
+  if (data.templateId) {
+      designChanges.template = data.templateId;
+      hasDesignChanges = true;
+  }
+  if (data.patternId) {
+      designChanges.background = { ...(existingDesign.background || {}), patternId: data.patternId };
+      hasDesignChanges = true;
+  }
+  
+  if (hasDesignChanges) {
+    updateData.design = designChanges;
   }
 
 
