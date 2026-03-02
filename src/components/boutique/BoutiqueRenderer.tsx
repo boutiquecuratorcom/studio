@@ -1,4 +1,3 @@
-
 'use client';
 
 import Image from 'next/image';
@@ -23,6 +22,32 @@ import { Input } from '../ui/input';
 import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
 import { ItemQuickViewModal } from './ItemQuickViewModal';
 import { OutfitQuickViewModal } from './OutfitQuickViewModal';
+
+const validateHexColor = (color: string | null | undefined): string | null => {
+  if (!color) return null;
+  const raw = color.trim();
+  const withHash = raw.startsWith('#') ? raw : `#${raw}`;
+  const hex = withHash.slice(1);
+
+  if (!/^[0-9a-fA-F]{3}$|^[0-9a-fA-F]{6}$/.test(hex)) return null;
+
+  if (hex.length === 3) {
+    const [r, g, b] = hex.split('');
+    return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
+  }
+
+  return `#${hex}`.toUpperCase();
+};
+
+const hexToRgba = (hex: string, alpha: number): string => {
+  const h = validateHexColor(hex);
+  if (!h) return `rgba(17,24,39,${alpha})`;
+  const r = parseInt(h.slice(1, 3), 16);
+  const g = parseInt(h.slice(3, 5), 16);
+  const b = parseInt(h.slice(5, 7), 16);
+  const a = Math.max(0, Math.min(1, alpha));
+  return `rgba(${r}, ${g}, ${b}, ${a})`;
+};
 
 type Props = {
   brandProfile: Partial<BrandProfilePublicBits & PublicBoutiqueProfile> | null;
@@ -172,6 +197,7 @@ const SectionSkeleton = ({ cols = 3 }: { cols?: number }) => (
   </div>
 );
 
+// Search helpers
 const normalize = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 
@@ -223,6 +249,7 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
     });
   }, [outfits, tokens]);
 
+
   const fullFeaturedOutfit = useMemo(() => {
     if (!featuredOutfit || !outfits) return null;
     return outfits.find(o => o.id === featuredOutfit.id) || null;
@@ -251,12 +278,6 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
   const bannerHeightValue = bannerHeight ?? 'md';
   const bannerOpacityValue = bannerOpacity ?? 0.18;
   const bannerAccentColor = renderTokens.accentColor.startsWith('#') ? renderTokens.accentColor : '#EAE6E4';
-
-  const bannerHeightClass = {
-    sm: 'h-32',
-    md: 'h-44',
-    lg: 'h-56',
-  }[bannerHeightValue];
   
   const bannerStyle: React.CSSProperties = {
     background: `linear-gradient(180deg, ${hexToRgba(bannerAccentColor, bannerOpacityValue)} 0%, transparent 100%)`
