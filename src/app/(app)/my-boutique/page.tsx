@@ -641,60 +641,6 @@ export default function MyBoutiquePage() {
           </Card>
 
            <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                    <Palette className="h-5 w-5 text-accent" /> Boutique Designer
-                </CardTitle>
-              <CardDescription>
-                Choose a theme and accent pattern for your public boutique.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-               <div className="space-y-2">
-                <Label>Theme</Label>
-                <Select
-                  value={(localSettings.templateId as any) || 'editorial'}
-                  onValueChange={(v) =>
-                    setLocalSettings((prev) => ({ ...prev, templateId: v as any }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a theme..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BOUTIQUE_TEMPLATES.map((id) => (
-                      <SelectItem key={id} value={id}>
-                        {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-               <div className="space-y-2">
-                <Label>Accent Pattern</Label>
-                <Select
-                  value={(localSettings.patternId as any) || 'none'}
-                  onValueChange={(v) =>
-                    setLocalSettings((prev) => ({ ...prev, patternId: v as any }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a pattern..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BOUTIQUE_PATTERNS.map((id) => (
-                      <SelectItem key={id} value={id}>
-                         {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-          
-            <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
                       <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
@@ -753,11 +699,65 @@ export default function MyBoutiquePage() {
                 </CardContent>
             </Card>
 
+           <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                    <Palette className="h-5 w-5 text-accent" /> Boutique Designer
+                </CardTitle>
+              <CardDescription>
+                Choose a theme and accent pattern for your public boutique.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+               <div className="space-y-2">
+                <Label>Theme</Label>
+                <Select
+                  value={(localSettings.templateId as any) || 'editorial'}
+                  onValueChange={(v) =>
+                    setLocalSettings((prev) => ({ ...prev, templateId: v as any }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a theme..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOUTIQUE_TEMPLATES.map((id) => (
+                      <SelectItem key={id} value={id}>
+                        {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+               <div className="space-y-2">
+                <Label>Accent Pattern</Label>
+                <Select
+                  value={(localSettings.patternId as any) || 'none'}
+                  onValueChange={(v) =>
+                    setLocalSettings((prev) => ({ ...prev, patternId: v as any }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a pattern..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {BOUTIQUE_PATTERNS.map((id) => (
+                      <SelectItem key={id} value={id}>
+                         {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+          
             <Card>
                 <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <PictureInPicture className="h-5 w-5 text-accent" /> Banner
-                    </CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                      <PictureInPicture className="h-5 w-5 text-accent" /> Banner
+                  </CardTitle>
                 <CardDescription>
                     Configure the top banner area of your boutique.
                 </CardDescription>
