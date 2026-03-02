@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -500,6 +501,81 @@ export default function MyBoutiquePage() {
 
           <Card>
             <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Palette className="h-5 w-5 text-accent" /> Brand Snapshot
+              </CardTitle>
+              <CardDescription>
+                Read-only preview from your{' '}
+                <Link href="/my-brand" className="underline">
+                  Brand Profile
+                </Link>
+                .
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {brandProfile ? (
+                <div className="space-y-6">
+                  <div>
+                    <Label>Brand Colors</Label>
+                    <div className="flex items-center gap-3 mt-2">
+                      {brandProfile.brandColors &&
+                      brandProfile.brandColors.some((c) => !!c) ? (
+                        brandProfile.brandColors
+                          .filter((c) => !!c)
+                          .map((color, i) => (
+                            <div key={i} className="text-center">
+                              <div
+                                className="h-10 w-10 rounded-md border"
+                                style={{ backgroundColor: color! }}
+                              ></div>
+                              <p className="text-xs font-mono text-muted-foreground mt-1">
+                                {color}
+                              </p>
+                            </div>
+                          ))
+                      ) : (
+                        <p className="text-sm text-muted-foreground">
+                          No colors set.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Fonts</Label>
+                    <div className="mt-2 space-y-1 rounded-md border p-3 text-sm">
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">
+                          Primary (Headings)
+                        </span>
+                        <span className="font-semibold">
+                          {brandProfile.primaryFont || 'Default'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-muted-foreground">
+                          Secondary (Body)
+                        </span>
+                        <span className="font-semibold">
+                          {brandProfile.secondaryFont || 'Default'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No brand profile found.{' '}
+                  <Link href="/my-brand" className="underline">
+                    Set up My Brand
+                  </Link>{' '}
+                  to see your snapshot.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
               <CardTitle>Publishing</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -585,10 +661,16 @@ export default function MyBoutiquePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="space-y-2">
+               <div className="space-y-2">
                 <Label>Logo Style</Label>
                 <div className="flex items-center justify-between rounded-lg border p-3">
-                    <p className="text-sm font-medium capitalize">{brandProfile?.logoStyle ?? 'auto'}</p>
+                    <p className="text-sm font-medium">
+                        {
+                            brandProfile?.logoStyle === 'circle' ? 'Circle Badge' :
+                            brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' :
+                            'Auto (Natural Shape)'
+                        }
+                    </p>
                     <Button variant="link" asChild className="text-xs h-auto p-0">
                         <Link href="/my-brand">Change in My Brand</Link>
                     </Button>
