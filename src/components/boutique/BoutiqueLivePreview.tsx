@@ -2,13 +2,16 @@
 
 import { type Outfit } from '@/lib/outfits';
 import { BoutiqueRenderer } from './BoutiqueRenderer';
+import type { BrandProfilePublicBits, BoutiqueRenderTokens } from '@/lib/brand/brandPublicBits';
 
 export const BoutiqueLivePreview = ({
   brandProfile,
   featuredOutfit,
+  renderTokens,
 }: {
-  brandProfile: any;
+  brandProfile: BrandProfilePublicBits | null;
   featuredOutfit: Outfit | undefined;
+  renderTokens: BoutiqueRenderTokens;
 }) => {
   
   const featuredOutfitSummary = featuredOutfit ? {
@@ -24,6 +27,7 @@ export const BoutiqueLivePreview = ({
     <BoutiqueRenderer
       brandProfile={brandProfile}
       featuredOutfit={featuredOutfitSummary}
+      renderTokens={renderTokens}
     />
   );
 };

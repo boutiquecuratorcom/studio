@@ -8,8 +8,10 @@ import * as z from 'zod';
 
 import { useUser, useFirestore, useDoc } from '@/firebase';
 import { useOutfits } from '@/lib/outfits';
+import { type BrandProfilePublicBits } from '@/lib/brand/brandPublicBits';
+
 import {
-  BoutiqueSettings,
+  type BoutiqueSettings,
   useBoutiqueSettings,
   updateBoutiqueSettings,
   useUserHandle,
@@ -41,7 +43,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Input } from '@/components/ui/input';
 import {
   Form,
   FormControl,
@@ -54,14 +55,11 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import {
   AlertTriangle,
   CheckCircle2,
-  Copy,
-  ExternalLink,
   Eye,
-  Globe,
   Loader2,
   Save,
-  Settings2,
   XCircle,
+  Heart,
 } from 'lucide-react';
 
 import {
@@ -74,6 +72,7 @@ import {
 } from 'firebase/firestore';
 
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
+import { computeRenderTokens } from '@/lib/boutique-design';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -91,7 +90,7 @@ export default function MyBoutiquePage() {
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
   }, [user, firestore]);
 
-  const { data: brandProfile, loading: brandLoading } = useDoc<any>(brandProfileRef);
+  const { data: brandProfile, loading: brandLoading } = useDoc<BrandProfilePublicBits>(brandProfileRef);
 
   const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
 
@@ -102,8 +101,8 @@ export default function MyBoutiquePage() {
   const [publicUrl, setPublicUrl] = useState('');
 
   const initStartedRef = useRef(false);
-  const hasLoggedRef = useRef(false);
   const isMountedRef = useRef(true);
+  const hasLoggedRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -112,23 +111,24 @@ export default function MyBoutiquePage() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!hasLoggedRef.current && brandProfile) {
+      logBrandProfile(brandProfile, 'MyBoutiquePage');
+      hasLoggedRef.current = true;
+    }
+  }, [brandProfile]);
+
   const handleForm = useForm<HandleFormValues>({
     resolver: zodResolver(handleSchema),
     defaultValues: { handle: '' },
   });
 
   const isAdmin = isAdminEmail(user?.email);
+
   const [isTesting, setIsTesting] = useState(false);
   const [selfTestResults, setSelfTestResults] = useState<
     { step: string; ok: boolean; error?: string }[]
   >([]);
-  
-  useEffect(() => {
-    if (brandProfile && !hasLoggedRef.current) {
-      logBrandProfile(brandProfile, 'MyBoutiquePage');
-      hasLoggedRef.current = true;
-    }
-  }, [brandProfile]);
 
   useEffect(() => {
     if (handle?.handle) {
@@ -398,6 +398,7 @@ export default function MyBoutiquePage() {
 
   const featuredOutfit = useMemo(() => {
     if (!outfits) return undefined;
+
     const featuredId = localSettings.featuredOutfitId as any;
 
     if (featuredId === 'auto' || !featuredId) {
@@ -409,8 +410,11 @@ export default function MyBoutiquePage() {
 
   const isConfigDirty = useMemo(() => {
     if (!boutiqueSettings) return false;
-    return (localSettings.featuredOutfitId || 'auto') !==
-      (boutiqueSettings.featuredOutfitId || 'auto');
+
+    return (
+      (localSettings.featuredOutfitId || 'auto') !==
+      (boutiqueSettings.featuredOutfitId || 'auto')
+    );
   }, [localSettings, boutiqueSettings]);
 
   const renderHeader = () => (
@@ -439,11 +443,29 @@ export default function MyBoutiquePage() {
     );
   }
 
+  // Hardcode defaults for now, as per the directive. UI controls will be added later.
+  const templateId = 'editorial';
+  const patternId = 'none';
+  const renderTokens = computeRenderTokens(brandProfile, templateId, patternId);
+
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
       {renderHeader()}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-1 space-y-6">
+          <Alert className="border-muted">
+            <Heart className="h-4 w-4" />
+            <AlertTitle>Boutique styling comes from My Brand</AlertTitle>
+            <AlertDescription>
+              If you don&apos;t like how your boutique looks, update your{' '}
+              <Link href="/my-brand" className="underline">
+                Brand Colors & Fonts
+              </Link>{' '}
+              in <strong>My Brand</strong>. Your boutique will automatically match.
+            </AlertDescription>
+          </Alert>
+
           <Card>
             <CardHeader>
               <CardTitle>Publishing</CardTitle>
@@ -571,9 +593,10 @@ export default function MyBoutiquePage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <BoutiqueLivePreview
-                brandProfile={brandProfile}
-                featuredOutfit={featuredOutfit}
+              <BoutiqueLivePreview 
+                brandProfile={brandProfile} 
+                featuredOutfit={featuredOutfit} 
+                renderTokens={renderTokens}
               />
             </CardContent>
           </Card>

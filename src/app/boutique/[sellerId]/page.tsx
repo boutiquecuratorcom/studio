@@ -6,7 +6,7 @@ import { BoutiqueRenderer } from '@/components/boutique/BoutiqueRenderer';
 import { Store, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { defaultDesign } from '@/lib/boutique-design';
+import { computeRenderTokens } from '@/lib/boutique-design';
 
 function BoutiqueLoading() {
   return (
@@ -39,7 +39,6 @@ export default function PublicBoutiquePage() {
     return <BoutiqueLoading />;
   }
   
-  // Use notFound for actual 404s
   if (!error && !publicProfile) {
       notFound();
   }
@@ -48,13 +47,16 @@ export default function PublicBoutiquePage() {
     return <BoutiqueNotAvailable />;
   }
 
-  const { brandName, tagline, logoUrl, featuredOutfit, design } = publicProfile;
+  // For the public page, we don't have the full brandProfile, just the public bits.
+  // The computeRenderTokens function is designed to handle this gracefully.
+  // We hardcode the template and pattern for now, as per the directive.
+  const renderTokens = computeRenderTokens(publicProfile, 'editorial', 'none');
 
   return (
     <BoutiqueRenderer
-      brandProfile={{ brandName, tagline, logoUrl }}
-      featuredOutfit={featuredOutfit}
-      design={design || defaultDesign}
+      brandProfile={publicProfile}
+      featuredOutfit={publicProfile.featuredOutfit}
+      renderTokens={renderTokens}
     />
   );
 }

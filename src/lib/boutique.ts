@@ -17,6 +17,7 @@ import {
   updateDoc,
   orderBy,
 } from 'firebase/firestore';
+
 import { useDoc, useFirestore, useCollection } from '@/firebase';
 import { useMemo } from 'react';
 import type { User } from 'firebase/auth';
@@ -127,6 +128,7 @@ export const useBoutiqueSettings = (userId: string | null) => {
     if (!userId || !firestore) return null;
     return doc(firestore, `users/${userId}/boutiqueSettings/main`);
   }, [userId, firestore]);
+
   return useDoc<BoutiqueSettings>(docRef as any);
 };
 
@@ -136,6 +138,7 @@ export const useUserHandle = (userId: string | null) => {
     if (!userId || !firestore) return null;
     return query(collection(firestore, 'handles'), where('uid', '==', userId), limit(1));
   }, [userId, firestore]);
+
   const { data, ...rest } = useCollection<HandleMapping>(q as any, 'handles');
   return { handle: data?.[0], ...rest };
 };
@@ -146,6 +149,7 @@ export const usePublicBoutiqueByHandle = (handle: string | null) => {
     if (!handle || !firestore) return null;
     return doc(firestore, 'publicBoutiques', handle);
   }, [handle, firestore]);
+
   return useDoc<PublicBoutiqueProfile>(docRef as any);
 };
 
@@ -153,7 +157,12 @@ export const usePublicBoutiqueByHandle = (handle: string | null) => {
 export const claimHandleTransaction = async (firestore: Firestore, user: User, handle: string) => {
   handleSchema.parse({ handle });
 
-  const userHandleQuery = query(collection(firestore, 'handles'), where('uid', '==', user.uid), limit(1));
+  const userHandleQuery = query(
+    collection(firestore, 'handles'),
+    where('uid', '==', user.uid),
+    limit(1)
+  );
+
   const newHandleRef = doc(firestore, 'handles', handle);
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
   const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
@@ -213,7 +222,6 @@ export const updateHandleTransaction = async (
   newHandle: string
 ) => {
   handleSchema.parse({ handle: newHandle });
-
   if (newHandle === oldHandle) return;
 
   const oldHandleRef = doc(firestore, 'handles', oldHandle);
