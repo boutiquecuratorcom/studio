@@ -106,7 +106,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-lg overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-40', 
+        overlayOpacityClass: 'opacity-25', 
         ornaments: 'street',
       };
     case 'romantic-vintage':
@@ -154,8 +154,6 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
     ['--boutique-font-button' as any]: renderTokens.buttonFontFamily,
   };
   
-  const bannerEnabled = false;
-
   return (
     <div 
       className={cn(
@@ -165,17 +163,20 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
       )} 
       style={{ ...rootVars, background: 'var(--boutique-bg)', fontFamily: 'var(--boutique-font-body)' }}
     >
+      {renderTokens.bannerEnabled && (
+        <div 
+            className={cn(
+                'absolute top-0 left-0 right-0 w-full',
+                renderTokens.bannerHeightClass
+            )}
+            style={renderTokens.bannerStyle}
+        />
+      )}
       <div className={cn('absolute inset-0 pointer-events-none', theme.overlayOpacityClass)} style={renderTokens.patternStyles} />
       <div className="absolute inset-0 pointer-events-none"><Ornaments kind={theme.ornaments} /></div>
       
       <div className={cn('w-full mx-auto px-4 md:px-6 relative z-10', theme.containerWidth)}>
         
-        {bannerEnabled && (
-          <section className="h-40 bg-muted/50 rounded-xl mb-8">
-            {/* Banner Content (disabled by default) */}
-          </section>
-        )}
-
         <header className={cn('flex flex-col items-center text-center mb-12 md:mb-16', theme.headerWrap, renderTokens.headerClass)}>
           <div className={cn('relative mb-4', theme.logoContainer)}>
             {brandProfile?.logoUrl ? (

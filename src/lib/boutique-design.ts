@@ -73,6 +73,10 @@ const THEME_DEFAULTS: BoutiqueRenderTokens = {
 
   buttonStyle: 'solid',
 
+  bannerEnabled: false,
+  bannerStyle: {},
+  bannerHeightClass: 'h-40',
+
   cardClass: 'bg-card text-card-foreground',
   headerClass: '',
   bodyClass: '',
@@ -147,12 +151,20 @@ const applyTemplateOverrides = (
         : 'hsl(var(--background))';
       tokens.cardClass = 'bg-card text-card-foreground';
       tokens.buttonStyle = 'solid';
+      tokens.bannerEnabled = true;
+      tokens.bannerHeightClass = 'h-40';
+      tokens.bannerStyle = accentIsHex
+          ? { background: `linear-gradient(180deg, ${hexToRgba(tokens.accentColor, 0.05)} 0%, transparent 100%)` }
+          : {};
       break;
 
     case 'soft-luxe':
       tokens.backgroundColor = '#F8F5F2';
       tokens.cardClass = 'bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-black/5';
       tokens.buttonStyle = 'solid';
+      tokens.bannerEnabled = true;
+      tokens.bannerHeightClass = 'h-56';
+      tokens.bannerStyle = { background: `linear-gradient(180deg, ${hexToRgba('#F8F5F2', 0.5)} 0%, transparent 100%)` };
       break;
 
     case 'playful-pop':
@@ -161,18 +173,27 @@ const applyTemplateOverrides = (
         : '#FFFFFF';
       tokens.cardClass = 'bg-card text-card-foreground rounded-xl shadow-md';
       tokens.buttonStyle = 'solid';
+      tokens.bannerEnabled = true;
+      tokens.bannerHeightClass = 'h-48';
+      tokens.bannerStyle = accentIsHex
+          ? { background: `linear-gradient(180deg, ${hexToRgba(tokens.accentColor, 0.1)} 0%, transparent 100%)` }
+          : {};
       break;
 
     case 'modern-minimal':
       tokens.backgroundColor = '#FFFFFF';
       tokens.cardClass = 'bg-transparent border border-border shadow-none';
       tokens.buttonStyle = 'outline';
+      tokens.bannerEnabled = false;
       break;
 
     case 'street-bold':
       tokens.backgroundColor = `radial-gradient(ellipse at 50% 0%, #333 0%, #0B0B0E 70%)`;
       tokens.cardClass = 'bg-white/5 border border-white/10 text-white';
       tokens.buttonStyle = 'solid';
+      tokens.bannerEnabled = true;
+      tokens.bannerHeightClass = 'h-48';
+      tokens.bannerStyle = { background: `linear-gradient(180deg, rgba(255,255,255,0.04) 0%, transparent 100%)` };
       break;
 
     case 'romantic-vintage':
@@ -181,6 +202,11 @@ const applyTemplateOverrides = (
         : '#FFF7F2';
       tokens.cardClass = 'bg-white/50 border border-black/10 rounded-2xl shadow-sm';
       tokens.buttonStyle = 'outline';
+      tokens.bannerEnabled = true;
+      tokens.bannerHeightClass = 'h-48';
+      tokens.bannerStyle = accentIsHex
+          ? { background: `linear-gradient(180deg, ${hexToRgba(tokens.accentColor, 0.08)} 0%, transparent 100%)` }
+          : {};
       break;
   }
 };

@@ -84,6 +84,10 @@ export interface BoutiqueRenderTokens {
    */
   patternStyles: CSSProperties;
 
+  bannerEnabled: boolean;
+  bannerStyle: CSSProperties;
+  bannerHeightClass: string;
+
   /**
    * Tailwind class tokens (scoped to renderer usage)
    */
