@@ -21,6 +21,7 @@ import {
   updateHandleTransaction,
   syncPublicBoutiqueData,
   handleSchema,
+  normalizeBoutiqueSettings,
 } from '@/lib/boutique';
 
 import { useToast } from '@/hooks/use-toast';
@@ -115,14 +116,14 @@ export default function MyBoutiquePage() {
 
 
   const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>(
-    {}
+    normalizeBoutiqueSettings({})
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [isInitialized, setIsInitialized] = useState(false);
   const [publicUrl, setPublicUrl] = useState('');
 
   const hasLoggedRef = useRef(false);
+  const hasInitialized = useRef(false);
 
   useEffect(() => {
     if (!hasLoggedRef.current && brandProfile) {
@@ -153,41 +154,16 @@ export default function MyBoutiquePage() {
   }, [handle, handleForm]);
 
   useEffect(() => {
-    // Wait until settings are loaded from Firestore
     if (settingsLoading) {
       return;
     }
-    // Only initialize the local state once
-    if (isInitialized) {
+    if (hasInitialized.current) {
       return;
     }
-
-    const initialData = boutiqueSettings || {};
-
-    setLocalSettings({
-      enabled: withDefaultBool(initialData.enabled, false),
-      featuredOutfitId: initialData.featuredOutfitId || 'auto',
-      templateId: initialData.templateId ?? 'editorial',
-      patternId: initialData.patternId ?? 'none',
-      accentColorIndex: initialData.accentColorIndex ?? 0,
-      bannerEnabled: withDefaultBool(initialData.bannerEnabled, true),
-      bannerHeight: initialData.bannerHeight ?? 'md',
-      bannerOpacity: initialData.bannerOpacity ?? 0.18,
-      announcementEnabled: withDefaultBool(initialData.announcementEnabled, false),
-      announcementText: initialData.announcementText ?? '',
-      announcementHref: initialData.announcementHref ?? '',
-      announcementCtaLabel: initialData.announcementCtaLabel ?? '',
-      announcementColorSource: initialData.announcementColorSource ?? 'accent',
-      quickLinks: initialData.quickLinks ?? { enabled: false, items: [] },
-      social: initialData.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
-      footer: initialData.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' },
-      showFeaturedLook: withDefaultBool(initialData.showFeaturedLook, true),
-      showOutfits: withDefaultBool(initialData.showOutfits, true),
-      showRack: withDefaultBool(initialData.showRack, true),
-    });
-
-    setIsInitialized(true);
-  }, [boutiqueSettings, settingsLoading, isInitialized]);
+    const normalizedData = normalizeBoutiqueSettings(boutiqueSettings);
+    setLocalSettings(normalizedData);
+    hasInitialized.current = true;
+  }, [boutiqueSettings, settingsLoading]);
 
 
   const handleEnabledToggle = async (enabled: boolean) => {
@@ -429,7 +405,7 @@ export default function MyBoutiquePage() {
 
   const loading =
     userLoading ||
-    !isInitialized ||
+    !hasInitialized.current ||
     brandLoading ||
     handleLoading;
 
@@ -451,28 +427,29 @@ export default function MyBoutiquePage() {
     }), [brandProfile, localSettings]);
 
   const isConfigDirty = useMemo(() => {
-    if (!boutiqueSettings || !isInitialized) return false;
+    if (!boutiqueSettings || !hasInitialized.current) return false;
+    const normalizedDbSettings = normalizeBoutiqueSettings(boutiqueSettings);
     return (
-      (localSettings.featuredOutfitId || 'auto') !== (boutiqueSettings.featuredOutfitId || 'auto') ||
-      (localSettings.templateId ?? 'editorial') !== (boutiqueSettings.templateId ?? 'editorial') ||
-      (localSettings.patternId ?? 'none') !== (boutiqueSettings.patternId ?? 'none') ||
-      (localSettings.accentColorIndex ?? 0) !== (boutiqueSettings.accentColorIndex ?? 0) ||
-      withDefaultBool(localSettings.bannerEnabled, true) !== withDefaultBool(boutiqueSettings.bannerEnabled, true) ||
-      (localSettings.bannerHeight ?? 'md') !== (boutiqueSettings.bannerHeight ?? 'md') ||
-      (localSettings.bannerOpacity ?? 0.18) !== (boutiqueSettings.bannerOpacity ?? 0.18) ||
-      withDefaultBool(localSettings.announcementEnabled, false) !== withDefaultBool(boutiqueSettings.announcementEnabled, false) ||
-      (localSettings.announcementText ?? '') !== (boutiqueSettings.announcementText ?? '') ||
-      (localSettings.announcementHref ?? '') !== (boutiqueSettings.announcementHref ?? '') ||
-      (localSettings.announcementCtaLabel ?? '') !== (boutiqueSettings.announcementCtaLabel ?? '') ||
-      (localSettings.announcementColorSource ?? 'accent') !== (boutiqueSettings.announcementColorSource ?? 'accent') ||
-      JSON.stringify(localSettings.quickLinks) !== JSON.stringify(boutiqueSettings.quickLinks) ||
-      JSON.stringify(localSettings.social) !== JSON.stringify(boutiqueSettings.social) ||
-      JSON.stringify(localSettings.footer) !== JSON.stringify(boutiqueSettings.footer) ||
-      withDefaultBool(localSettings.showFeaturedLook, true) !== withDefaultBool(boutiqueSettings.showFeaturedLook, true) ||
-      withDefaultBool(localSettings.showOutfits, true) !== withDefaultBool(boutiqueSettings.showOutfits, true) ||
-      withDefaultBool(localSettings.showRack, true) !== withDefaultBool(boutiqueSettings.showRack, true)
+      (localSettings.featuredOutfitId || 'auto') !== normalizedDbSettings.featuredOutfitId ||
+      localSettings.templateId !== normalizedDbSettings.templateId ||
+      localSettings.patternId !== normalizedDbSettings.patternId ||
+      localSettings.accentColorIndex !== normalizedDbSettings.accentColorIndex ||
+      localSettings.bannerEnabled !== normalizedDbSettings.bannerEnabled ||
+      localSettings.bannerHeight !== normalizedDbSettings.bannerHeight ||
+      localSettings.bannerOpacity !== normalizedDbSettings.bannerOpacity ||
+      localSettings.announcementEnabled !== normalizedDbSettings.announcementEnabled ||
+      localSettings.announcementText !== normalizedDbSettings.announcementText ||
+      localSettings.announcementHref !== normalizedDbSettings.announcementHref ||
+      localSettings.announcementCtaLabel !== normalizedDbSettings.announcementCtaLabel ||
+      localSettings.announcementColorSource !== normalizedDbSettings.announcementColorSource ||
+      JSON.stringify(localSettings.quickLinks) !== JSON.stringify(normalizedDbSettings.quickLinks) ||
+      JSON.stringify(localSettings.social) !== JSON.stringify(normalizedDbSettings.social) ||
+      JSON.stringify(localSettings.footer) !== JSON.stringify(normalizedDbSettings.footer) ||
+      localSettings.showFeaturedLook !== normalizedDbSettings.showFeaturedLook ||
+      localSettings.showOutfits !== normalizedDbSettings.showOutfits ||
+      localSettings.showRack !== normalizedDbSettings.showRack
     );
-  }, [localSettings, boutiqueSettings, isInitialized]);
+  }, [localSettings, boutiqueSettings]);
 
   const renderHeader = () => (
     <header className="mb-12">
@@ -523,7 +500,6 @@ export default function MyBoutiquePage() {
                     id="boutique-enabled"
                     checked={localSettings.enabled ?? false}
                     onCheckedChange={handleEnabledToggle}
-                    disabled={!handle}
                   />
                 )}
                 <Label htmlFor="boutique-enabled" className="flex-grow">

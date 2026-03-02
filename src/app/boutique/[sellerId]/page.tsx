@@ -1,7 +1,7 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { usePublicBoutiqueByHandle } from '@/lib/boutique';
+import { usePublicBoutiqueByHandle, normalizeBoutiqueSettings } from '@/lib/boutique';
 import { BoutiqueRenderer } from '@/components/boutique/BoutiqueRenderer';
 import { Store, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -39,26 +39,24 @@ export default function PublicBoutiquePage() {
 
   const { data: publicProfile, loading, error } = usePublicBoutiqueByHandle(handle);
   
-  const { items: rackItems, loading: rackLoading } = useInventoryItems(publicProfile?.uid || null, null);
-  const { outfits, loading: outfitsLoading } = useOutfits(publicProfile?.uid || null);
+  const normalizedProfile = useMemo(() => normalizeBoutiqueSettings(publicProfile), [publicProfile]);
+
+  const { items: rackItems, loading: rackLoading } = useInventoryItems(normalizedProfile?.uid || null, null);
+  const { outfits, loading: outfitsLoading } = useOutfits(normalizedProfile?.uid || null);
 
   const publishedOutfits = useMemo(() => outfits?.filter(o => o.status === 'published'), [outfits]);
 
 
   if (loading) return <BoutiqueLoading />;
 
-  if (error || !publicProfile?.enabled) return <BoutiqueNotAvailable />;
+  if (error || !normalizedProfile?.enabled) return <BoutiqueNotAvailable />;
 
-  const templateId = publicProfile.templateId ?? 'editorial';
-  const patternId = publicProfile.patternId ?? 'none';
-  const showFeaturedLook = publicProfile.showFeaturedLook ?? true;
-  const showOutfits = publicProfile.showOutfits ?? true;
-  const showRack = publicProfile.showRack ?? true;
+  const { templateId, patternId, showFeaturedLook, showOutfits, showRack } = normalizedProfile;
 
   return (
     <BoutiqueRenderer
-      brandProfile={publicProfile}
-      featuredOutfit={publicProfile.featuredOutfit}
+      brandProfile={normalizedProfile}
+      featuredOutfit={normalizedProfile.featuredOutfit}
       templateId={templateId}
       patternId={patternId}
       rackItems={rackItems}

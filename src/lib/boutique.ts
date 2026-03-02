@@ -34,6 +34,9 @@ import {
 type AnyRecord = Record<string, any>;
 const asRecord = (v: unknown): AnyRecord => (v && typeof v === 'object' ? (v as AnyRecord) : {});
 
+const withDefaultBool = (v: boolean | null | undefined, d: boolean) =>
+  v === null || v === undefined ? d : v;
+
 // --- Interfaces ---
 export interface BoutiqueSettings extends DocumentData {
   id: string;
@@ -118,6 +121,39 @@ export interface PublicBoutiqueProfile extends BrandProfilePublicBits {
   showRack?: boolean | null;
   updatedAt: any;
 }
+
+// --- Normalizer ---
+export function normalizeBoutiqueSettings(raw: any): BoutiqueSettings {
+  const settings = raw || {};
+  const design = settings.design || {};
+
+  const normalized = {
+    ...settings,
+    templateId: settings.templateId ?? design.template ?? 'editorial',
+    patternId: settings.patternId ?? design.background?.patternId ?? 'none',
+    enabled: withDefaultBool(settings.enabled, false),
+    handle: settings.handle ?? null,
+    featuredOutfitId: settings.featuredOutfitId ?? 'auto',
+    accentColorIndex: settings.accentColorIndex ?? 0,
+    bannerEnabled: withDefaultBool(settings.bannerEnabled, true),
+    bannerHeight: settings.bannerHeight ?? 'md',
+    bannerOpacity: settings.bannerOpacity ?? 0.18,
+    announcementEnabled: withDefaultBool(settings.announcementEnabled, false),
+    announcementText: settings.announcementText ?? '',
+    announcementHref: settings.announcementHref ?? '',
+    announcementCtaLabel: settings.announcementCtaLabel ?? '',
+    announcementColorSource: settings.announcementColorSource ?? 'accent',
+    quickLinks: settings.quickLinks ?? { enabled: false, items: [] },
+    social: settings.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
+    footer: settings.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' },
+    showFeaturedLook: withDefaultBool(settings.showFeaturedLook, true),
+    showOutfits: withDefaultBool(settings.showOutfits, true),
+    showRack: withDefaultBool(settings.showRack, true),
+  };
+  
+  return normalized as BoutiqueSettings;
+}
+
 
 // --- Validation ---
 const RESERVED_HANDLES = new Set([
@@ -329,17 +365,30 @@ export const updateBoutiqueSettings = async (
   const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   const docSnap = await getDoc(settingsRef);
 
+  const updateData: any = { ...data, updatedAt: serverTimestamp() };
+
+  // Backfill nested design object for compatibility
+  if (data.templateId || data.patternId) {
+    const existingDesign = docSnap.exists() ? docSnap.data().design || {} : {};
+    
+    const designChanges: any = {};
+    if (data.templateId) {
+        designChanges.template = data.templateId;
+    }
+    if (data.patternId) {
+        designChanges.background = { ...(existingDesign.background || {}), patternId: data.patternId };
+    }
+    updateData.design = { ...existingDesign, ...designChanges };
+  }
+
+
   if (!docSnap.exists()) {
     await setDoc(settingsRef, {
-      enabled: false,
-      featuredOutfitId: null,
-      handle: null,
-      ...data,
+      ...normalizeBoutiqueSettings({}), // Use normalizer to get full default object
+      ...updateData,
       createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
     });
   } else {
-    const updateData: any = { ...data, updatedAt: serverTimestamp() };
     await setDoc(settingsRef, updateData, { merge: true });
   }
 };
@@ -368,7 +417,7 @@ export const syncPublicBoutiqueData = async (
     getDocs(outfitsQuery),
   ]);
 
-  const settings = (settingsSnap.data() ?? {}) as Partial<BoutiqueSettings>;
+  const settings = normalizeBoutiqueSettings(settingsSnap.data() ?? {});
   const brandProfile = (brandSnap.data() ?? {}) as BrandProfilePublicBits;
 
   let featuredOutfit: Outfit | null = null;
@@ -389,7 +438,7 @@ export const syncPublicBoutiqueData = async (
   const publicData: Omit<PublicBoutiqueProfile, 'id' | 'updatedAt'> = {
     uid: userId,
     handle,
-    enabled: settings.enabled ?? false,
+    enabled: settings.enabled,
     brandName: brandProfile.brandName ?? null,
     tagline: brandProfile.tagline ?? null,
     logoUrl: brandProfile.logoUrl ?? null,
@@ -397,23 +446,23 @@ export const syncPublicBoutiqueData = async (
     brandColors: brandProfile.brandColors ?? [],
     primaryFont: brandProfile.primaryFont ?? null,
     secondaryFont: brandProfile.secondaryFont ?? null,
-    templateId: settings.templateId ?? 'editorial',
-    patternId: settings.patternId ?? 'none',
-    accentColorIndex: settings.accentColorIndex ?? 0,
-    bannerEnabled: settings.bannerEnabled ?? true,
-    bannerHeight: settings.bannerHeight ?? 'md',
-    bannerOpacity: settings.bannerOpacity ?? 0.18,
-    announcementEnabled: settings.announcementEnabled ?? false,
-    announcementText: settings.announcementText ?? null,
-    announcementHref: settings.announcementHref ?? null,
-    announcementCtaLabel: settings.announcementCtaLabel ?? null,
-    announcementColorSource: settings.announcementColorSource ?? 'accent',
-    quickLinks: settings.quickLinks ?? { enabled: false, items: [] },
-    social: settings.social ?? { facebookEnabled: false, position: 'right', facebookUrl: null },
-    footer: settings.footer ?? { enabled: true, layout: 'minimal', headline: null, message: null, ctaLabel: null, ctaUrl: null },
-    showFeaturedLook: settings.showFeaturedLook ?? true,
-    showOutfits: settings.showOutfits ?? true,
-    showRack: settings.showRack ?? true,
+    templateId: settings.templateId,
+    patternId: settings.patternId,
+    accentColorIndex: settings.accentColorIndex,
+    bannerEnabled: settings.bannerEnabled,
+    bannerHeight: settings.bannerHeight,
+    bannerOpacity: settings.bannerOpacity,
+    announcementEnabled: settings.announcementEnabled,
+    announcementText: settings.announcementText,
+    announcementHref: settings.announcementHref,
+    announcementCtaLabel: settings.announcementCtaLabel,
+    announcementColorSource: settings.announcementColorSource,
+    quickLinks: settings.quickLinks,
+    social: settings.social,
+    footer: settings.footer,
+    showFeaturedLook: settings.showFeaturedLook,
+    showOutfits: settings.showOutfits,
+    showRack: settings.showRack,
     featuredOutfit: featuredOutfit
       ? {
           id: featuredOutfit.id,
