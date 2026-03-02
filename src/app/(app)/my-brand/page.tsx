@@ -388,7 +388,7 @@ export default function MyBrandPage() {
       
       reset(data);
 
-    } catch (error: any) => {
+    } catch (error: any) {
       console.error('[SAVE My Brand] error', error);
       toast({
         variant: 'destructive',
@@ -1106,5 +1106,3 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   );
 }
-
-    
