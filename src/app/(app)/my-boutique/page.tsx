@@ -65,6 +65,7 @@ import {
   XCircle,
   Heart,
   Palette,
+  Copy,
 } from 'lucide-react';
 
 import {
@@ -74,10 +75,12 @@ import {
   deleteDoc,
   runTransaction,
   serverTimestamp,
+  setDoc,
 } from 'firebase/firestore';
 
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
 import { BOUTIQUE_PATTERNS, BOUTIQUE_TEMPLATES } from '@/lib/brand/brandPublicBits';
+import { Input } from '@/components/ui/input';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -305,6 +308,13 @@ export default function MyBoutiquePage() {
       handleForm.setError('handle', { type: 'manual', message: e.message });
     }
   };
+  
+    const handleCopyUrl = () => {
+    if (!publicUrl) return;
+    navigator.clipboard.writeText(publicUrl);
+    toast({ title: 'URL Copied!', description: 'Your public boutique link is on your clipboard.' });
+  };
+
 
   const handleSelfTest = async () => {
     if (!firestore || !user) return;
@@ -509,21 +519,59 @@ export default function MyBoutiquePage() {
                 </Label>
               </div>
 
-              <p className="text-sm text-muted-foreground mt-3 px-1">
-                {localSettings.enabled
-                  ? 'Your boutique is public.'
-                  : 'Your boutique is private.'}
-              </p>
-
-              {!handle && (
-                <Alert variant="destructive" className="mt-4">
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Handle Required</AlertTitle>
-                  <AlertDescription>
-                    You must claim a public handle before your boutique can go live.
-                  </AlertDescription>
-                </Alert>
+              {publicUrl && (
+                <div className="space-y-2 pt-2">
+                  <Label>Your Public URL</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      readOnly
+                      value={publicUrl}
+                      className="bg-muted text-muted-foreground"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      onClick={handleCopyUrl}
+                    >
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
               )}
+            </CardContent>
+          </Card>
+          
+           <Card>
+            <CardHeader>
+              <CardTitle>Public Handle</CardTitle>
+              <CardDescription>
+                Claim a unique URL for your boutique (e.g., /boutique/your-name).
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Form {...handleForm}>
+                <form
+                  onSubmit={handleForm.handleSubmit(onClaimSubmit)}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={handleForm.control}
+                    name="handle"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <Input placeholder="your-boutique-handle" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button type="submit" className="w-full">
+                    {handle ? 'Update Handle' : 'Claim Handle'}
+                  </Button>
+                </form>
+              </Form>
             </CardContent>
           </Card>
 
