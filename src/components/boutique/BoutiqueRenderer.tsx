@@ -194,28 +194,28 @@ const hexToRgba = (hex: string, alpha: number): string => {
     return `rgba(${r}, ${g}, ${b}, ${a})`;
 };
 
+const normalize = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+const tokenize = (s: string) =>
+  normalize(s).split(/\s+/).filter(Boolean);
+
+const matchesTokens = (haystack: string, tokens: string[]) => {
+  if (!tokens.length) return true;
+  return tokens.every(token => haystack.includes(token));
+};
+
 export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading }: Props) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'items' | 'outfits'>('all');
   const [activeItem, setActiveItem] = useState<InventoryItem | null>(null);
   const [activeOutfit, setActiveOutfit] = useState<Outfit | null>(null);
   
-  const normalize = (s: string) =>
-    s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
-
-  const tokenize = (s: string) =>
-    normalize(s).split(/\s+/).filter(Boolean);
-
-  const matchesTokens = (haystack: string, tokens: string[]) => {
-    if (!tokens.length) return true;
-    return tokens.every(token => haystack.includes(token));
-  };
-  
-  const tokens = tokenize(searchTerm);
+  const tokens = useMemo(() => tokenize(searchTerm), [searchTerm]);
 
   const filteredItems = useMemo(() => {
     if (!rackItems || (filter !== 'all' && filter !== 'items')) return [];
-    if (!tokens.length) return rackItems;
+    if (tokens.length === 0) return rackItems;
 
     return rackItems.filter(item => {
       const haystack = normalize([
@@ -231,7 +231,7 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
 
   const filteredOutfits = useMemo(() => {
     if (!outfits || (filter !== 'all' && filter !== 'outfits')) return [];
-    if (!tokens.length) return outfits;
+    if (tokens.length === 0) return outfits;
     
     return outfits.filter(outfit => {
       const haystack = normalize([
@@ -243,6 +243,11 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
       return matchesTokens(haystack, tokens);
     });
   }, [outfits, tokens, filter]);
+
+  const fullFeaturedOutfit = useMemo(() => {
+    if (!featuredOutfit || !outfits) return null;
+    return outfits.find(o => o.id === featuredOutfit.id) || null;
+  }, [featuredOutfit, outfits]);
 
   const renderTokens = useMemo(() => computeRenderTokens(brandProfile, templateId, patternId), [brandProfile, templateId, patternId]);
   const theme = useMemo(() => getThemeLayout(templateId), [templateId]);
@@ -298,7 +303,7 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
                 'absolute top-0 left-0 right-0 w-full',
                 bannerHeightClass
             )}
-            style={{...bannerStyle, opacity: bannerOpacity }}
+            style={{...bannerStyle }}
         />
       )}
       <div className={cn('absolute inset-0 pointer-events-none', theme.overlayOpacityClass)} style={renderTokens.patternStyles} />
@@ -365,9 +370,14 @@ export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, pat
         <main className="space-y-16 md:space-y-24">
           <section>
             {featuredOutfit ? (
-                <div className="flex flex-col items-center gap-6 md:gap-8">
-                    <div className="w-full max-w-xl">
-                        <Card className={cn('w-full overflow-hidden group', theme.cardWrap, renderTokens.cardClass)}>
+                <div 
+                  className="flex flex-col items-center gap-6 md:gap-8"
+                >
+                    <div 
+                      className="w-full max-w-xl cursor-pointer group"
+                      onClick={() => fullFeaturedOutfit && setActiveOutfit(fullFeaturedOutfit)}
+                    >
+                        <Card className={cn('w-full overflow-hidden transition-shadow duration-300 group-hover:shadow-xl', theme.cardWrap, renderTokens.cardClass)}>
                             <div className="relative aspect-[4/5] w-full">
                                 <Image src={featuredOutfit.imageUrl || 'https://picsum.photos/seed/boutique-fallback/800/1000'} alt={featuredOutfit.title || 'Featured Outfit'} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
                                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
