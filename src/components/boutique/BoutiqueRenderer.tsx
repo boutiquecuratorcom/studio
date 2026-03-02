@@ -49,7 +49,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-2xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-80',
+        overlayOpacityClass: 'opacity-40',
         ornaments: 'editorial',
       };
     case 'soft-luxe':
@@ -63,7 +63,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-80', 
+        overlayOpacityClass: 'opacity-40', 
         ornaments: 'luxe',
       };
     case 'playful-pop':
@@ -77,7 +77,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-80', 
+        overlayOpacityClass: 'opacity-40', 
         ornaments: 'pop',
       };
     case 'modern-minimal':
@@ -91,7 +91,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-3',
         cardWrap: 'rounded-none overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-60',
+        overlayOpacityClass: 'opacity-30',
         ornaments: 'minimal',
       };
     case 'street-bold':
@@ -105,7 +105,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-lg overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-50', 
+        overlayOpacityClass: 'opacity-25', 
         ornaments: 'street',
       };
     case 'romantic-vintage':
@@ -119,7 +119,7 @@ const getThemeLayout = (templateId: BoutiqueTemplateId): ThemeLayout => {
         ctaWrap: 'pt-2',
         cardWrap: 'rounded-3xl overflow-hidden',
         footerWrap: 'pt-10',
-        overlayOpacityClass: 'opacity-80', 
+        overlayOpacityClass: 'opacity-40', 
         ornaments: 'vintage',
       };
   }
@@ -204,7 +204,10 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
             )}
           </div>
           <div className="space-y-2">
-            <h1 className={cn(theme.nameClass)} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
+            <h1 className={cn(
+                theme.nameClass,
+                templateId === 'street-bold' && 'text-white'
+            )} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
               {brandProfile?.brandName || 'Your Boutique Name'}
             </h1>
             <p className={cn('max-w-2xl mx-auto', templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground', theme.taglineClass)}>
@@ -225,7 +228,11 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
                 </Card>
                 <div className="text-center lg:text-left flex flex-col items-center lg:items-start">
                   <h2 className={cn("text-sm uppercase tracking-widest mb-2", templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Featured Look</h2>
-                  <h3 className={cn("text-3xl md:text-4xl font-semibold leading-tight", theme.nameClass)} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
+                  <h3 className={cn(
+                      "text-3xl md:text-4xl font-semibold leading-tight",
+                      theme.nameClass,
+                      templateId === 'street-bold' && 'text-white'
+                  )} style={{ fontFamily: 'var(--boutique-font-heading)' }}>
                     {featuredOutfit.title}
                   </h3>
                   <p className={cn("mt-4 max-w-md text-lg", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>
@@ -253,7 +260,7 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
           {/* Placeholder for My Rack */}
           <section>
               <div className="text-center">
-                  <h2 className="text-3xl font-semibold" style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
+                  <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
                   <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Curated items from the collection.</p>
               </div>
               <div className={cn("mt-8 text-center p-12 border-2 border-dashed rounded-2xl", renderTokens.cardClass)}>
@@ -264,7 +271,7 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
           {/* Placeholder for Links */}
            <section>
               <div className="text-center">
-                  <h2 className="text-3xl font-semibold" style={{ fontFamily: 'var(--boutique-font-heading)' }}>Quick Links</h2>
+                  <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>Quick Links</h2>
               </div>
               <div className={cn("mt-8 text-center p-12 border-2 border-dashed rounded-2xl", renderTokens.cardClass)}>
                   <p className={cn(templateId === 'street-bold' ? 'text-white/60' : 'text-muted-foreground')}>Important links and calls-to-action will appear here.</p>
