@@ -2,22 +2,26 @@
 'use client';
 
 import Image from 'next/image';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Store, ImageIcon, Facebook, Package, Shirt } from 'lucide-react';
+import { Store, ImageIcon, Facebook, Package, Shirt, Search } from 'lucide-react';
 import type { PublicBoutiqueProfile } from '@/lib/boutique';
 import type {
   BoutiquePatternId,
   BoutiqueTemplateId,
   BrandProfilePublicBits,
 } from '@/lib/brand/brandPublicBits';
-import { computeRenderTokens, getContrastingTextColor } from '@/lib/boutique-design';
+import { computeRenderTokens } from '@/lib/boutique-design';
 import { cn } from '@/lib/utils';
 import { PublicClaimButton } from './PublicClaimButton';
 import type { InventoryItem } from '@/lib/inventory';
 import type { Outfit } from '@/lib/outfits';
 import { Skeleton } from '../ui/skeleton';
+import { Input } from '../ui/input';
+import { Tabs, TabsList, TabsTrigger } from '../ui/tabs';
+import { ItemQuickViewModal } from './ItemQuickViewModal';
+import { OutfitQuickViewModal } from './OutfitQuickViewModal';
 
 type Props = {
   brandProfile: Partial<BrandProfilePublicBits & PublicBoutiqueProfile> | null;
@@ -164,10 +168,37 @@ const SectionSkeleton = ({ cols = 3 }: { cols?: number }) => (
   </div>
 );
 
-export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading }: Props) => {
+export function BoutiqueRenderer({ brandProfile, featuredOutfit, templateId, patternId, rackItems, outfits, rackLoading, outfitsLoading }: Props) {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filter, setFilter] = useState<'all' | 'items' | 'outfits'>('all');
+  const [activeItem, setActiveItem] = useState<InventoryItem | null>(null);
+  const [activeOutfit, setActiveOutfit] = useState<Outfit | null>(null);
+
   const renderTokens = useMemo(() => computeRenderTokens(brandProfile, templateId, patternId), [brandProfile, templateId, patternId]);
   const theme = useMemo(() => getThemeLayout(templateId), [templateId]);
   
+  const lowerCaseSearchTerm = searchTerm.toLowerCase();
+
+  const filteredItems = useMemo(() => {
+    if (!rackItems || (filter !== 'all' && filter !== 'items')) return [];
+    if (!lowerCaseSearchTerm) return rackItems;
+    return rackItems.filter(item => 
+      item.title.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.type.toLowerCase().includes(lowerCaseSearchTerm) ||
+      item.sizes.some(s => s.toLowerCase().includes(lowerCaseSearchTerm)) ||
+      (item.searchKeywords || []).some(k => k.toLowerCase().includes(lowerCaseSearchTerm))
+    );
+  }, [rackItems, lowerCaseSearchTerm, filter]);
+
+  const filteredOutfits = useMemo(() => {
+    if (!outfits || (filter !== 'all' && filter !== 'outfits')) return [];
+    if (!lowerCaseSearchTerm) return outfits;
+    return outfits.filter(outfit => 
+      outfit.title.toLowerCase().includes(lowerCaseSearchTerm) ||
+      (outfit.storefrontDescription || '').toLowerCase().includes(lowerCaseSearchTerm)
+    );
+  }, [outfits, lowerCaseSearchTerm, filter]);
+
   const logoStyle = brandProfile?.logoStyle ?? 'auto';
   const logoIsStyled = logoStyle === 'circle' || logoStyle === 'rounded';
 
@@ -183,7 +214,7 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
   }[bannerHeightValue];
   
   const bannerStyle: React.CSSProperties = {
-    background: `linear-gradient(180deg, ${getContrastingTextColor(bannerAccentColor)} 0%, transparent 100%)`
+    background: `linear-gradient(180deg, ${renderTokens.hexToRgba(bannerAccentColor, 1)} 0%, transparent 100%)`
   };
 
 
@@ -201,6 +232,10 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
   const footer = brandProfile?.footer;
   
   return (
+    <>
+    <ItemQuickViewModal item={activeItem} onOpenChange={(isOpen) => !isOpen && setActiveItem(null)} theme={renderTokens} />
+    <OutfitQuickViewModal outfit={activeOutfit} onOpenChange={(isOpen) => !isOpen && setActiveOutfit(null)} theme={renderTokens} />
+
     <div 
       className={cn(
         'min-h-screen relative overflow-x-hidden', 
@@ -350,56 +385,81 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
             </section>
           )}
 
-          <section>
-              <div className="text-center">
-                  <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
-                  <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Curated items from the collection.</p>
+          <div className="space-y-4">
+            <h2 className={cn("text-3xl font-semibold text-center", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>Search My Boutique</h2>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="relative flex-grow max-w-lg mx-auto sm:mx-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by keyword, type, or color..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-11"
+                />
               </div>
-              <div className="mt-8">
-                  {rackLoading ? <SectionSkeleton cols={4} />
-                    : !rackItems || rackItems.length === 0 ? <EmptyState icon={<Shirt className="h-12 w-12 text-muted-foreground/50" />} title="Rack is Empty" description="Items added to 'My Rack' will appear here." />
+              <Tabs value={filter} onValueChange={(v) => setFilter(v as any)} className="w-full sm:w-auto">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="all">All</TabsTrigger>
+                  <TabsTrigger value="items">Items</TabsTrigger>
+                  <TabsTrigger value="outfits">Outfits</TabsTrigger>
+                </TabsList>
+              </Tabs>
+            </div>
+          </div>
+
+          {(filter === 'all' || filter === 'items') && (
+            <section>
+                <div className="text-center">
+                    <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>From My Rack</h2>
+                    <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Curated items from the collection.</p>
+                </div>
+                <div className="mt-8">
+                    {rackLoading ? <SectionSkeleton cols={4} />
+                      : !filteredItems || filteredItems.length === 0 ? <EmptyState icon={<Shirt className="h-12 w-12 text-muted-foreground/50" />} title={searchTerm ? "No Matching Items" : "Rack is Empty"} description={searchTerm ? "Try a different search." : "Items added to 'My Rack' will appear here."} />
+                      : (
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                          {filteredItems.map(item => (
+                            <Card key={item.id} onClick={() => setActiveItem(item)} className={cn("overflow-hidden group cursor-pointer", renderTokens.cardClass)}>
+                              <div className="relative aspect-square w-full">
+                                <Image src={item.image.thumbUrl || 'https://picsum.photos/seed/item-fallback/400/400'} alt={item.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                              </div>
+                              <div className="p-3">
+                                <h4 className="font-semibold truncate text-sm" style={{fontFamily: 'var(--boutique-font-heading)'}}>{item.title}</h4>
+                              </div>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                </div>
+            </section>
+          )}
+
+          {(filter === 'all' || filter === 'outfits') && (
+            <section>
+                <div className="text-center">
+                    <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>My Outfits</h2>
+                    <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Styled looks ready to share.</p>
+                </div>
+                <div className="mt-8">
+                  {outfitsLoading ? <SectionSkeleton cols={3} />
+                    : !filteredOutfits || filteredOutfits.length === 0 ? <EmptyState icon={<Package className="h-12 w-12 text-muted-foreground/50" />} title={searchTerm ? "No Matching Outfits" : "No Outfits Yet"} description={searchTerm ? "Try a different search." : "Styled outfits will appear here once they are created."} />
                     : (
-                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                        {rackItems.map(item => (
-                          <Card key={item.id} className={cn("overflow-hidden group", renderTokens.cardClass)}>
-                            <div className="relative aspect-square w-full">
-                              <Image src={item.image.thumbUrl || 'https://picsum.photos/seed/item-fallback/400/400'} alt={item.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                        {filteredOutfits.map(outfit => (
+                          <Card key={outfit.id} onClick={() => setActiveOutfit(outfit)} className={cn("overflow-hidden group cursor-pointer", renderTokens.cardClass)}>
+                            <div className="relative aspect-video w-full">
+                              <Image src={outfit.cover?.thumbUrl || 'https://picsum.photos/seed/outfit-fallback/600/400'} alt={outfit.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
                             </div>
-                             <div className="p-3">
-                               <h4 className="font-semibold truncate text-sm" style={{fontFamily: 'var(--boutique-font-heading)'}}>{item.title}</h4>
-                             </div>
+                            <div className="p-4">
+                              <h4 className="font-semibold" style={{fontFamily: 'var(--boutique-font-heading)'}}>{outfit.title}</h4>
+                            </div>
                           </Card>
                         ))}
                       </div>
                     )}
-              </div>
-          </section>
-
-          <section>
-              <div className="text-center">
-                  <h2 className={cn("text-3xl font-semibold", templateId === 'street-bold' && 'text-white')} style={{ fontFamily: 'var(--boutique-font-heading)' }}>My Outfits</h2>
-                  <p className={cn("mt-2", templateId === 'street-bold' ? 'text-white/80' : 'text-muted-foreground')}>Styled looks ready to share.</p>
-              </div>
-              <div className="mt-8">
-                {outfitsLoading ? <SectionSkeleton cols={3} />
-                  : !outfits || outfits.length === 0 ? <EmptyState icon={<Package className="h-12 w-12 text-muted-foreground/50" />} title="No Outfits Yet" description="Styled outfits will appear here once they are created." />
-                  : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                      {outfits.map(outfit => (
-                        <Card key={outfit.id} className={cn("overflow-hidden group", renderTokens.cardClass)}>
-                          <div className="relative aspect-video w-full">
-                            <Image src={outfit.cover?.thumbUrl || 'https://picsum.photos/seed/outfit-fallback/600/400'} alt={outfit.title} fill className="object-cover transition-transform duration-300 group-hover:scale-105" />
-                          </div>
-                           <div className="p-4">
-                             <h4 className="font-semibold" style={{fontFamily: 'var(--boutique-font-heading)'}}>{outfit.title}</h4>
-                           </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
-              </div>
-          </section>
-
+                </div>
+            </section>
+          )}
         </main>
 
         {footer?.enabled && (
@@ -443,5 +503,6 @@ export const BoutiqueRenderer = ({ brandProfile, featuredOutfit, templateId, pat
         </footer>
       </div>
     </div>
+    </>
   );
 };
