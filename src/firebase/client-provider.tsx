@@ -1,6 +1,8 @@
+// src/firebase/client-provider.tsx
 'use client';
+
 import React, { useState, useEffect } from 'react';
-import { initializeFirebase } from '.';
+import { initializeFirebase } from './init'; // ✅ FIXED: no more circular import
 import { FirebaseProvider, type FirebaseContextType } from './provider';
 
 export function FirebaseClientProvider({
@@ -16,7 +18,7 @@ export function FirebaseClientProvider({
   }, []);
 
   if (!firebase) {
-    return null; // Or a loading spinner
+    return null; // You can replace with a loading spinner if desired
   }
 
   return <FirebaseProvider value={firebase}>{children}</FirebaseProvider>;

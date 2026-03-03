@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -205,7 +206,7 @@ export default function MyBrandPage() {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  
+
   const hasLoggedRef = useRef(false);
   const formInitializedRef = useRef(false);
 
@@ -217,7 +218,6 @@ export default function MyBrandPage() {
   const { data: brandProfileData, loading: dataLoading } = useDoc(brandProfileRef);
 
   const form = useForm<BrandProfileFormValues>({
-    resolver: zodResolver(brandProfileSchema),
     defaultValues: {
       brandName: '',
       tagline: '',
@@ -238,10 +238,16 @@ export default function MyBrandPage() {
       postingFrequency: undefined,
       promoStyle: undefined,
     },
-    mode: 'onSubmit',
+    mode: 'onBlur',
   });
 
-  const { watch, reset, handleSubmit, formState } = form;
+  const {
+    watch,
+    reset,
+    handleSubmit,
+    formState: { isDirty },
+  } = form;
+
   const watchedValues = watch();
 
   const completionPercent = useMemo(() => {
@@ -271,10 +277,18 @@ export default function MyBrandPage() {
       const data: any = brandProfileData;
       const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
       const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
-      
+
       const allFontNames = new Set(ALL_FONTS.map((f) => f.name));
-      const initialPrimaryFont = normalizeFontName(data.primaryFont, allFontNames, DEFAULT_FONTS.heading);
-      const initialSecondaryFont = normalizeFontName(data.secondaryFont, allFontNames, DEFAULT_FONTS.body);
+      const initialPrimaryFont = normalizeFontName(
+        data.primaryFont,
+        allFontNames,
+        DEFAULT_FONTS.heading
+      );
+      const initialSecondaryFont = normalizeFontName(
+        data.secondaryFont,
+        allFontNames,
+        DEFAULT_FONTS.body
+      );
 
       reset({
         brandName: data.brandName || '',
@@ -296,10 +310,10 @@ export default function MyBrandPage() {
         postingFrequency: data.postingFrequency || undefined,
         promoStyle: data.promoStyle || undefined,
       });
+
       formInitializedRef.current = true;
     }
   }, [brandProfileData, reset]);
-
 
   // --- Handlers ---
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -342,6 +356,13 @@ export default function MyBrandPage() {
   };
 
   const onSubmit = async (data: BrandProfileFormValues) => {
+    console.log('[SAVE My Brand] clicked.');
+
+    if (!isDirty) {
+      toast({ title: 'No changes to save.' });
+      return;
+    }
+    
     if (!brandProfileRef || !user) {
       toast({
         variant: 'destructive',
@@ -351,14 +372,8 @@ export default function MyBrandPage() {
       return;
     }
 
-    if (!formState.isDirty) {
-      toast({ title: 'No Changes', description: 'There are no changes to save.' });
-      return;
-    }
-
     setIsSaving(true);
     
-    // Normalize colors before saving
     const normalizedColors = (data.brandColors || [])
       .map((c) => normalizeHexColor(c))
       .filter((c) => !!c);
@@ -369,7 +384,6 @@ export default function MyBrandPage() {
         payload[key] = value;
       }
     });
-
     payload.brandColors = normalizedColors;
 
     console.log('[SAVE My Brand] start', { uid: user.uid, payload });
@@ -380,7 +394,7 @@ export default function MyBrandPage() {
         { ...payload, updatedAt: serverTimestamp() },
         { merge: true }
       );
-      
+
       console.log('[SAVE My Brand] success');
       
       const snap = await getDoc(brandProfileRef);
@@ -391,7 +405,7 @@ export default function MyBrandPage() {
         description: 'Your changes have been saved.',
       });
       
-      reset(data); // Resets the form's dirty state to the new saved values
+      reset(data);
     } catch (error: any) {
       console.error('[SAVE My Brand] error', error);
       toast({
@@ -403,7 +417,6 @@ export default function MyBrandPage() {
       setIsSaving(false);
     }
   };
-
 
   if (userLoading || dataLoading) {
     return (
@@ -697,7 +710,9 @@ export default function MyBrandPage() {
                                     <Button
                                       type="button"
                                       variant="outline"
-                                      onClick={() => document.getElementById('logo-upload')?.click()}
+                                      onClick={() =>
+                                        document.getElementById('logo-upload')?.click()
+                                      }
                                       disabled={isUploading}
                                     >
                                       <UploadCloud className="mr-2 h-4 w-4" />
@@ -725,7 +740,10 @@ export default function MyBrandPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Logo Style</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value ?? 'auto'}>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value ?? 'auto'}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a logo style" />
@@ -756,21 +774,30 @@ export default function MyBrandPage() {
                             <FormControl>
                               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                                 {[0, 1, 2].map((index) => (
-                                  <div key={index} className="relative flex items-center gap-3">
+                                  <div
+                                    key={index}
+                                    className="relative flex items-center gap-3"
+                                  >
                                     <label
                                       className="h-10 w-12 flex-shrink-0 rounded-md border cursor-pointer"
                                       style={{
                                         backgroundColor:
-                                          normalizeHexColor(field.value?.[index]) || 'transparent',
+                                          normalizeHexColor(field.value?.[index]) ||
+                                          'transparent',
                                       }}
                                     >
                                       <input
                                         type="color"
                                         className="opacity-0 absolute inset-0 w-full h-full cursor-pointer"
-                                        value={normalizeHexColor(field.value?.[index]) || '#ffffff'}
+                                        value={
+                                          normalizeHexColor(field.value?.[index]) ||
+                                          '#ffffff'
+                                        }
                                         onChange={(e) => {
-                                          const newColors = [...(field.value || ['', '', ''])];
-                                          newColors[index] = e.target.value; // always #RRGGBB
+                                          const newColors = [
+                                            ...(field.value || ['', '', '']),
+                                          ];
+                                          newColors[index] = e.target.value;
                                           form.setValue('brandColors', newColors, {
                                             shouldDirty: true,
                                             shouldValidate: true,
@@ -783,7 +810,9 @@ export default function MyBrandPage() {
                                       placeholder="e.g., #C56A3D"
                                       value={field.value?.[index] || ''}
                                       onChange={(e) => {
-                                        const newColors = [...(field.value || ['', '', ''])];
+                                        const newColors = [
+                                          ...(field.value || ['', '', '']),
+                                        ];
                                         newColors[index] = e.target.value;
                                         form.setValue('brandColors', newColors, {
                                           shouldDirty: true,
@@ -791,10 +820,13 @@ export default function MyBrandPage() {
                                         });
                                       }}
                                       onBlur={() => {
-                                        // Normalize what they typed into real #RRGGBB (or clear it if invalid)
-                                        const newColors = [...(field.value || ['', '', ''])];
-                                        const normalized = normalizeHexColor(newColors[index]);
-                                        newColors[index] = normalized; // "" if invalid
+                                        const newColors = [
+                                          ...(field.value || ['', '', '']),
+                                        ];
+                                        const normalized = normalizeHexColor(
+                                          newColors[index]
+                                        );
+                                        newColors[index] = normalized;
                                         form.setValue('brandColors', newColors, {
                                           shouldDirty: true,
                                           shouldValidate: true,
@@ -820,7 +852,11 @@ export default function MyBrandPage() {
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Primary Font (Headings)</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value ?? ''} key={field.value ?? 'primaryFont'}>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value ?? ''}
+                                key={field.value ?? 'primaryFont'}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a font" />
@@ -846,13 +882,17 @@ export default function MyBrandPage() {
                             </FormItem>
                           )}
                         />
-                         <FormField
+                        <FormField
                           control={form.control}
                           name="secondaryFont"
                           render={({ field }) => (
                             <FormItem>
                               <FormLabel>Secondary Font (Body)</FormLabel>
-                              <Select onValueChange={field.onChange} value={field.value ?? ''} key={field.value ?? 'secondaryFont'}>
+                              <Select
+                                onValueChange={field.onChange}
+                                value={field.value ?? ''}
+                                key={field.value ?? 'secondaryFont'}
+                              >
                                 <FormControl>
                                   <SelectTrigger>
                                     <SelectValue placeholder="Select a font" />
@@ -971,7 +1011,11 @@ function SelectField({ control, name, label, placeholder, options }: any) {
       render={({ field }) => (
         <FormItem>
           <FormLabel>{label}</FormLabel>
-          <Select onValueChange={field.onChange} value={field.value ?? ''} key={field.value ?? name}>
+          <Select
+            onValueChange={field.onChange}
+            value={field.value ?? ''}
+            key={field.value ?? name}
+          >
             <FormControl>
               <SelectTrigger>
                 <SelectValue placeholder={placeholder} />
@@ -1011,7 +1055,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
       </span>
     );
   };
-  
+
   const logoStyle = values.logoStyle ?? 'auto';
 
   return (
@@ -1025,11 +1069,15 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="text-center space-y-2">
-          <div className={cn(
-            "relative mx-auto border bg-muted flex items-center justify-center",
-            logoStyle === 'circle' ? 'h-24 w-24 rounded-full' : 'h-24 w-auto max-w-[96px] aspect-square',
-            logoStyle === 'rounded' && 'rounded-xl'
-          )}>
+          <div
+            className={cn(
+              'relative mx-auto border bg-muted flex items-center justify-center',
+              logoStyle === 'circle'
+                ? 'h-24 w-24 rounded-full'
+                : 'h-24 w-auto max-w-[96px] aspect-square',
+              logoStyle === 'rounded' && 'rounded-xl'
+            )}
+          >
             {values.logoUrl ? (
               <Image
                 src={values.logoUrl}
@@ -1045,7 +1093,6 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
               <ImageIcon className="h-10 w-10 text-muted-foreground" />
             )}
           </div>
-
 
           <div>
             <h3

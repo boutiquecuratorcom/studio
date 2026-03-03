@@ -1,3 +1,4 @@
+
 'use client';
 
 import {
@@ -29,6 +30,11 @@ import {
   type BoutiquePatternId,
   type BrandProfilePublicBits,
 } from '@/lib/brand/brandPublicBits';
+
+// ---- Canonical Refs ----
+export const getBoutiqueSettingsRef = (firestore: Firestore, userId: string) => {
+    return doc(firestore, `users/${userId}/boutiqueSettings/main`);
+}
 
 // ---- Helpers ----
 type AnyRecord = Record<string, any>;
@@ -130,7 +136,7 @@ export function normalizeBoutiqueSettings(raw: any): BoutiqueSettings {
   const normalized = {
     ...settings,
     templateId: settings.templateId ?? design.template ?? 'editorial',
-    patternId: settings.patternId ?? design.background?.patternId ?? 'none',
+    patternId: settings.patternId ?? design.patternId ?? 'none',
     enabled: withDefaultBool(settings.enabled, false),
     handle: settings.handle ?? null,
     featuredOutfitId: settings.featuredOutfitId ?? 'auto',
@@ -207,7 +213,7 @@ export const useBoutiqueSettings = (userId: string | null) => {
   const firestore = useFirestore();
   const docRef = useMemo(() => {
     if (!userId || !firestore) return null;
-    return doc(firestore, `users/${userId}/boutiqueSettings/main`);
+    return getBoutiqueSettingsRef(firestore, userId);
   }, [userId, firestore]);
 
   return useDoc<BoutiqueSettings>(docRef as any);
@@ -246,7 +252,7 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
 
   const newHandleRef = doc(firestore, 'handles', handle);
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
-  const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+  const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
   const userProfileRef = doc(firestore, `users/${user.uid}`);
 
   await runTransaction(firestore, async (transaction) => {
@@ -308,7 +314,7 @@ export const updateHandleTransaction = async (
   const oldHandleRef = doc(firestore, 'handles', oldHandle);
   const newHandleRef = doc(firestore, 'handles', newHandle);
   const userProfileRef = doc(firestore, 'users', user.uid);
-  const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+  const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
   const oldPublicBoutiqueRef = doc(firestore, 'publicBoutiques', oldHandle);
 
   await runTransaction(firestore, async (transaction) => {
@@ -362,39 +368,8 @@ export const updateBoutiqueSettings = async (
   userId: string,
   data: Partial<Omit<BoutiqueSettings, 'id'>>
 ) => {
-  const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
-  const docSnap = await getDoc(settingsRef);
-
-  const updateData: any = { ...data, updatedAt: serverTimestamp() };
-
-  // Backfill nested design object for compatibility
-  const existingDesign = docSnap.exists() ? docSnap.data().design || {} : {};
-  const designChanges: any = { ...(existingDesign || {}) };
-  let hasDesignChanges = false;
-  
-  if (data.templateId) {
-      designChanges.template = data.templateId;
-      hasDesignChanges = true;
-  }
-  if (data.patternId) {
-      designChanges.background = { ...(existingDesign.background || {}), patternId: data.patternId };
-      hasDesignChanges = true;
-  }
-  
-  if (hasDesignChanges) {
-    updateData.design = designChanges;
-  }
-
-
-  if (!docSnap.exists()) {
-    await setDoc(settingsRef, {
-      ...normalizeBoutiqueSettings({}), // Use normalizer to get full default object
-      ...updateData,
-      createdAt: serverTimestamp(),
-    });
-  } else {
-    await setDoc(settingsRef, updateData, { merge: true });
-  }
+  const settingsRef = getBoutiqueSettingsRef(firestore, userId);
+  await setDoc(settingsRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
 };
 
 export const syncPublicBoutiqueData = async (
@@ -406,7 +381,7 @@ export const syncPublicBoutiqueData = async (
     throw new Error('Sync failed: A valid handle is required.');
   }
 
-  const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
+  const settingsRef = getBoutiqueSettingsRef(firestore, userId);
   const brandRef = doc(firestore, `users/${userId}/brandProfile/main`);
 
   const outfitsQuery = query(

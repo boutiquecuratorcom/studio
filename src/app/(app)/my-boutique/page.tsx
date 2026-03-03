@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -6,15 +7,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-import { useUser, useFirestore, useDoc } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useOutfits } from '@/lib/outfits';
-import type {
-  BrandProfilePublicBits,
-} from '@/lib/brand/brandPublicBits';
+import type { BrandProfilePublicBits } from '@/lib/brand/brandPublicBits';
 
 import {
   type BoutiqueSettings,
-  useBoutiqueSettings,
   updateBoutiqueSettings,
   useUserHandle,
   claimHandleTransaction,
@@ -22,6 +20,8 @@ import {
   syncPublicBoutiqueData,
   handleSchema,
   normalizeBoutiqueSettings,
+  useBoutiqueSettings,
+  getBoutiqueSettingsRef,
 } from '@/lib/boutique';
 
 import { useToast } from '@/hooks/use-toast';
@@ -55,7 +55,6 @@ import {
 } from '@/components/ui/form';
 
 import {
-  AlertTriangle,
   ArrowDown,
   ArrowUp,
   CheckCircle2,
@@ -79,7 +78,6 @@ import {
   deleteDoc,
   runTransaction,
   serverTimestamp,
-  setDoc,
 } from 'firebase/firestore';
 
 import { BoutiqueLivePreview } from '@/components/boutique/BoutiqueLivePreview';
@@ -88,6 +86,7 @@ import { Input } from '@/components/ui/input';
 import { getFontByName } from '@/lib/fonts';
 import { useInventoryItems } from '@/lib/inventory';
 import { cn } from '@/lib/utils';
+import { useDoc } from '@/firebase/firestore/use-doc';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -100,9 +99,9 @@ export default function MyBoutiquePage() {
   const { toast } = useToast();
 
   const { handle, loading: handleLoading } = useUserHandle(user?.uid || null);
-  const { data: boutiqueSettings, loading: settingsLoading } =
-    useBoutiqueSettings(user?.uid || null);
 
+  const { data: boutiqueSettingsDoc, loading: settingsLoading } = useBoutiqueSettings(user?.uid);
+  
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
@@ -112,8 +111,7 @@ export default function MyBoutiquePage() {
     useDoc<BrandProfilePublicBits>(brandProfileRef);
 
   const { outfits, loading: outfitsLoading } = useOutfits(user?.uid || null);
-  const { items: rackItems, loading: rackLoading } = useInventoryItems(user?.uid, null);
-
+  const { items: rackItems, loading: rackLoading } = useInventoryItems(user?.uid ?? null, null);
 
   const [localSettings, setLocalSettings] = useState<Partial<BoutiqueSettings>>(
     normalizeBoutiqueSettings({})
@@ -124,6 +122,9 @@ export default function MyBoutiquePage() {
 
   const hasLoggedRef = useRef(false);
   const hasInitialized = useRef(false);
+  
+  const normalizedDbSettings = useMemo(() => normalizeBoutiqueSettings(boutiqueSettingsDoc), [boutiqueSettingsDoc]);
+
 
   useEffect(() => {
     if (!hasLoggedRef.current && brandProfile) {
@@ -153,24 +154,31 @@ export default function MyBoutiquePage() {
     }
   }, [handle, handleForm]);
 
-  useEffect(() => {
-    if (settingsLoading) {
-      return;
-    }
-    if (hasInitialized.current) {
-      return;
-    }
-    const normalizedData = normalizeBoutiqueSettings(boutiqueSettings);
-    setLocalSettings(normalizedData);
-    hasInitialized.current = true;
-  }, [boutiqueSettings, settingsLoading]);
 
+  useEffect(() => {
+    if (userLoading || !user?.uid || settingsLoading || hasInitialized.current) return;
+
+    if (typeof boutiqueSettingsDoc !== 'undefined') {
+        const normalized = normalizeBoutiqueSettings(boutiqueSettingsDoc);
+        setLocalSettings(normalized);
+        hasInitialized.current = true;
+        console.log('[INIT] Hydrated local settings from Firestore.');
+    }
+  }, [userLoading, user?.uid, settingsLoading, boutiqueSettingsDoc]);
+
+  const refreshLocalFromDb = async () => {
+    if (!user || !firestore) return;
+    const ref = getBoutiqueSettingsRef(firestore, user.uid);
+    const snap = await getDoc(ref);
+    const data = snap.exists() ? (snap.data() as any) : {};
+    setLocalSettings(normalizeBoutiqueSettings(data));
+    console.log('[REFRESH] Local state refreshed from DB.');
+  };
 
   const handleEnabledToggle = async (enabled: boolean) => {
     if (!user || !firestore) return;
 
-    const normalizedSettings = normalizeBoutiqueSettings(boutiqueSettings);
-    if (enabled && !normalizedSettings.handle) {
+    if (enabled && !handle?.handle) {
       toast({
         variant: 'destructive',
         title: 'Cannot go live',
@@ -179,29 +187,25 @@ export default function MyBoutiquePage() {
       return;
     }
 
+    setLocalSettings((prev) => ({ ...prev, enabled }));
     setIsSyncing(true);
     toast({ title: 'Updating boutique status...', description: 'Please wait.' });
-
-    const boutiqueSettingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
-    const publicBoutiqueRef = handle?.handle ? doc(firestore, `publicBoutiques/${handle.handle}`) : null;
 
     console.log('[SAVE Boutique Status] start', { uid: user.uid, enabled });
 
     try {
       if (enabled) {
         await syncPublicBoutiqueData(firestore, user.uid, handle!.handle);
-        if (publicBoutiqueRef) await updateDoc(publicBoutiqueRef, { enabled: true });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
       } else {
-        if (publicBoutiqueRef) await updateDoc(publicBoutiqueRef, { enabled: false });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
+        if (handle?.handle) {
+            await updateDoc(doc(firestore, `publicBoutiques/${handle.handle}`), { enabled: false });
+        }
       }
-      
-      console.log('[SAVE Boutique Status] success');
-      const snap = await getDoc(boutiqueSettingsRef);
-      console.log('[SAVE Boutique Status] readback exists:', snap.exists(), 'data:', snap.data());
 
-      setLocalSettings((prev) => ({ ...prev, enabled }));
+      console.log('[SAVE Boutique Status] success');
+      await refreshLocalFromDb();
 
       toast({
         title: 'Boutique Status Updated',
@@ -209,27 +213,55 @@ export default function MyBoutiquePage() {
       });
     } catch (e: any) {
       console.error('[SAVE Boutique Status] error', e);
+      setLocalSettings((prev) => ({ ...prev, enabled: !enabled }));
       toast({
         variant: 'destructive',
         title: 'Update Failed',
         description: e.message,
       });
-      setLocalSettings((prev) => ({ ...prev, enabled: !enabled }));
     } finally {
       setIsSyncing(false);
     }
   };
 
+  const isConfigDirty = useMemo(() => {
+    if (!hasInitialized.current) return false;
+    return (
+      (localSettings.featuredOutfitId || 'auto') !== normalizedDbSettings.featuredOutfitId ||
+      localSettings.templateId !== normalizedDbSettings.templateId ||
+      localSettings.patternId !== normalizedDbSettings.patternId ||
+      localSettings.accentColorIndex !== normalizedDbSettings.accentColorIndex ||
+      withDefaultBool(localSettings.bannerEnabled, true) !== withDefaultBool(normalizedDbSettings.bannerEnabled, true) ||
+      localSettings.bannerHeight !== normalizedDbSettings.bannerHeight ||
+      localSettings.bannerOpacity !== normalizedDbSettings.bannerOpacity ||
+      withDefaultBool(localSettings.announcementEnabled, false) !== withDefaultBool(normalizedDbSettings.announcementEnabled, false) ||
+      localSettings.announcementText !== normalizedDbSettings.announcementText ||
+      localSettings.announcementHref !== normalizedDbSettings.announcementHref ||
+      localSettings.announcementCtaLabel !== normalizedDbSettings.announcementCtaLabel ||
+      localSettings.announcementColorSource !== normalizedDbSettings.announcementColorSource ||
+      JSON.stringify(localSettings.quickLinks) !== JSON.stringify(normalizedDbSettings.quickLinks) ||
+      JSON.stringify(localSettings.social) !== JSON.stringify(normalizedDbSettings.social) ||
+      JSON.stringify(localSettings.footer) !== JSON.stringify(normalizedDbSettings.footer) ||
+      withDefaultBool(localSettings.showFeaturedLook, true) !== withDefaultBool(normalizedDbSettings.showFeaturedLook, true) ||
+      withDefaultBool(localSettings.showOutfits, true) !== withDefaultBool(normalizedDbSettings.showOutfits, true) ||
+      withDefaultBool(localSettings.showRack, true) !== withDefaultBool(normalizedDbSettings.showRack, true)
+    );
+  }, [localSettings, normalizedDbSettings]);
+  
+
   const handleConfigSave = async () => {
     if (!user || !firestore) return;
+
+    console.log('[SAVE Config] button clicked.');
+    if (!isConfigDirty) {
+        toast({ title: "No changes to save." });
+        return;
+    }
 
     setIsSaving(true);
 
     const settingsToSave: Partial<BoutiqueSettings> = {
-      featuredOutfitId:
-        localSettings.featuredOutfitId === 'auto'
-          ? null
-          : (localSettings.featuredOutfitId as any),
+      featuredOutfitId: localSettings.featuredOutfitId === 'auto' ? null : (localSettings.featuredOutfitId as any),
       templateId: localSettings.templateId,
       patternId: localSettings.patternId,
       accentColorIndex: localSettings.accentColorIndex,
@@ -249,23 +281,27 @@ export default function MyBoutiquePage() {
       showRack: localSettings.showRack,
     };
     
-    const boutiqueSettingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
-    console.log('[SAVE Boutique Config] start', { uid: user.uid, payload: settingsToSave });
+    console.log('[SAVE Config] start', { uid: user.uid, payload: settingsToSave });
 
     try {
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
+      console.log('[SAVE Config] success');
+      
+      const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
+      const snap = await getDoc(settingsRef);
+      console.log('[SAVE Config] readback exists:', snap.exists(), 'data:', snap.data());
 
       if (handle?.handle) {
+        console.log('[SAVE Config] Syncing public data...');
         await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
+        console.log('[SAVE Config] Sync complete.');
       }
       
-      console.log('[SAVE Boutique Config] success');
-      const snap = await getDoc(boutiqueSettingsRef);
-      console.log('[SAVE Boutique Config] readback exists:', snap.exists(), 'data:', snap.data());
-
+      await refreshLocalFromDb();
       toast({ title: 'Configuration Saved!' });
+
     } catch (e: any) {
-      console.error('[SAVE Boutique Config] error', e);
+      console.error('[SAVE Config] error', e);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
@@ -294,23 +330,28 @@ export default function MyBoutiquePage() {
         });
       } else {
         await claimHandleTransaction(firestore, user, newHandle);
-        await updateBoutiqueSettings(firestore, user.uid, { handle: newHandle });
         toast({
           title: 'Handle Claimed!',
           description: `Your boutique is now ready to go live at /boutique/${newHandle}`,
         });
       }
+
+      setPublicUrl(`${window.location.origin}/boutique/${newHandle}`);
+      await refreshLocalFromDb();
+
     } catch (e: any) {
       handleForm.setError('handle', { type: 'manual', message: e.message });
     }
   };
-  
-    const handleCopyUrl = () => {
+
+  const handleCopyUrl = () => {
     if (!publicUrl) return;
     navigator.clipboard.writeText(publicUrl);
-    toast({ title: 'URL Copied!', description: 'Your public boutique link is on your clipboard.' });
+    toast({
+      title: 'URL Copied!',
+      description: 'Your public boutique link is on your clipboard.',
+    });
   };
-
 
   const handleSelfTest = async () => {
     if (!firestore || !user) return;
@@ -328,17 +369,13 @@ export default function MyBoutiquePage() {
 
     const originalSettings = {
       handle: handle?.handle || null,
-      enabled: boutiqueSettings?.enabled ?? false,
+      enabled: boutiqueSettingsDoc?.enabled ?? false,
     };
 
     try {
       await runTransaction(firestore, async (transaction) => {
         const testHandleRef = doc(firestore, 'handles', randomHandle);
-        const testPublicBoutiqueRef = doc(
-          firestore,
-          'publicBoutiques',
-          randomHandle
-        );
+        const testPublicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
 
         const testHandleSnap = await transaction.get(testHandleRef);
         if (testHandleSnap.exists())
@@ -367,18 +404,15 @@ export default function MyBoutiquePage() {
       await syncPublicBoutiqueData(firestore, user.uid, randomHandle);
       addResult({ step: '3. Sync Public Data', ok: true });
 
-      const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
-      await updateDoc(publicBoutiqueRef, { enabled: true });
       await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
       addResult({ step: '4. Enable Boutique', ok: true });
 
+      const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
       const liveDocSnap = await getDoc(publicBoutiqueRef);
       if (!liveDocSnap.exists() || !liveDocSnap.data()?.enabled)
         throw new Error('Verification failed: Public document is not enabled.');
-
       addResult({ step: '5. Verify Live Status', ok: true });
-
-      await updateDoc(publicBoutiqueRef, { enabled: false });
+      
       await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
       addResult({ step: '6. Disable Boutique', ok: true });
 
@@ -417,11 +451,7 @@ export default function MyBoutiquePage() {
     }
   };
 
-  const loading =
-    userLoading ||
-    !hasInitialized.current ||
-    brandLoading ||
-    handleLoading;
+  const loading = userLoading || !hasInitialized.current || brandLoading || handleLoading;
 
   const featuredOutfit = useMemo(() => {
     if (!outfits) return undefined;
@@ -434,45 +464,21 @@ export default function MyBoutiquePage() {
 
     return outfits.find((o) => o.id === featuredId);
   }, [localSettings.featuredOutfitId, outfits]);
-  
-    const livePreviewProfile = useMemo(() => ({
-        ...brandProfile,
-        ...localSettings
-    }), [brandProfile, localSettings]);
 
-  const isConfigDirty = useMemo(() => {
-    if (!boutiqueSettings || !hasInitialized.current) return false;
-    const normalizedDbSettings = normalizeBoutiqueSettings(boutiqueSettings);
-    return (
-      (localSettings.featuredOutfitId || 'auto') !== normalizedDbSettings.featuredOutfitId ||
-      localSettings.templateId !== normalizedDbSettings.templateId ||
-      localSettings.patternId !== normalizedDbSettings.patternId ||
-      localSettings.accentColorIndex !== normalizedDbSettings.accentColorIndex ||
-      withDefaultBool(localSettings.bannerEnabled, true) !== withDefaultBool(normalizedDbSettings.bannerEnabled, true) ||
-      localSettings.bannerHeight !== normalizedDbSettings.bannerHeight ||
-      localSettings.bannerOpacity !== normalizedDbSettings.bannerOpacity ||
-      withDefaultBool(localSettings.announcementEnabled, false) !== withDefaultBool(normalizedDbSettings.announcementEnabled, false) ||
-      localSettings.announcementText !== normalizedDbSettings.announcementText ||
-      localSettings.announcementHref !== normalizedDbSettings.announcementHref ||
-      localSettings.announcementCtaLabel !== normalizedDbSettings.announcementCtaLabel ||
-      localSettings.announcementColorSource !== normalizedDbSettings.announcementColorSource ||
-      JSON.stringify(localSettings.quickLinks) !== JSON.stringify(normalizedDbSettings.quickLinks) ||
-      JSON.stringify(localSettings.social) !== JSON.stringify(normalizedDbSettings.social) ||
-      JSON.stringify(localSettings.footer) !== JSON.stringify(normalizedDbSettings.footer) ||
-      withDefaultBool(localSettings.showFeaturedLook, true) !== withDefaultBool(normalizedDbSettings.showFeaturedLook, true) ||
-      withDefaultBool(localSettings.showOutfits, true) !== withDefaultBool(normalizedDbSettings.showOutfits, true) ||
-      withDefaultBool(localSettings.showRack, true) !== withDefaultBool(normalizedDbSettings.showRack, true)
-    );
-  }, [localSettings, boutiqueSettings]);
+  const livePreviewProfile = useMemo(
+    () => ({
+      ...brandProfile,
+      ...localSettings,
+    }),
+    [brandProfile, localSettings]
+  );
+
 
   const renderHeader = () => (
     <header className="mb-12">
-      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">
-        My Boutique
-      </h1>
+      <h1 className="text-5xl lg:text-6xl font-bold tracking-tight">My Boutique</h1>
       <p className="text-xl text-muted-foreground mt-3 max-w-2xl">
-        Your personal boutique showcase. When you&apos;re ready, share it with the
-        world.
+        Your personal boutique showcase. When you&apos;re ready, share it with the world.
       </p>
     </header>
   );
@@ -500,7 +506,6 @@ export default function MyBoutiquePage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         <div className="lg:col-span-1 space-y-6">
-
           <Card>
             <CardHeader>
               <CardTitle>Publishing</CardTitle>
@@ -525,17 +530,8 @@ export default function MyBoutiquePage() {
                 <div className="space-y-2 pt-2">
                   <Label>Your Public URL</Label>
                   <div className="flex items-center gap-2">
-                    <Input
-                      readOnly
-                      value={publicUrl}
-                      className="bg-muted text-muted-foreground"
-                    />
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      onClick={handleCopyUrl}
-                    >
+                    <Input readOnly value={publicUrl} className="bg-muted text-muted-foreground" />
+                    <Button type="button" variant="outline" size="icon" onClick={handleCopyUrl}>
                       <Copy className="h-4 w-4" />
                     </Button>
                   </div>
@@ -543,8 +539,8 @@ export default function MyBoutiquePage() {
               )}
             </CardContent>
           </Card>
-          
-           <Card>
+
+          <Card>
             <CardHeader>
               <CardTitle>Public Handle</CardTitle>
               <CardDescription>
@@ -553,10 +549,7 @@ export default function MyBoutiquePage() {
             </CardHeader>
             <CardContent>
               <Form {...handleForm}>
-                <form
-                  onSubmit={handleForm.handleSubmit(onClaimSubmit)}
-                  className="space-y-4"
-                >
+                <form onSubmit={handleForm.handleSubmit(onClaimSubmit)} className="space-y-4">
                   <FormField
                     control={handleForm.control}
                     name="handle"
@@ -576,13 +569,11 @@ export default function MyBoutiquePage() {
               </Form>
             </CardContent>
           </Card>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>Page Content</CardTitle>
-              <CardDescription>
-                Choose what to feature on your boutique page.
-              </CardDescription>
+              <CardDescription>Choose what to feature on your boutique page.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
@@ -608,36 +599,47 @@ export default function MyBoutiquePage() {
               </div>
 
               <div className="space-y-4 pt-6 border-t">
-                  <div className="flex items-center justify-between">
-                      <Label htmlFor="show-featured" className="font-normal">Show Featured Look</Label>
-                      <Switch
-                          id="show-featured"
-                          checked={withDefaultBool(localSettings.showFeaturedLook, true)}
-                          onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showFeaturedLook: checked }))}
-                      />
-                  </div>
-                  <div className="flex items-center justify-between">
-                      <Label htmlFor="show-outfits" className="font-normal">Show My Outfits</Label>
-                      <Switch
-                          id="show-outfits"
-                          checked={withDefaultBool(localSettings.showOutfits, true)}
-                          onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showOutfits: checked }))}
-                      />
-                  </div>
-                  <div className="flex items-center justify-between">
-                      <Label htmlFor="show-rack" className="font-normal">Show My Rack</Label>
-                      <Switch
-                          id="show-rack"
-                          checked={withDefaultBool(localSettings.showRack, true)}
-                          onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, showRack: checked }))}
-                      />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="show-featured" className="font-normal">
+                    Show Featured Look
+                  </Label>
+                  <Switch
+                    id="show-featured"
+                    checked={withDefaultBool(localSettings.showFeaturedLook, true)}
+                    onCheckedChange={(checked) =>
+                      setLocalSettings((prev) => ({ ...prev, showFeaturedLook: checked }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="show-outfits" className="font-normal">
+                    Show My Outfits
+                  </Label>
+                  <Switch
+                    id="show-outfits"
+                    checked={withDefaultBool(localSettings.showOutfits, true)}
+                    onCheckedChange={(checked) =>
+                      setLocalSettings((prev) => ({ ...prev, showOutfits: checked }))
+                    }
+                  />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="show-rack" className="font-normal">
+                    Show My Rack
+                  </Label>
+                  <Switch
+                    id="show-rack"
+                    checked={withDefaultBool(localSettings.showRack, true)}
+                    onCheckedChange={(checked) =>
+                      setLocalSettings((prev) => ({ ...prev, showRack: checked }))
+                    }
+                  />
+                </div>
               </div>
-
 
               <Button
                 onClick={handleConfigSave}
-                disabled={isSaving || !isConfigDirty}
+                disabled={isSaving}
                 className="w-full"
               >
                 {isSaving ? (
@@ -650,69 +652,93 @@ export default function MyBoutiquePage() {
             </CardContent>
           </Card>
 
-           <Card>
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                  <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
+                <ImageIcon className="h-5 w-5 text-accent" /> Brand Snapshot
               </CardTitle>
             </CardHeader>
             <CardContent>
-                {brandProfile ? (
-                    <div className="space-y-6">
-                        <div>
-                            <Label className="text-xs text-muted-foreground">Logo Style</Label>
-                            <div className="text-sm font-medium">
-                                { brandProfile?.logoStyle === 'circle' ? 'Circle Badge' : brandProfile?.logoStyle === 'rounded' ? 'Rounded Card' : 'Auto (Natural Shape)' }
-                            </div>
-                        </div>
-                        <div>
-                            <Label className="text-xs text-muted-foreground">Colors</Label>
-                            <div className="flex items-center gap-2 mt-2">
-                            {(brandProfile.brandColors && brandProfile.brandColors.length > 0) ? (
-                                brandProfile.brandColors.map((color, i) =>
-                                    color ? <div key={i} className="h-8 w-8 rounded-full border" style={{ backgroundColor: color }} title={color} /> : null
-                                )
-                            ) : (
-                                <p className="text-xs text-muted-foreground">No colors set</p>
-                            )}
-                            </div>
-                        </div>
-                          <div>
-                            <Label className="text-xs text-muted-foreground">Fonts</Label>
-                            <div className="mt-2 space-y-2">
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm">Primary</span>
-                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}>
-                                        {brandProfile.primaryFont || 'Default'}
-                                    </span>
-                                </div>
-                                <div className="flex items-baseline justify-between gap-2">
-                                    <span className="text-sm">Secondary</span>
-                                    <span className="font-semibold truncate" style={{ fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily }}>
-                                        {brandProfile.secondaryFont || 'Default'}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                          <p className="text-xs text-muted-foreground text-center pt-4 border-t">
-                            To change these,{' '}
-                            <Link href="/my-brand" className="underline hover:text-accent">update My Brand</Link>.
-                          </p>
+              {brandProfile ? (
+                <div className="space-y-6">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Logo Style</Label>
+                    <div className="text-sm font-medium">
+                      {brandProfile?.logoStyle === 'circle'
+                        ? 'Circle Badge'
+                        : brandProfile?.logoStyle === 'rounded'
+                          ? 'Rounded Card'
+                          : 'Auto (Natural Shape)'}
                     </div>
-                ) : (
-                      <p className="text-xs text-muted-foreground text-center p-4">
-                        Set up{' '}
-                        <Link href="/my-brand" className="underline hover:text-accent">My Brand</Link>
-                        {' '}to see your snapshot.
-                      </p>
-                )}
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Colors</Label>
+                    <div className="flex items-center gap-2 mt-2">
+                      {brandProfile.brandColors && brandProfile.brandColors.length > 0 ? (
+                        brandProfile.brandColors.map((color, i) =>
+                          color ? (
+                            <div
+                              key={i}
+                              className="h-8 w-8 rounded-full border"
+                              style={{ backgroundColor: color }}
+                              title={color}
+                            />
+                          ) : null
+                        )
+                      ) : (
+                        <p className="text-xs text-muted-foreground">No colors set</p>
+                      )}
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Fonts</Label>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-sm">Primary</span>
+                        <span
+                          className="font-semibold truncate"
+                          style={{ fontFamily: getFontByName(brandProfile.primaryFont)?.cssFamily }}
+                        >
+                          {brandProfile.primaryFont || 'Default'}
+                        </span>
+                      </div>
+                      <div className="flex items-baseline justify-between gap-2">
+                        <span className="text-sm">Secondary</span>
+                        <span
+                          className="font-semibold truncate"
+                          style={{
+                            fontFamily: getFontByName(brandProfile.secondaryFont)?.cssFamily,
+                          }}
+                        >
+                          {brandProfile.secondaryFont || 'Default'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground text-center pt-4 border-t">
+                    To change these,{' '}
+                    <Link href="/my-brand" className="underline hover:text-accent">
+                      update My Brand
+                    </Link>
+                    .
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground text-center p-4">
+                  Set up{' '}
+                  <Link href="/my-brand" className="underline hover:text-accent">
+                    My Brand
+                  </Link>{' '}
+                  to see your snapshot.
+                </p>
+              )}
             </CardContent>
           </Card>
-          
-           <Card>
+
+          <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5 text-accent" /> Boutique Designer
+                <Palette className="h-5 w-5 text-accent" /> Boutique Designer
               </CardTitle>
               <CardDescription>
                 Choose a theme, accent color, and pattern for your public boutique.
@@ -722,14 +748,18 @@ export default function MyBoutiquePage() {
               <div className="space-y-2">
                 <Label>Accent Color (from My Brand)</Label>
                 <div className="flex items-center gap-2 rounded-lg border p-2">
-                  {[0, 1, 2].map(index => (
+                  {[0, 1, 2].map((index) => (
                     <button
                       key={index}
                       type="button"
-                      onClick={() => setLocalSettings(prev => ({ ...prev, accentColorIndex: index as any }))}
+                      onClick={() =>
+                        setLocalSettings((prev) => ({ ...prev, accentColorIndex: index as any }))
+                      }
                       className={cn(
-                        "h-10 w-10 flex-1 rounded-md border-2 transition-all hover:scale-105 active:scale-100",
-                        (localSettings.accentColorIndex ?? 0) === index ? 'ring-2 ring-offset-2 ring-ring border-primary' : 'border-transparent',
+                        'h-10 w-10 flex-1 rounded-md border-2 transition-all hover:scale-105 active:scale-100',
+                        (localSettings.accentColorIndex ?? 0) === index
+                          ? 'ring-2 ring-offset-2 ring-ring border-primary'
+                          : 'border-transparent',
                         !brandProfile?.brandColors?.[index] && 'bg-muted pointer-events-none'
                       )}
                       style={{ backgroundColor: brandProfile?.brandColors?.[index] ?? undefined }}
@@ -739,7 +769,7 @@ export default function MyBoutiquePage() {
                 </div>
               </div>
 
-               <div className="space-y-2">
+              <div className="space-y-2">
                 <Label>Theme</Label>
                 <Select
                   value={(localSettings.templateId as any) || 'editorial'}
@@ -753,14 +783,14 @@ export default function MyBoutiquePage() {
                   <SelectContent>
                     {BOUTIQUE_TEMPLATES.map((id) => (
                       <SelectItem key={id} value={id}>
-                        {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {id.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
 
-               <div className="space-y-2">
+              <div className="space-y-2">
                 <Label>Accent Pattern</Label>
                 <Select
                   value={(localSettings.patternId as any) || 'none'}
@@ -774,7 +804,7 @@ export default function MyBoutiquePage() {
                   <SelectContent>
                     {BOUTIQUE_PATTERNS.map((id) => (
                       <SelectItem key={id} value={id}>
-                         {id.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        {id.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -782,293 +812,496 @@ export default function MyBoutiquePage() {
               </div>
             </CardContent>
           </Card>
-          
-            <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <PictureInPicture className="h-5 w-5 text-accent" /> Banner
-                  </CardTitle>
-                <CardDescription>
-                    Configure the top banner area of your boutique.
-                </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                    <div className="flex items-center space-x-4 rounded-lg border p-4">
-                        <Switch
-                            checked={withDefaultBool(localSettings.bannerEnabled, true)}
-                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, bannerEnabled: checked }))}
-                        />
-                        <Label className="flex-grow">
-                            Banner Enabled
-                        </Label>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Height</Label>
-                        <Select
-                            value={localSettings.bannerHeight ?? 'md'}
-                            onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerHeight: v as any}))}
-                        >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <PictureInPicture className="h-5 w-5 text-accent" /> Banner
+              </CardTitle>
+              <CardDescription>Configure the top banner area of your boutique.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center space-x-4 rounded-lg border p-4">
+                <Switch
+                  checked={withDefaultBool(localSettings.bannerEnabled, true)}
+                  onCheckedChange={(checked) =>
+                    setLocalSettings((prev) => ({ ...prev, bannerEnabled: checked }))
+                  }
+                />
+                <Label className="flex-grow">Banner Enabled</Label>
+              </div>
+              <div className="space-y-2">
+                <Label>Height</Label>
+                <Select
+                  value={localSettings.bannerHeight ?? 'md'}
+                  onValueChange={(v) =>
+                    setLocalSettings((prev) => ({ ...prev, bannerHeight: v as any }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sm">Small</SelectItem>
+                    <SelectItem value="md">Medium</SelectItem>
+                    <SelectItem value="lg">Large</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Intensity</Label>
+                <Select
+                  value={String(localSettings.bannerOpacity ?? 0.18)}
+                  onValueChange={(v) =>
+                    setLocalSettings((prev) => ({ ...prev, bannerOpacity: parseFloat(v) }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0.12">Subtle</SelectItem>
+                    <SelectItem value="0.18">Medium</SelectItem>
+                    <SelectItem value="0.28">Strong</SelectItem>
+                    <SelectItem value="0.40">Bold</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Megaphone className="h-5 w-5 text-accent" /> Announcement Bar
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4 rounded-lg border p-4">
+                <Switch
+                  checked={withDefaultBool(localSettings.announcementEnabled, false)}
+                  onCheckedChange={(checked) =>
+                    setLocalSettings((prev) => ({ ...prev, announcementEnabled: checked }))
+                  }
+                />
+                <Label className="flex-grow">Show Announcement</Label>
+              </div>
+
+              {localSettings.announcementEnabled && (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label>Text</Label>
+                    <Input
+                      placeholder="e.g., Free shipping on orders over $100"
+                      value={localSettings.announcementText || ''}
+                      onChange={(e) =>
+                        setLocalSettings((prev) => ({ ...prev, announcementText: e.target.value }))
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Bar Color Source</Label>
+                    <Select
+                      value={localSettings.announcementColorSource || 'accent'}
+                      onValueChange={(v) =>
+                        setLocalSettings((prev) => ({ ...prev, announcementColorSource: v as any }))
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="accent">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-4 w-4 rounded-full border"
+                              style={{
+                                backgroundColor:
+                                  brandProfile?.brandColors?.[localSettings.accentColorIndex ?? 0] ||
+                                  'transparent',
+                              }}
+                            />
+                            <span>Accent Color</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="color2" disabled={!brandProfile?.brandColors?.[1]}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-4 w-4 rounded-full border"
+                              style={{ backgroundColor: brandProfile?.brandColors?.[1] || 'transparent' }}
+                            />
+                            <span>Secondary Brand Color</span>
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="color3" disabled={!brandProfile?.brandColors?.[2]}>
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="h-4 w-4 rounded-full border"
+                              style={{ backgroundColor: brandProfile?.brandColors?.[2] || 'transparent' }}
+                            />
+                            <span>Third Brand Color</span>
+                          </div>
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Link URL (Optional)</Label>
+                    <Input
+                      type="url"
+                      placeholder="https://..."
+                      value={localSettings.announcementHref || ''}
+                      onChange={(e) =>
+                        setLocalSettings((prev) => ({ ...prev, announcementHref: e.target.value }))
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>CTA Label (Optional)</Label>
+                    <Input
+                      placeholder="e.g., Shop Now"
+                      value={localSettings.announcementCtaLabel || ''}
+                      onChange={(e) =>
+                        setLocalSettings((prev) => ({
+                          ...prev,
+                          announcementCtaLabel: e.target.value,
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Links</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4 rounded-lg border p-4">
+                <Switch
+                  checked={localSettings.quickLinks?.enabled ?? false}
+                  onCheckedChange={(checked) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      quickLinks: {
+                        ...prev.quickLinks,
+                        items: prev.quickLinks?.items || [],
+                        enabled: checked,
+                      },
+                    }))
+                  }
+                />
+                <Label className="flex-grow">Show Quick Links</Label>
+              </div>
+
+              {localSettings.quickLinks?.enabled && (
+                <div className="space-y-3">
+                  {localSettings.quickLinks?.items?.map((item, index) => (
+                    <div key={item.id} className="p-3 border rounded-md space-y-3 bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-grow space-y-2">
+                          <Input
+                            placeholder="Label"
+                            value={item.label}
+                            onChange={(e) => {
+                              const newItems = [...(localSettings.quickLinks?.items || [])];
+                              newItems[index].label = e.target.value;
+                              setLocalSettings((prev) => ({
+                                ...prev,
+                                quickLinks: {
+                                  ...prev.quickLinks,
+                                  items: newItems,
+                                  enabled: prev.quickLinks?.enabled,
+                                },
+                              }));
+                            }}
+                          />
+                          <Input
+                            placeholder="URL"
+                            value={item.url}
+                            onChange={(e) => {
+                              const newItems = [...(localSettings.quickLinks?.items || [])];
+                              newItems[index].url = e.target.value;
+                              setLocalSettings((prev) => ({
+                                ...prev,
+                                quickLinks: {
+                                  ...prev.quickLinks,
+                                  items: newItems,
+                                  enabled: prev.quickLinks?.enabled,
+                                },
+                              }));
+                            }}
+                          />
+                          <Select
+                            value={item.style || 'primary'}
+                            onValueChange={(style) => {
+                              const newItems = [...(localSettings.quickLinks?.items || [])];
+                              newItems[index].style = style as any;
+                              setLocalSettings((prev) => ({
+                                ...prev,
+                                quickLinks: {
+                                  ...prev.quickLinks,
+                                  items: newItems,
+                                  enabled: prev.quickLinks?.enabled,
+                                },
+                              }));
+                            }}
+                          >
+                            <SelectTrigger>
+                              <SelectValue />
+                            </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="sm">Small</SelectItem>
-                                <SelectItem value="md">Medium</SelectItem>
-                                <SelectItem value="lg">Large</SelectItem>
+                              <SelectItem value="primary">Primary</SelectItem>
+                              <SelectItem value="secondary">Secondary</SelectItem>
+                              <SelectItem value="text">Text</SelectItem>
                             </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Intensity</Label>
-                        <Select
-                            value={String(localSettings.bannerOpacity ?? 0.18)}
-                            onValueChange={(v) => setLocalSettings((prev) => ({...prev, bannerOpacity: parseFloat(v)}))}
-                        >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="0.12">Subtle</SelectItem>
-                                <SelectItem value="0.18">Medium</SelectItem>
-                                <SelectItem value="0.28">Strong</SelectItem>
-                                <SelectItem value="0.40">Bold</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                </CardContent>
-            </Card>
-
-            <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                      <Megaphone className="h-5 w-5 text-accent" /> Announcement Bar
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center space-x-4 rounded-lg border p-4">
-                        <Switch
-                            checked={withDefaultBool(localSettings.announcementEnabled, false)}
-                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, announcementEnabled: checked }))}
-                        />
-                        <Label className="flex-grow">Show Announcement</Label>
-                    </div>
-                    {localSettings.announcementEnabled && (
-                      <div className="space-y-3">
-                          <div className="space-y-2">
-                              <Label>Text</Label>
-                              <Input 
-                                  placeholder="e.g., Free shipping on orders over $100" 
-                                  value={localSettings.announcementText || ''}
-                                  onChange={(e) => setLocalSettings(prev => ({...prev, announcementText: e.target.value}))}
-                              />
-                          </div>
-                           <div className="space-y-2">
-                            <Label>Bar Color Source</Label>
-                            <Select
-                                value={localSettings.announcementColorSource || 'accent'}
-                                onValueChange={(v) => setLocalSettings(prev => ({ ...prev, announcementColorSource: v as any}))}
-                            >
-                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="accent">
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[localSettings.accentColorIndex ?? 0] || 'transparent' }}></div>
-                                            <span>Accent Color</span>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="color2" disabled={!brandProfile?.brandColors?.[1]}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[1] || 'transparent' }}></div>
-                                            <span>Secondary Brand Color</span>
-                                        </div>
-                                    </SelectItem>
-                                    <SelectItem value="color3" disabled={!brandProfile?.brandColors?.[2]}>
-                                        <div className="flex items-center gap-2">
-                                            <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: brandProfile?.brandColors?.[2] || 'transparent' }}></div>
-                                            <span>Third Brand Color</span>
-                                        </div>
-                                    </SelectItem>
-                                </SelectContent>
-                            </Select>
-                           </div>
-                          <div className="space-y-2">
-                              <Label>Link URL (Optional)</Label>
-                              <Input 
-                                  type="url"
-                                  placeholder="https://..."
-                                  value={localSettings.announcementHref || ''}
-                                  onChange={(e) => setLocalSettings(prev => ({...prev, announcementHref: e.target.value}))}
-                              />
-                          </div>
-                          <div className="space-y-2">
-                              <Label>CTA Label (Optional)</Label>
-                              <Input 
-                                  placeholder="e.g., Shop Now" 
-                                  value={localSettings.announcementCtaLabel || ''}
-                                  onChange={(e) => setLocalSettings(prev => ({...prev, announcementCtaLabel: e.target.value}))}
-                              />
-                          </div>
-                      </div>
-                    )}
-                </CardContent>
-            </Card>
-
-
-            <Card>
-                <CardHeader>
-                    <CardTitle>Quick Links</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center space-x-4 rounded-lg border p-4">
-                        <Switch
-                            checked={localSettings.quickLinks?.enabled ?? false}
-                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, quickLinks: { ...prev.quickLinks, items: prev.quickLinks?.items || [], enabled: checked } }))}
-                        />
-                        <Label className="flex-grow">Show Quick Links</Label>
-                    </div>
-                    {localSettings.quickLinks?.enabled && (
-                        <div className="space-y-3">
-                            {localSettings.quickLinks?.items?.map((item, index) => (
-                                <div key={item.id} className="p-3 border rounded-md space-y-3 bg-muted/50">
-                                    <div className="flex items-center gap-2">
-                                        <div className="flex-grow space-y-2">
-                                            <Input 
-                                                placeholder="Label" 
-                                                value={item.label}
-                                                onChange={(e) => {
-                                                    const newItems = [...(localSettings.quickLinks?.items || [])];
-                                                    newItems[index].label = e.target.value;
-                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled }}));
-                                                }}
-                                            />
-                                            <Input 
-                                                placeholder="URL" 
-                                                value={item.url}
-                                                onChange={(e) => {
-                                                    const newItems = [...(localSettings.quickLinks?.items || [])];
-                                                    newItems[index].url = e.target.value;
-                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled }}));
-                                                }}
-                                            />
-                                            <Select
-                                                value={item.style || 'primary'}
-                                                onValueChange={(style) => {
-                                                    const newItems = [...(localSettings.quickLinks?.items || [])];
-                                                    newItems[index].style = style as any;
-                                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled }}));
-                                                }}
-                                            >
-                                                <SelectTrigger><SelectValue /></SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="primary">Primary</SelectItem>
-                                                    <SelectItem value="secondary">Secondary</SelectItem>
-                                                    <SelectItem value="text">Text</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </div>
-                                        <div className="flex flex-col gap-2">
-                                            <Button type="button" size="icon" variant="ghost" disabled={index === 0} onClick={() => {
-                                                const newItems = [...(localSettings.quickLinks?.items || [])];
-                                                [newItems[index], newItems[index-1]] = [newItems[index-1], newItems[index]];
-                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
-                                            }}><ArrowUp className="h-4 w-4" /></Button>
-                                            <Button type="button" size="icon" variant="ghost" disabled={index === (localSettings.quickLinks?.items?.length || 0) - 1} onClick={() => {
-                                                const newItems = [...(localSettings.quickLinks?.items || [])];
-                                                [newItems[index], newItems[index+1]] = [newItems[index+1], newItems[index]];
-                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
-                                            }}><ArrowDown className="h-4 w-4" /></Button>
-                                            <Button type="button" size="icon" variant="ghost" onClick={() => {
-                                                const newItems = (localSettings.quickLinks?.items || []).filter(i => i.id !== item.id);
-                                                setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
-                                            }}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            {(localSettings.quickLinks?.items?.length || 0) < 6 && (
-                                <Button type="button" variant="outline" className="w-full" onClick={() => {
-                                    const newItems = [...(localSettings.quickLinks?.items || []), { id: crypto.randomUUID(), label: '', url: '', style: 'primary' }];
-                                    setLocalSettings(prev => ({...prev, quickLinks: {...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled}}));
-                                }}><Plus className="mr-2 h-4 w-4" /> Add Link</Button>
-                            )}
+                          </Select>
                         </div>
-                    )}
-                </CardContent>
-            </Card>
-            
-            <Card>
-                <CardHeader><CardTitle>Social</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                    <div className="flex items-center space-x-4 rounded-lg border p-4">
-                        <Switch
-                            checked={localSettings.social?.facebookEnabled ?? false}
-                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, social: { ...prev.social, facebookEnabled: checked } }))}
-                        />
-                        <Label className="flex-grow">Floating Facebook Button</Label>
-                    </div>
-                     <div className="space-y-2">
-                        <Label>Facebook URL</Label>
-                        <Input 
-                            placeholder="https://facebook.com/your-page"
-                            value={localSettings.social?.facebookUrl || ''}
-                            onChange={(e) => setLocalSettings(prev => ({...prev, social: {...prev.social, facebookUrl: e.target.value}}))}
-                        />
-                     </div>
-                     <div className="space-y-2">
-                        <Label>Position</Label>
-                        <Select
-                            value={localSettings.social?.position || 'right'}
-                            onValueChange={(pos) => setLocalSettings(prev => ({...prev, social: {...prev.social, position: pos as any}}))}
-                        >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="left">Left</SelectItem>
-                                <SelectItem value="right">Right</SelectItem>
-                            </SelectContent>
-                        </Select>
-                     </div>
-                </CardContent>
-            </Card>
 
-            <Card>
-                <CardHeader><CardTitle>Footer</CardTitle></CardHeader>
-                <CardContent className="space-y-4">
-                     <div className="flex items-center space-x-4 rounded-lg border p-4">
-                        <Switch
-                            checked={withDefaultBool(localSettings.footer?.enabled, true)}
-                            onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, footer: { ...prev.footer, enabled: checked } }))}
-                        />
-                        <Label className="flex-grow">Show Footer</Label>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Layout</Label>
-                        <Select
-                            value={localSettings.footer?.layout || 'minimal'}
-                            onValueChange={(layout) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, layout: layout as any}}))}
-                        >
-                            <SelectTrigger><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="minimal">Minimal</SelectItem>
-                                <SelectItem value="centered">Centered</SelectItem>
-                                <SelectItem value="split">Split</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Headline</Label>
-                        <Input value={localSettings.footer?.headline || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, headline: e.target.value}}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>Message</Label>
-                        <Input value={localSettings.footer?.message || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, message: e.target.value}}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>CTA Label</Label>
-                        <Input value={localSettings.footer?.ctaLabel || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, ctaLabel: e.target.value}}))} />
-                    </div>
-                    <div className="space-y-2">
-                        <Label>CTA URL</Label>
-                        <Input value={localSettings.footer?.ctaUrl || ''} onChange={(e) => setLocalSettings(prev => ({...prev, footer: {...prev.footer, ctaUrl: e.target.value}}))} />
-                    </div>
-                </CardContent>
-            </Card>
+                        <div className="flex flex-col gap-2">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            disabled={index === 0}
+                            onClick={() => {
+                              const newItems = [...(localSettings.quickLinks?.items || [])];
+                              [newItems[index], newItems[index - 1]] = [newItems[index - 1], newItems[index]];
+                              setLocalSettings((prev) => ({
+                                ...prev,
+                                quickLinks: {
+                                  ...prev.quickLinks,
+                                  items: newItems,
+                                  enabled: prev.quickLinks?.enabled,
+                                },
+                              }));
+                            }}
+                          >
+                            <ArrowUp className="h-4 w-4" />
+                          </Button>
 
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            disabled={index === (localSettings.quickLinks?.items?.length || 0) - 1}
+                            onClick={() => {
+                              const newItems = [...(localSettings.quickLinks?.items || [])];
+                              [newItems[index], newItems[index + 1]] = [newItems[index + 1], newItems[index]];
+                              setLocalSettings((prev) => ({
+                                ...prev,
+                                quickLinks: {
+                                  ...prev.quickLinks,
+                                  items: newItems,
+                                  enabled: prev.quickLinks?.enabled,
+                                },
+                              }));
+                            }}
+                          >
+                            <ArrowDown className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              const newItems = (localSettings.quickLinks?.items || []).filter(
+                                (i) => i.id !== item.id
+                              );
+                              setLocalSettings((prev) => ({
+                                ...prev,
+                                quickLinks: {
+                                  ...prev.quickLinks,
+                                  items: newItems,
+                                  enabled: prev.quickLinks?.enabled,
+                                },
+                              }));
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+
+                  {(localSettings.quickLinks?.items?.length || 0) < 6 && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full"
+                      onClick={() => {
+                        const newItems = [
+                          ...(localSettings.quickLinks?.items || []),
+                          { id: crypto.randomUUID(), label: '', url: '', style: 'primary' },
+                        ];
+                        setLocalSettings((prev) => ({
+                          ...prev,
+                          quickLinks: { ...prev.quickLinks, items: newItems, enabled: prev.quickLinks?.enabled },
+                        }));
+                      }}
+                    >
+                      <Plus className="mr-2 h-4 w-4" /> Add Link
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Social</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4 rounded-lg border p-4">
+                <Switch
+                  checked={localSettings.social?.facebookEnabled ?? false}
+                  onCheckedChange={(checked) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      social: { ...prev.social, facebookEnabled: checked },
+                    }))
+                  }
+                />
+                <Label className="flex-grow">Floating Facebook Button</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Facebook URL</Label>
+                <Input
+                  placeholder="https://facebook.com/your-page"
+                  value={localSettings.social?.facebookUrl || ''}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      social: { ...prev.social, facebookUrl: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Position</Label>
+                <Select
+                  value={localSettings.social?.position || 'right'}
+                  onValueChange={(pos) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      social: { ...prev.social, position: pos as any },
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="left">Left</SelectItem>
+                    <SelectItem value="right">Right</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Footer</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center space-x-4 rounded-lg border p-4">
+                <Switch
+                  checked={withDefaultBool(localSettings.footer?.enabled, true)}
+                  onCheckedChange={(checked) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      footer: { ...prev.footer, enabled: checked },
+                    }))
+                  }
+                />
+                <Label className="flex-grow">Show Footer</Label>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Layout</Label>
+                <Select
+                  value={localSettings.footer?.layout || 'minimal'}
+                  onValueChange={(layout) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      footer: { ...prev.footer, layout: layout as any },
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="minimal">Minimal</SelectItem>
+                    <SelectItem value="centered">Centered</SelectItem>
+                    <SelectItem value="split">Split</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label>Headline</Label>
+                <Input
+                  value={localSettings.footer?.headline || ''}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      footer: { ...prev.footer, headline: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>Message</Label>
+                <Input
+                  value={localSettings.footer?.message || ''}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      footer: { ...prev.footer, message: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>CTA Label</Label>
+                <Input
+                  value={localSettings.footer?.ctaLabel || ''}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      footer: { ...prev.footer, ctaLabel: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label>CTA URL</Label>
+                <Input
+                  value={localSettings.footer?.ctaUrl || ''}
+                  onChange={(e) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      footer: { ...prev.footer, ctaUrl: e.target.value },
+                    }))
+                  }
+                />
+              </div>
+            </CardContent>
+          </Card>
 
           {isAdmin && (
             <Card>
@@ -1088,9 +1321,7 @@ export default function MyBoutiquePage() {
                       {selfTestResults.map((result, i) => (
                         <li
                           key={i}
-                          className={`flex items-center gap-2 ${
-                            !result.ok ? 'text-destructive' : ''
-                          }`}
+                          className={`flex items-center gap-2 ${!result.ok ? 'text-destructive' : ''}`}
                         >
                           {result.ok ? (
                             <CheckCircle2 className="h-3.5 w-3.5 text-green-600" />
@@ -1099,9 +1330,7 @@ export default function MyBoutiquePage() {
                           )}
                           <span>{result.step}</span>
                           {result.error && (
-                            <span className="font-mono text-destructive/80">
-                              - {result.error}
-                            </span>
+                            <span className="font-mono text-destructive/80">- {result.error}</span>
                           )}
                         </li>
                       ))}
@@ -1141,5 +1370,3 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
-
-    
