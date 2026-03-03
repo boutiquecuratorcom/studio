@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import {
@@ -213,7 +214,7 @@ export const useBoutiqueSettings = (userId: string | null) => {
   const firestore = useFirestore();
   const docRef = useMemo(() => {
     if (!userId || !firestore) return null;
-    return getBoutiqueSettingsRef(firestore, userId);
+    return doc(firestore, `users/${userId}/boutiqueSettings/main`);
   }, [userId, firestore]);
 
   return useDoc<BoutiqueSettings>(docRef as any);
@@ -252,7 +253,7 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
 
   const newHandleRef = doc(firestore, 'handles', handle);
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
-  const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
+  const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
   const userProfileRef = doc(firestore, `users/${user.uid}`);
 
   await runTransaction(firestore, async (transaction) => {
@@ -314,7 +315,7 @@ export const updateHandleTransaction = async (
   const oldHandleRef = doc(firestore, 'handles', oldHandle);
   const newHandleRef = doc(firestore, 'handles', newHandle);
   const userProfileRef = doc(firestore, 'users', user.uid);
-  const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
+  const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
   const oldPublicBoutiqueRef = doc(firestore, 'publicBoutiques', oldHandle);
 
   await runTransaction(firestore, async (transaction) => {
@@ -368,7 +369,7 @@ export const updateBoutiqueSettings = async (
   userId: string,
   data: Partial<Omit<BoutiqueSettings, 'id'>>
 ) => {
-  const settingsRef = getBoutiqueSettingsRef(firestore, userId);
+  const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   await setDoc(settingsRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
 };
 
@@ -381,7 +382,7 @@ export const syncPublicBoutiqueData = async (
     throw new Error('Sync failed: A valid handle is required.');
   }
 
-  const settingsRef = getBoutiqueSettingsRef(firestore, userId);
+  const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
   const brandRef = doc(firestore, `users/${userId}/brandProfile/main`);
 
   const outfitsQuery = query(
@@ -459,3 +460,5 @@ export const syncPublicBoutiqueData = async (
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
   await setDoc(publicBoutiqueRef, { ...publicData, updatedAt: serverTimestamp() }, { merge: true });
 };
+
+    

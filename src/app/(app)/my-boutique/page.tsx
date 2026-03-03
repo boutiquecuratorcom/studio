@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -21,7 +22,6 @@ import {
   handleSchema,
   normalizeBoutiqueSettings,
   useBoutiqueSettings,
-  getBoutiqueSettingsRef,
 } from '@/lib/boutique';
 
 import { useToast } from '@/hooks/use-toast';
@@ -168,7 +168,7 @@ export default function MyBoutiquePage() {
 
   const refreshLocalFromDb = async () => {
     if (!user || !firestore) return;
-    const ref = getBoutiqueSettingsRef(firestore, user.uid);
+    const ref = doc(firestore, 'users', user.uid, 'boutiqueSettings', 'main');
     const snap = await getDoc(ref);
     const data = snap.exists() ? (snap.data() as any) : {};
     setLocalSettings(normalizeBoutiqueSettings(data));
@@ -197,6 +197,9 @@ export default function MyBoutiquePage() {
       if (enabled) {
         await syncPublicBoutiqueData(firestore, user.uid, handle!.handle);
         await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
+        if (handle?.handle) {
+          await updateDoc(doc(firestore, `publicBoutiques/${handle.handle}`), { enabled: true });
+        }
       } else {
         await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
         if (handle?.handle) {
@@ -287,7 +290,7 @@ export default function MyBoutiquePage() {
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
       console.log('[SAVE Config] success');
       
-      const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
+      const settingsRef = doc(firestore, 'users', user.uid, 'boutiqueSettings', 'main');
       const snap = await getDoc(settingsRef);
       console.log('[SAVE Config] readback exists:', snap.exists(), 'data:', snap.data());
 
@@ -1370,3 +1373,5 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
+
+    

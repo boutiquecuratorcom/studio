@@ -356,7 +356,7 @@ export default function MyBrandPage() {
   };
 
   const onSubmit = async (data: BrandProfileFormValues) => {
-    console.log('[SAVE My Brand] clicked.');
+    console.log('[SAVE My Brand] button clicked.');
 
     if (!isDirty) {
       toast({ title: 'No changes to save.' });
@@ -589,7 +589,7 @@ export default function MyBrandPage() {
                         />
                       </div>
                       <div className="mt-6 flex justify-end border-t pt-6">
-                        <Button type="submit" disabled={isSaving}>
+                        <Button type="submit" disabled={isSaving || !isDirty}>
                           {isSaving ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           ) : (
@@ -652,7 +652,7 @@ export default function MyBrandPage() {
                         />
                       </div>
                       <div className="mt-6 flex justify-end border-t pt-6">
-                        <Button type="submit" disabled={isSaving}>
+                        <Button type="submit" disabled={isSaving || !isDirty}>
                           {isSaving ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           ) : (
@@ -921,7 +921,7 @@ export default function MyBrandPage() {
                       </div>
 
                       <div className="mt-6 flex justify-end border-t pt-6">
-                        <Button type="submit" disabled={isSaving}>
+                        <Button type="submit" disabled={isSaving || !isDirty}>
                           {isSaving ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           ) : (
@@ -977,7 +977,7 @@ export default function MyBrandPage() {
                         />
                       </div>
                       <div className="mt-6 flex justify-end border-t pt-6">
-                        <Button type="submit" disabled={isSaving}>
+                        <Button type="submit" disabled={isSaving || !isDirty}>
                           {isSaving ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                           ) : (
@@ -1157,3 +1157,5 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     </Card>
   );
 }
+
+    
