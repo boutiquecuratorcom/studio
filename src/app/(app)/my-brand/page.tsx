@@ -1,5 +1,7 @@
 
+
 'use client';
+
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -66,6 +68,7 @@ import {
 import { logBrandProfile } from '@/lib/debug/logBrandProfile';
 import { cn } from '@/lib/utils';
 
+
 /**
  * Accepts:
  *  - "#RGB" shorthand
@@ -77,7 +80,9 @@ function normalizeHexColor(input: string | undefined | null): string {
   const raw = (input ?? '').trim();
   if (!raw) return '';
 
+
   const withHash = raw.startsWith('#') ? raw : `#${raw}`;
+
 
   const m3 = withHash.match(/^#([0-9a-fA-F]{3})$/);
   if (m3) {
@@ -85,11 +90,14 @@ function normalizeHexColor(input: string | undefined | null): string {
     return `#${r}${r}${g}${g}${b}${b}`.toUpperCase();
   }
 
+
   const m6 = withHash.match(/^#([0-9a-fA-F]{6})$/);
   if (m6) return `#${m6[1].toUpperCase()}`;
 
+
   return '';
 }
+
 
 // --- Zod Schema for Validation ---
 const brandProfileSchema = z.object({
@@ -154,7 +162,9 @@ const brandProfileSchema = z.object({
     .optional(),
 });
 
+
 type BrandProfileFormValues = z.infer<typeof brandProfileSchema>;
+
 
 const formOptions = {
   toneOfVoice: [
@@ -196,7 +206,9 @@ const formOptions = {
   promoStyle: ['Flash Sales', 'Lives', 'Outfit Drops', 'Mystery Bundles'],
 };
 
+
 const totalFields = Object.keys(brandProfileSchema.shape).length;
+
 
 export default function MyBrandPage() {
   const { user, loading: userLoading } = useUser();
@@ -207,15 +219,19 @@ export default function MyBrandPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
 
+
   const hasLoggedRef = useRef(false);
   const formInitializedRef = useRef(false);
+
 
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
   }, [user, firestore]);
 
+
   const { data: brandProfileData, loading: dataLoading } = useDoc(brandProfileRef);
+
 
   const form = useForm<BrandProfileFormValues>({
     defaultValues: {
@@ -241,6 +257,7 @@ export default function MyBrandPage() {
     mode: 'onBlur',
   });
 
+
   const {
     watch,
     reset,
@@ -248,7 +265,9 @@ export default function MyBrandPage() {
     formState: { isDirty },
   } = form;
 
+
   const watchedValues = watch();
+
 
   const completionPercent = useMemo(() => {
     const filledFields = Object.entries(watchedValues).filter(([key, value]) => {
@@ -260,12 +279,14 @@ export default function MyBrandPage() {
     return Math.round((filledFields / totalFields) * 100);
   }, [watchedValues]);
 
+
   // --- Effects ---
   useEffect(() => {
     if (!user && !userLoading) {
       router.push('/');
     }
   }, [user, userLoading, router]);
+
 
   useEffect(() => {
     if (brandProfileData && !formInitializedRef.current) {
@@ -274,9 +295,11 @@ export default function MyBrandPage() {
         hasLoggedRef.current = true;
       }
 
+
       const data: any = brandProfileData;
       const colors = Array.isArray(data.brandColors) ? data.brandColors : [];
       const paddedColors = [colors[0] || '', colors[1] || '', colors[2] || ''];
+
 
       const allFontNames = new Set(ALL_FONTS.map((f) => f.name));
       const initialPrimaryFont = normalizeFontName(
@@ -289,6 +312,7 @@ export default function MyBrandPage() {
         allFontNames,
         DEFAULT_FONTS.body
       );
+
 
       reset({
         brandName: data.brandName || '',
@@ -311,14 +335,17 @@ export default function MyBrandPage() {
         promoStyle: data.promoStyle || undefined,
       });
 
+
       formInitializedRef.current = true;
     }
   }, [brandProfileData, reset]);
+
 
   // --- Handlers ---
   const handleLogoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !user || !storage) return;
+
 
     if (file.size > 5 * 1024 * 1024) {
       toast({
@@ -329,9 +356,11 @@ export default function MyBrandPage() {
       return;
     }
 
+
     setIsUploading(true);
     const storagePath = `brandAssets/${user.uid}/logo-${Date.now()}-${file.name}`;
     const storageRef = ref(storage, storagePath);
+
 
     try {
       await uploadBytes(storageRef, file);
@@ -355,14 +384,16 @@ export default function MyBrandPage() {
     }
   };
 
+
   const onSubmit = async (data: BrandProfileFormValues) => {
     console.log('[SAVE My Brand] button clicked.');
+
 
     if (!isDirty) {
       toast({ title: 'No changes to save.' });
       return;
     }
-    
+   
     if (!brandProfileRef || !user) {
       toast({
         variant: 'destructive',
@@ -372,11 +403,13 @@ export default function MyBrandPage() {
       return;
     }
 
+
     setIsSaving(true);
-    
+   
     const normalizedColors = (data.brandColors || [])
       .map((c) => normalizeHexColor(c))
       .filter((c) => !!c);
+
 
     const payload: Record<string, any> = {};
     Object.entries(data).forEach(([key, value]) => {
@@ -386,7 +419,9 @@ export default function MyBrandPage() {
     });
     payload.brandColors = normalizedColors;
 
+
     console.log('[SAVE My Brand] start', { uid: user.uid, payload });
+
 
     try {
       await setDoc(
@@ -395,16 +430,18 @@ export default function MyBrandPage() {
         { merge: true }
       );
 
+
       console.log('[SAVE My Brand] success');
-      
+     
       const snap = await getDoc(brandProfileRef);
       console.log('[SAVE My Brand] readback exists:', snap.exists(), 'data:', snap.data());
+
 
       toast({
         title: 'My Brand Saved!',
         description: 'Your changes have been saved.',
       });
-      
+     
       reset(data);
     } catch (error: any) {
       console.error('[SAVE My Brand] error', error);
@@ -417,6 +454,7 @@ export default function MyBrandPage() {
       setIsSaving(false);
     }
   };
+
 
   if (userLoading || dataLoading) {
     return (
@@ -439,6 +477,7 @@ export default function MyBrandPage() {
     );
   }
 
+
   return (
     <div className="flex-1 p-8 sm:p-10 lg:p-12">
       <header className="mb-12">
@@ -448,6 +487,7 @@ export default function MyBrandPage() {
         </p>
       </header>
 
+
       <div className="mb-8">
         <div className="flex justify-between items-center mb-2">
           <p className="text-sm font-medium text-foreground">
@@ -456,6 +496,7 @@ export default function MyBrandPage() {
         </div>
         <Progress value={completionPercent} className="w-full h-2" />
       </div>
+
 
       <Form {...form}>
         <form
@@ -604,6 +645,7 @@ export default function MyBrandPage() {
               </Card>
             </AccordionItem>
 
+
             {/* Brand Voice */}
             <AccordionItem value="item-2" className="border-none">
               <Card>
@@ -666,6 +708,7 @@ export default function MyBrandPage() {
                 </AccordionContent>
               </Card>
             </AccordionItem>
+
 
             {/* Visual Identity */}
             <AccordionItem value="item-3" className="border-none">
@@ -765,6 +808,7 @@ export default function MyBrandPage() {
                         />
                       </div>
 
+
                       <FormField
                         control={form.control}
                         name="brandColors"
@@ -806,6 +850,7 @@ export default function MyBrandPage() {
                                       />
                                     </label>
 
+
                                     <Input
                                       placeholder="e.g., #C56A3D"
                                       value={field.value?.[index] || ''}
@@ -844,6 +889,7 @@ export default function MyBrandPage() {
                           </FormItem>
                         )}
                       />
+
 
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                         <FormField
@@ -920,6 +966,7 @@ export default function MyBrandPage() {
                         />
                       </div>
 
+
                       <div className="mt-6 flex justify-end border-t pt-6">
                         <Button type="submit" disabled={isSaving || !isDirty}>
                           {isSaving ? (
@@ -935,6 +982,7 @@ export default function MyBrandPage() {
                 </AccordionContent>
               </Card>
             </AccordionItem>
+
 
             {/* Business Basics */}
             <AccordionItem value="item-4" className="border-none">
@@ -993,6 +1041,7 @@ export default function MyBrandPage() {
             </AccordionItem>
           </Accordion>
 
+
           <div className="lg:col-span-1 lg:sticky top-12">
             <BrandProfilePreview values={watchedValues} />
           </div>
@@ -1001,6 +1050,7 @@ export default function MyBrandPage() {
     </div>
   );
 }
+
 
 // --- Reusable Select Field ---
 function SelectField({ control, name, label, placeholder, options }: any) {
@@ -1035,11 +1085,13 @@ function SelectField({ control, name, label, placeholder, options }: any) {
   );
 }
 
+
 // --- Preview Panel ---
 function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
   const getFontFamily = (fontName: string | undefined, defaultFamily: string) => {
     return getFontByName(fontName)?.cssFamily || defaultFamily;
   };
+
 
   const renderValue = (
     value: any,
@@ -1056,7 +1108,9 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
     );
   };
 
+
   const logoStyle = values.logoStyle ?? 'auto';
+
 
   return (
     <Card className="overflow-hidden">
@@ -1094,6 +1148,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
             )}
           </div>
 
+
           <div>
             <h3
               className="text-lg font-bold"
@@ -1109,6 +1164,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
             </p>
           </div>
 
+
           <div className="flex justify-center gap-2 pt-2">
             {(values.brandColors || [])
               .map((c) => normalizeHexColor(c))
@@ -1122,6 +1178,7 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
               ))}
           </div>
         </div>
+
 
         <div className="space-y-3 text-sm">
           <div className="flex justify-between items-center gap-4">
@@ -1158,4 +1215,6 @@ function BrandProfilePreview({ values }: { values: BrandProfileFormValues }) {
   );
 }
 
-    
+
+   
+

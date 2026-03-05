@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -8,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 
-import { useUser, useFirestore } from '@/firebase';
+import { useUser, useFirestore, useDoc } from '@/firebase';
 import { useOutfits } from '@/lib/outfits';
 import type { BrandProfilePublicBits } from '@/lib/brand/brandPublicBits';
 
@@ -21,7 +19,6 @@ import {
   syncPublicBoutiqueData,
   handleSchema,
   normalizeBoutiqueSettings,
-  useBoutiqueSettings,
 } from '@/lib/boutique';
 
 import { useToast } from '@/hooks/use-toast';
@@ -86,7 +83,6 @@ import { Input } from '@/components/ui/input';
 import { getFontByName } from '@/lib/fonts';
 import { useInventoryItems } from '@/lib/inventory';
 import { cn } from '@/lib/utils';
-import { useDoc } from '@/firebase/firestore/use-doc';
 
 type HandleFormValues = z.infer<typeof handleSchema>;
 
@@ -100,8 +96,16 @@ export default function MyBoutiquePage() {
 
   const { handle, loading: handleLoading } = useUserHandle(user?.uid || null);
 
-  const { data: boutiqueSettingsDoc, loading: settingsLoading } = useBoutiqueSettings(user?.uid);
-  
+  // ✅ IMPORTANT: Read the *exact* same doc path that updateBoutiqueSettings writes to
+  const boutiqueSettingsRef = useMemo(() => {
+    if (!user || !firestore) return null;
+    return doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+  }, [user, firestore]);
+
+  // ✅ This replaces useBoutiqueSettings() so refresh hydrates from the correct source
+  const { data: boutiqueSettingsDoc, loading: settingsLoading } =
+    useDoc<any>(boutiqueSettingsRef);
+
   const brandProfileRef = useMemo(() => {
     if (!user || !firestore) return null;
     return doc(firestore, `users/${user.uid}/brandProfile/main`);
@@ -122,9 +126,6 @@ export default function MyBoutiquePage() {
 
   const hasLoggedRef = useRef(false);
   const hasInitialized = useRef(false);
-  
-  const normalizedDbSettings = useMemo(() => normalizeBoutiqueSettings(boutiqueSettingsDoc), [boutiqueSettingsDoc]);
-
 
   useEffect(() => {
     if (!hasLoggedRef.current && brandProfile) {
@@ -154,25 +155,29 @@ export default function MyBoutiquePage() {
     }
   }, [handle, handleForm]);
 
-
+  /**
+   * ✅ CRITICAL FIX:
+   * Hydrate localSettings from the boutique settings doc you *actually save to*.
+   * This prevents refresh from snapping back to defaults.
+   */
   useEffect(() => {
-    if (userLoading || !user?.uid || settingsLoading || hasInitialized.current) return;
+    if (userLoading || !user?.uid) return;
+    if (settingsLoading) return;
 
-    if (typeof boutiqueSettingsDoc !== 'undefined') {
-        const normalized = normalizeBoutiqueSettings(boutiqueSettingsDoc);
-        setLocalSettings(normalized);
-        hasInitialized.current = true;
-        console.log('[INIT] Hydrated local settings from Firestore.');
-    }
+    // boutiqueSettingsDoc may be undefined briefly while loading
+    if (typeof boutiqueSettingsDoc === 'undefined') return;
+
+    const normalized = normalizeBoutiqueSettings(boutiqueSettingsDoc ?? {});
+    setLocalSettings(normalized);
+
+    hasInitialized.current = true;
   }, [userLoading, user?.uid, settingsLoading, boutiqueSettingsDoc]);
 
   const refreshLocalFromDb = async () => {
     if (!user || !firestore) return;
-    const ref = doc(firestore, 'users', user.uid, 'boutiqueSettings', 'main');
-    const snap = await getDoc(ref);
+    const snap = await getDoc(doc(firestore, `users/${user.uid}/boutiqueSettings/main`));
     const data = snap.exists() ? (snap.data() as any) : {};
     setLocalSettings(normalizeBoutiqueSettings(data));
-    console.log('[REFRESH] Local state refreshed from DB.');
   };
 
   const handleEnabledToggle = async (enabled: boolean) => {
@@ -187,27 +192,31 @@ export default function MyBoutiquePage() {
       return;
     }
 
+    // optimistic UI
     setLocalSettings((prev) => ({ ...prev, enabled }));
+
     setIsSyncing(true);
     toast({ title: 'Updating boutique status...', description: 'Please wait.' });
+
+    const publicBoutiqueRef = handle?.handle
+      ? doc(firestore, `publicBoutiques/${handle.handle}`)
+      : null;
 
     console.log('[SAVE Boutique Status] start', { uid: user.uid, enabled });
 
     try {
       if (enabled) {
         await syncPublicBoutiqueData(firestore, user.uid, handle!.handle);
+        if (publicBoutiqueRef) await updateDoc(publicBoutiqueRef, { enabled: true });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
-        if (handle?.handle) {
-          await updateDoc(doc(firestore, `publicBoutiques/${handle.handle}`), { enabled: true });
-        }
       } else {
+        if (publicBoutiqueRef) await updateDoc(publicBoutiqueRef, { enabled: false });
         await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
-        if (handle?.handle) {
-            await updateDoc(doc(firestore, `publicBoutiques/${handle.handle}`), { enabled: false });
-        }
       }
 
       console.log('[SAVE Boutique Status] success');
+
+      // ✅ ensure UI reflects DB after write
       await refreshLocalFromDb();
 
       toast({
@@ -216,7 +225,10 @@ export default function MyBoutiquePage() {
       });
     } catch (e: any) {
       console.error('[SAVE Boutique Status] error', e);
+
+      // rollback optimistic toggle
       setLocalSettings((prev) => ({ ...prev, enabled: !enabled }));
+
       toast({
         variant: 'destructive',
         title: 'Update Failed',
@@ -227,44 +239,16 @@ export default function MyBoutiquePage() {
     }
   };
 
-  const isConfigDirty = useMemo(() => {
-    if (!hasInitialized.current) return false;
-    return (
-      (localSettings.featuredOutfitId || 'auto') !== normalizedDbSettings.featuredOutfitId ||
-      localSettings.templateId !== normalizedDbSettings.templateId ||
-      localSettings.patternId !== normalizedDbSettings.patternId ||
-      localSettings.accentColorIndex !== normalizedDbSettings.accentColorIndex ||
-      withDefaultBool(localSettings.bannerEnabled, true) !== withDefaultBool(normalizedDbSettings.bannerEnabled, true) ||
-      localSettings.bannerHeight !== normalizedDbSettings.bannerHeight ||
-      localSettings.bannerOpacity !== normalizedDbSettings.bannerOpacity ||
-      withDefaultBool(localSettings.announcementEnabled, false) !== withDefaultBool(normalizedDbSettings.announcementEnabled, false) ||
-      localSettings.announcementText !== normalizedDbSettings.announcementText ||
-      localSettings.announcementHref !== normalizedDbSettings.announcementHref ||
-      localSettings.announcementCtaLabel !== normalizedDbSettings.announcementCtaLabel ||
-      localSettings.announcementColorSource !== normalizedDbSettings.announcementColorSource ||
-      JSON.stringify(localSettings.quickLinks) !== JSON.stringify(normalizedDbSettings.quickLinks) ||
-      JSON.stringify(localSettings.social) !== JSON.stringify(normalizedDbSettings.social) ||
-      JSON.stringify(localSettings.footer) !== JSON.stringify(normalizedDbSettings.footer) ||
-      withDefaultBool(localSettings.showFeaturedLook, true) !== withDefaultBool(normalizedDbSettings.showFeaturedLook, true) ||
-      withDefaultBool(localSettings.showOutfits, true) !== withDefaultBool(normalizedDbSettings.showOutfits, true) ||
-      withDefaultBool(localSettings.showRack, true) !== withDefaultBool(normalizedDbSettings.showRack, true)
-    );
-  }, [localSettings, normalizedDbSettings]);
-  
-
   const handleConfigSave = async () => {
     if (!user || !firestore) return;
-
-    console.log('[SAVE Config] button clicked.');
-    if (!isConfigDirty) {
-        toast({ title: "No changes to save." });
-        return;
-    }
 
     setIsSaving(true);
 
     const settingsToSave: Partial<BoutiqueSettings> = {
-      featuredOutfitId: localSettings.featuredOutfitId === 'auto' ? null : (localSettings.featuredOutfitId as any),
+      featuredOutfitId:
+        localSettings.featuredOutfitId === 'auto'
+          ? null
+          : (localSettings.featuredOutfitId as any),
       templateId: localSettings.templateId,
       patternId: localSettings.patternId,
       accentColorIndex: localSettings.accentColorIndex,
@@ -283,28 +267,24 @@ export default function MyBoutiquePage() {
       showOutfits: localSettings.showOutfits,
       showRack: localSettings.showRack,
     };
-    
-    console.log('[SAVE Config] start', { uid: user.uid, payload: settingsToSave });
+
+    console.log('[SAVE Boutique Config] start', { uid: user.uid, payload: settingsToSave });
 
     try {
       await updateBoutiqueSettings(firestore, user.uid, settingsToSave);
-      console.log('[SAVE Config] success');
-      
-      const settingsRef = doc(firestore, 'users', user.uid, 'boutiqueSettings', 'main');
-      const snap = await getDoc(settingsRef);
-      console.log('[SAVE Config] readback exists:', snap.exists(), 'data:', snap.data());
 
       if (handle?.handle) {
-        console.log('[SAVE Config] Syncing public data...');
         await syncPublicBoutiqueData(firestore, user.uid, handle.handle);
-        console.log('[SAVE Config] Sync complete.');
       }
-      
-      await refreshLocalFromDb();
-      toast({ title: 'Configuration Saved!' });
 
+      console.log('[SAVE Boutique Config] success');
+
+      // ✅ ensure UI reflects DB after write
+      await refreshLocalFromDb();
+
+      toast({ title: 'Configuration Saved!' });
     } catch (e: any) {
-      console.error('[SAVE Config] error', e);
+      console.error('[SAVE Boutique Config] error', e);
       toast({
         variant: 'destructive',
         title: 'Save Failed',
@@ -327,12 +307,14 @@ export default function MyBoutiquePage() {
     try {
       if (isUpdate && oldHandle) {
         await updateHandleTransaction(firestore, user, oldHandle, newHandle);
+        await updateBoutiqueSettings(firestore, user.uid, { handle: newHandle });
         toast({
           title: 'Handle Updated!',
           description: `Your new public URL is /boutique/${newHandle}`,
         });
       } else {
         await claimHandleTransaction(firestore, user, newHandle);
+        await updateBoutiqueSettings(firestore, user.uid, { handle: newHandle });
         toast({
           title: 'Handle Claimed!',
           description: `Your boutique is now ready to go live at /boutique/${newHandle}`,
@@ -340,8 +322,9 @@ export default function MyBoutiquePage() {
       }
 
       setPublicUrl(`${window.location.origin}/boutique/${newHandle}`);
-      await refreshLocalFromDb();
 
+      // ✅ make sure local state reflects the saved handle
+      await refreshLocalFromDb();
     } catch (e: any) {
       handleForm.setError('handle', { type: 'manual', message: e.message });
     }
@@ -407,15 +390,17 @@ export default function MyBoutiquePage() {
       await syncPublicBoutiqueData(firestore, user.uid, randomHandle);
       addResult({ step: '3. Sync Public Data', ok: true });
 
+      const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
+      await updateDoc(publicBoutiqueRef, { enabled: true });
       await updateBoutiqueSettings(firestore, user.uid, { enabled: true });
       addResult({ step: '4. Enable Boutique', ok: true });
 
-      const publicBoutiqueRef = doc(firestore, 'publicBoutiques', randomHandle);
       const liveDocSnap = await getDoc(publicBoutiqueRef);
       if (!liveDocSnap.exists() || !liveDocSnap.data()?.enabled)
         throw new Error('Verification failed: Public document is not enabled.');
       addResult({ step: '5. Verify Live Status', ok: true });
-      
+
+      await updateDoc(publicBoutiqueRef, { enabled: false });
       await updateBoutiqueSettings(firestore, user.uid, { enabled: false });
       addResult({ step: '6. Disable Boutique', ok: true });
 
@@ -476,6 +461,35 @@ export default function MyBoutiquePage() {
     [brandProfile, localSettings]
   );
 
+  const isConfigDirty = useMemo(() => {
+    if (!boutiqueSettingsDoc || !hasInitialized.current) return false;
+    const normalizedDbSettings = normalizeBoutiqueSettings(boutiqueSettingsDoc);
+    return (
+      (localSettings.featuredOutfitId || 'auto') !== normalizedDbSettings.featuredOutfitId ||
+      localSettings.templateId !== normalizedDbSettings.templateId ||
+      localSettings.patternId !== normalizedDbSettings.patternId ||
+      localSettings.accentColorIndex !== normalizedDbSettings.accentColorIndex ||
+      withDefaultBool(localSettings.bannerEnabled, true) !==
+        withDefaultBool(normalizedDbSettings.bannerEnabled, true) ||
+      localSettings.bannerHeight !== normalizedDbSettings.bannerHeight ||
+      localSettings.bannerOpacity !== normalizedDbSettings.bannerOpacity ||
+      withDefaultBool(localSettings.announcementEnabled, false) !==
+        withDefaultBool(normalizedDbSettings.announcementEnabled, false) ||
+      localSettings.announcementText !== normalizedDbSettings.announcementText ||
+      localSettings.announcementHref !== normalizedDbSettings.announcementHref ||
+      localSettings.announcementCtaLabel !== normalizedDbSettings.announcementCtaLabel ||
+      localSettings.announcementColorSource !== normalizedDbSettings.announcementColorSource ||
+      JSON.stringify(localSettings.quickLinks) !== JSON.stringify(normalizedDbSettings.quickLinks) ||
+      JSON.stringify(localSettings.social) !== JSON.stringify(normalizedDbSettings.social) ||
+      JSON.stringify(localSettings.footer) !== JSON.stringify(normalizedDbSettings.footer) ||
+      withDefaultBool(localSettings.showFeaturedLook, true) !==
+        withDefaultBool(normalizedDbSettings.showFeaturedLook, true) ||
+      withDefaultBool(localSettings.showOutfits, true) !==
+        withDefaultBool(normalizedDbSettings.showOutfits, true) ||
+      withDefaultBool(localSettings.showRack, true) !==
+        withDefaultBool(normalizedDbSettings.showRack, true)
+    );
+  }, [localSettings, boutiqueSettingsDoc]);
 
   const renderHeader = () => (
     <header className="mb-12">
@@ -642,7 +656,7 @@ export default function MyBoutiquePage() {
 
               <Button
                 onClick={handleConfigSave}
-                disabled={isSaving}
+                disabled={isSaving || !isConfigDirty}
                 className="w-full"
               >
                 {isSaving ? (
@@ -1373,5 +1387,3 @@ export default function MyBoutiquePage() {
     </div>
   );
 }
-
-    

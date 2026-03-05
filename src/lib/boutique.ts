@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import {
@@ -15,8 +13,6 @@ import {
   where,
   limit,
   getDocs,
-  deleteDoc,
-  updateDoc,
   orderBy,
 } from 'firebase/firestore';
 
@@ -24,7 +20,7 @@ import { useDoc, useFirestore, useCollection } from '@/firebase';
 import { useMemo } from 'react';
 import type { User } from 'firebase/auth';
 import { z } from 'zod';
-import type { BrandProfile } from '@/ai/flows/schemas';
+
 import { type Outfit, type OutfitClaim } from './outfits';
 import {
   type BoutiqueTemplateId,
@@ -32,35 +28,51 @@ import {
   type BrandProfilePublicBits,
 } from '@/lib/brand/brandPublicBits';
 
-// ---- Canonical Refs ----
+// ------------------------------
+// Canonical Refs (GUARDRAIL #1)
+// ------------------------------
 export const getBoutiqueSettingsRef = (firestore: Firestore, userId: string) => {
-    return doc(firestore, `users/${userId}/boutiqueSettings/main`);
-}
+  return doc(firestore, `users/${userId}/boutiqueSettings/main`);
+};
 
-// ---- Helpers ----
+export const getBrandProfileRef = (firestore: Firestore, userId: string) => {
+  return doc(firestore, `users/${userId}/brandProfile/main`);
+};
+
+// ------------------------------
+// Helpers
+// ------------------------------
 type AnyRecord = Record<string, any>;
 const asRecord = (v: unknown): AnyRecord => (v && typeof v === 'object' ? (v as AnyRecord) : {});
 
 const withDefaultBool = (v: boolean | null | undefined, d: boolean) =>
   v === null || v === undefined ? d : v;
 
-// --- Interfaces ---
+const DEV_ASSERT = process.env.NODE_ENV !== 'production';
+
+// ------------------------------
+// Interfaces
+// ------------------------------
 export interface BoutiqueSettings extends DocumentData {
   id: string;
   enabled: boolean;
   featuredOutfitId: string | null;
   handle: string | null;
+
   templateId?: BoutiqueTemplateId | null;
   patternId?: BoutiquePatternId | null;
   accentColorIndex?: 0 | 1 | 2 | null;
+
   bannerEnabled?: boolean | null;
   bannerHeight?: 'sm' | 'md' | 'lg' | null;
   bannerOpacity?: number | null;
+
   announcementEnabled?: boolean | null;
   announcementText?: string | null;
   announcementHref?: string | null;
   announcementCtaLabel?: string | null;
   announcementColorSource?: 'accent' | 'color2' | 'color3' | null;
+
   quickLinks?: {
     enabled?: boolean;
     items?: {
@@ -70,11 +82,13 @@ export interface BoutiqueSettings extends DocumentData {
       style?: 'primary' | 'secondary' | 'text';
     }[];
   };
+
   social?: {
     facebookEnabled?: boolean;
     facebookUrl?: string | null;
     position?: 'left' | 'right';
   };
+
   footer?: {
     enabled?: boolean;
     layout?: 'minimal' | 'centered' | 'split';
@@ -83,9 +97,11 @@ export interface BoutiqueSettings extends DocumentData {
     ctaLabel?: string | null;
     ctaUrl?: string | null;
   };
+
   showFeaturedLook?: boolean | null;
   showOutfits?: boolean | null;
   showRack?: boolean | null;
+
   updatedAt?: any;
 }
 
@@ -102,16 +118,20 @@ export interface PublicBoutiqueProfile extends BrandProfilePublicBits {
   uid: string;
   handle: string;
   enabled: boolean;
+
   templateId?: BoutiqueTemplateId | null;
   patternId?: BoutiquePatternId | null;
+
   bannerEnabled?: boolean | null;
   bannerHeight?: 'sm' | 'md' | 'lg' | null;
   bannerOpacity?: number | null;
+
   announcementEnabled?: boolean | null;
   announcementText?: string | null;
   announcementHref?: string | null;
   announcementCtaLabel?: string | null;
   announcementColorSource?: 'accent' | 'color2' | 'color3' | null;
+
   featuredOutfit: {
     id: string;
     title: string | null;
@@ -120,49 +140,74 @@ export interface PublicBoutiqueProfile extends BrandProfilePublicBits {
     itemCount: number | null;
     outfitClaim: OutfitClaim | null;
   } | null;
+
   quickLinks?: BoutiqueSettings['quickLinks'];
   social?: BoutiqueSettings['social'];
   footer?: BoutiqueSettings['footer'];
+
   showFeaturedLook?: boolean | null;
   showOutfits?: boolean | null;
   showRack?: boolean | null;
+
   updatedAt: any;
 }
 
-// --- Normalizer ---
+// ------------------------------
+// Normalizer
+// ------------------------------
 export function normalizeBoutiqueSettings(raw: any): BoutiqueSettings {
   const settings = raw || {};
   const design = settings.design || {};
 
   const normalized = {
     ...settings,
+
+    // design fallbacks
     templateId: settings.templateId ?? design.template ?? 'editorial',
     patternId: settings.patternId ?? design.patternId ?? 'none',
+
     enabled: withDefaultBool(settings.enabled, false),
     handle: settings.handle ?? null,
     featuredOutfitId: settings.featuredOutfitId ?? 'auto',
+
     accentColorIndex: settings.accentColorIndex ?? 0,
+
     bannerEnabled: withDefaultBool(settings.bannerEnabled, true),
     bannerHeight: settings.bannerHeight ?? 'md',
     bannerOpacity: settings.bannerOpacity ?? 0.18,
+
     announcementEnabled: withDefaultBool(settings.announcementEnabled, false),
     announcementText: settings.announcementText ?? '',
     announcementHref: settings.announcementHref ?? '',
     announcementCtaLabel: settings.announcementCtaLabel ?? '',
     announcementColorSource: settings.announcementColorSource ?? 'accent',
+
     quickLinks: settings.quickLinks ?? { enabled: false, items: [] },
-    social: settings.social ?? { facebookEnabled: false, facebookUrl: '', position: 'right' },
-    footer: settings.footer ?? { enabled: true, layout: 'minimal', headline: '', message: '', ctaLabel: '', ctaUrl: '' },
+    social: settings.social ?? {
+      facebookEnabled: false,
+      facebookUrl: '',
+      position: 'right',
+    },
+    footer: settings.footer ?? {
+      enabled: true,
+      layout: 'minimal',
+      headline: '',
+      message: '',
+      ctaLabel: '',
+      ctaUrl: '',
+    },
+
     showFeaturedLook: withDefaultBool(settings.showFeaturedLook, true),
     showOutfits: withDefaultBool(settings.showOutfits, true),
     showRack: withDefaultBool(settings.showRack, true),
   };
-  
+
   return normalized as BoutiqueSettings;
 }
 
-
-// --- Validation ---
+// ------------------------------
+// Validation
+// ------------------------------
 const RESERVED_HANDLES = new Set([
   'admin',
   'dashboard',
@@ -209,19 +254,31 @@ export const handleSchema = z.object({
     .refine((s) => !RESERVED_HANDLES.has(s), 'This handle is reserved. Please choose another.'),
 });
 
-// --- Hooks ---
+// ------------------------------
+// Hooks (GUARDRAIL: canonical ref)
+// ------------------------------
 export const useBoutiqueSettings = (userId: string | null) => {
   const firestore = useFirestore();
+
   const docRef = useMemo(() => {
     if (!userId || !firestore) return null;
-    return doc(firestore, `users/${userId}/boutiqueSettings/main`);
+    return getBoutiqueSettingsRef(firestore, userId);
   }, [userId, firestore]);
 
-  return useDoc<BoutiqueSettings>(docRef as any);
+  const { data, ...rest } = useDoc<BoutiqueSettings>(docRef as any);
+
+  // Always return normalized settings once data exists.
+  const normalized = useMemo(() => {
+    if (typeof data === 'undefined') return data; // preserve hook’s undefined-loading semantics
+    return normalizeBoutiqueSettings(data ?? {});
+  }, [data]);
+
+  return { data: normalized as any, ...rest };
 };
 
 export const useUserHandle = (userId: string | null) => {
   const firestore = useFirestore();
+
   const q = useMemo(() => {
     if (!userId || !firestore) return null;
     return query(collection(firestore, 'handles'), where('uid', '==', userId), limit(1));
@@ -233,6 +290,7 @@ export const useUserHandle = (userId: string | null) => {
 
 export const usePublicBoutiqueByHandle = (handle: string | null) => {
   const firestore = useFirestore();
+
   const docRef = useMemo(() => {
     if (!handle || !firestore) return null;
     return doc(firestore, 'publicBoutiques', handle);
@@ -241,7 +299,9 @@ export const usePublicBoutiqueByHandle = (handle: string | null) => {
   return useDoc<PublicBoutiqueProfile>(docRef as any);
 };
 
-// --- Data Functions ---
+// ------------------------------
+// Data Functions
+// ------------------------------
 export const claimHandleTransaction = async (firestore: Firestore, user: User, handle: string) => {
   handleSchema.parse({ handle });
 
@@ -253,7 +313,10 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
 
   const newHandleRef = doc(firestore, 'handles', handle);
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
-  const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+
+  // GUARDRAIL: canonical settings ref
+  const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
+
   const userProfileRef = doc(firestore, `users/${user.uid}`);
 
   await runTransaction(firestore, async (transaction) => {
@@ -297,7 +360,7 @@ export const claimHandleTransaction = async (firestore: Firestore, user: User, h
       },
       { merge: true }
     );
-    
+
     transaction.set(settingsRef, { handle }, { merge: true });
     transaction.set(userProfileRef, { handle }, { merge: true });
   });
@@ -314,8 +377,12 @@ export const updateHandleTransaction = async (
 
   const oldHandleRef = doc(firestore, 'handles', oldHandle);
   const newHandleRef = doc(firestore, 'handles', newHandle);
+
   const userProfileRef = doc(firestore, 'users', user.uid);
-  const settingsRef = doc(firestore, `users/${user.uid}/boutiqueSettings/main`);
+
+  // GUARDRAIL: canonical settings ref
+  const settingsRef = getBoutiqueSettingsRef(firestore, user.uid);
+
   const oldPublicBoutiqueRef = doc(firestore, 'publicBoutiques', oldHandle);
 
   await runTransaction(firestore, async (transaction) => {
@@ -354,23 +421,33 @@ export const updateHandleTransaction = async (
         handle: newHandle,
         updatedAt: now,
       };
-
       transaction.set(newPublicBoutiqueRef, publicDataToMigrate);
       transaction.delete(oldPublicBoutiqueRef);
     }
-    
+
     transaction.set(settingsRef, { handle: newHandle }, { merge: true });
     transaction.set(userProfileRef, { handle: newHandle }, { merge: true });
   });
 };
 
+// GUARDRAIL #2: update uses canonical ref + dev readback proof
 export const updateBoutiqueSettings = async (
   firestore: Firestore,
   userId: string,
   data: Partial<Omit<BoutiqueSettings, 'id'>>
 ) => {
-  const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
+  const settingsRef = getBoutiqueSettingsRef(firestore, userId);
+
   await setDoc(settingsRef, { ...data, updatedAt: serverTimestamp() }, { merge: true });
+
+  if (DEV_ASSERT) {
+    const snap = await getDoc(settingsRef);
+    console.log('[BOUTIQUE][updateBoutiqueSettings] readback', {
+      userId,
+      exists: snap.exists(),
+      data: snap.exists() ? snap.data() : null,
+    });
+  }
 };
 
 export const syncPublicBoutiqueData = async (
@@ -382,8 +459,9 @@ export const syncPublicBoutiqueData = async (
     throw new Error('Sync failed: A valid handle is required.');
   }
 
-  const settingsRef = doc(firestore, `users/${userId}/boutiqueSettings/main`);
-  const brandRef = doc(firestore, `users/${userId}/brandProfile/main`);
+  // GUARDRAIL: canonical refs
+  const settingsRef = getBoutiqueSettingsRef(firestore, userId);
+  const brandRef = getBrandProfileRef(firestore, userId);
 
   const outfitsQuery = query(
     collection(firestore, 'outfits'),
@@ -401,6 +479,7 @@ export const syncPublicBoutiqueData = async (
   const brandProfile = (brandSnap.data() ?? {}) as BrandProfilePublicBits;
 
   let featuredOutfit: Outfit | null = null;
+
   const outfitDocs = outfitsSnap.docs;
   const pickOutfitFromDoc = (d: any): Outfit => ({ id: d.id, ...asRecord(d.data()) } as Outfit);
 
@@ -419,6 +498,7 @@ export const syncPublicBoutiqueData = async (
     uid: userId,
     handle,
     enabled: settings.enabled,
+
     brandName: brandProfile.brandName ?? null,
     tagline: brandProfile.tagline ?? null,
     logoUrl: brandProfile.logoUrl ?? null,
@@ -426,23 +506,29 @@ export const syncPublicBoutiqueData = async (
     brandColors: brandProfile.brandColors ?? [],
     primaryFont: brandProfile.primaryFont ?? null,
     secondaryFont: brandProfile.secondaryFont ?? null,
+
     templateId: settings.templateId,
     patternId: settings.patternId,
     accentColorIndex: settings.accentColorIndex,
+
     bannerEnabled: settings.bannerEnabled,
     bannerHeight: settings.bannerHeight,
     bannerOpacity: settings.bannerOpacity,
+
     announcementEnabled: settings.announcementEnabled,
     announcementText: settings.announcementText,
     announcementHref: settings.announcementHref,
     announcementCtaLabel: settings.announcementCtaLabel,
     announcementColorSource: settings.announcementColorSource,
+
     quickLinks: settings.quickLinks,
     social: settings.social,
     footer: settings.footer,
+
     showFeaturedLook: settings.showFeaturedLook,
     showOutfits: settings.showOutfits,
     showRack: settings.showRack,
+
     featuredOutfit: featuredOutfit
       ? {
           id: featuredOutfit.id,
@@ -458,7 +544,15 @@ export const syncPublicBoutiqueData = async (
   };
 
   const publicBoutiqueRef = doc(firestore, 'publicBoutiques', handle);
-  await setDoc(publicBoutiqueRef, { ...publicData, updatedAt: serverTimestamp() }, { merge: true });
-};
 
-    
+  await setDoc(publicBoutiqueRef, { ...publicData, updatedAt: serverTimestamp() }, { merge: true });
+
+  if (DEV_ASSERT) {
+    const snap = await getDoc(publicBoutiqueRef);
+    console.log('[BOUTIQUE][syncPublicBoutiqueData] readback', {
+      handle,
+      exists: snap.exists(),
+      enabled: snap.exists() ? asRecord(snap.data()).enabled : null,
+    });
+  }
+};
