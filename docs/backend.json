@@ -775,6 +775,28 @@
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["ownerId", "title", "createdAt", "updatedAt"]
+    },
+    "CustomerProfile": {
+      "title": "Customer Profile",
+      "description": "Represents a single customer of the boutique.",
+      "type": "object",
+      "properties": {
+        "ownerId": {
+          "type": "string",
+          "description": "The UID of the boutique owner this customer belongs to."
+        },
+        "firstName": { "type": "string" },
+        "lastName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "totalSpend": { "type": "number" },
+        "lastSeenAt": { "type": "string", "format": "date-time" },
+        "notes": { "type": "string" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerId", "createdAt", "updatedAt"]
     }
   },
   "auth": {
@@ -855,6 +877,12 @@
         "$ref": "#/entities/Outfit"
       },
       "description": "Stores user-created outfits."
+    },
+    "/users/{userId}/customers/{customerId}": {
+      "schema": {
+        "$ref": "#/entities/CustomerProfile"
+      },
+      "description": "Stores customer profiles for a specific boutique owner."
     }
   }
 }
