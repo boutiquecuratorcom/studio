@@ -14,6 +14,7 @@ import {
   Heart,
   LogOut,
   User,
+  Users,
   Library,
   Store,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ const navItems = [
     { href: '/engagement-machine', label: 'Engagement', icon: MessageCircle },
     { href: '/my-brand', label: 'My Brand', icon: Heart },
     { href: '/my-boutique', label: 'My Boutique', icon: Store },
+    { href: '/crm', label: 'CRM', icon: Users },
     { href: '/uploads', label: 'Library', icon: Library },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
